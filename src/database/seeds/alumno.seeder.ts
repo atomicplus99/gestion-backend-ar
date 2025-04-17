@@ -38,7 +38,8 @@ export class AlumnoSeeder {
 
     const alumnos: Alumno[] = [];
 
-    for (const data of alumnosData) {
+    for (let i = 0; i < alumnosData.length; i++) {
+      const data = alumnosData[i];
       const alumno = new Alumno();
       alumno.dni_alumno = data.dni;
       alumno.nombre = data.nombre;
@@ -46,6 +47,15 @@ export class AlumnoSeeder {
       alumno.fecha_nacimiento = new Date(data.nacimiento);
       alumno.direccion = data.direccion;
       alumno.codigo_qr = data.qr;
+
+      // Generar código como "000392023"
+      const numero = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+      const año = new Date().getFullYear();
+      alumno.codigo = `${numero}${año}`;
+
+      alumno.nivel = 'Secundaria';
+      alumno.grado = (i % 5) + 1;
+      alumno.seccion = String.fromCharCode(65 + (i % 5));
 
       const turno = turnos.find(t => t.turno === data.turno);
       if (!turno) throw new Error(`No se encontró el turno: ${data.turno}`);

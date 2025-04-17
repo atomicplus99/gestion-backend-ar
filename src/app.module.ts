@@ -24,17 +24,17 @@ dotenv.config();
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads', 
+      serveRoot: '/uploads',
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
-                AuthModule, 
-                UsuarioModule,
-                AlumnoModule,
-                TurnoModule,
-                AsistenciaModule,
-                SeederModule
-                ],
-  controllers: [AppController, TurnoController],
-  providers: [AppService, TurnoService],
+    AuthModule,
+    UsuarioModule,
+    AlumnoModule,
+    TurnoModule, 
+    AsistenciaModule,
+    SeederModule,
+  ],
+  controllers: [AppController], 
+  providers: [AppService],       
 })
 export class AppModule {}
