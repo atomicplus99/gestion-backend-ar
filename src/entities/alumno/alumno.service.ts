@@ -8,6 +8,7 @@ import { Turno } from '../turno/turno.entity';
 import { Usuario } from '../usuario/usuario.entity';
 import { CreateAlumnoDto } from 'src/auth/dto/users/create-alumno.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { AlumnoDto } from 'src/auth/dto/alumno/alumno.dto';
 
 @Injectable()
 export class AlumnoService {
@@ -22,38 +23,57 @@ export class AlumnoService {
     private readonly usuarioRepo: Repository<Usuario>,
   ) {}
 
-  async create(dto: CreateAlumnoDto): Promise<Alumno> {
-    const exists = await this.alumnoRepo.findOne({ where: { codigo: dto.codigo } });
-    if (exists) {
-      throw new BadRequestException(`Código '${dto.codigo}' ya registrado.`);
-    }
+  async create(alumnoDtaRequest: AlumnoDto): Promise<Alumno> {
+    
+    const turno = await this.loadTurno(alumnoDtaRequest.turno_id);
+    const alumno = this.alumnoRepo.create()
 
-    const turno = await this.loadTurno(dto.turno_id);
+    // const alumno = this.alumnoRepo.create({
+    //   codigo: alumnoDtaRequest.codigo,
+    //   dni_alumno: alumnoDtaRequest.dni_alumno,
+    //   nombre: alumnoDtaRequest.nombre,
+    //   apellido: alumnoDtaRequest.apellido,
+    //   fecha_nacimiento: new Date(alumnoDtaRequest.fecha_nacimiento),
+    //   direccion: alumnoDtaRequest.direccion,
+    //   codigo_qr: alumnoDtaRequest.codigo_qr,
+    //   nivel: alumnoDtaRequest.nivel,
+    //   grado: alumnoDtaRequest.grado,
+    //   seccion: alumnoDtaRequest.seccion,
+    //   id_alumno: alumnoDtaRequest.usuario_id,
+    //   turno,
+    // });
 
-    const alumno = this.alumnoRepo.create({
-      codigo: dto.codigo,
-      dni_alumno: dto.dni_alumno,
-      nombre: dto.nombre,
-      apellido: dto.apellido,
-      fecha_nacimiento: new Date(dto.fecha_nacimiento),
-      direccion: dto.direccion,
-      codigo_qr: dto.codigo_qr,
-      nivel: dto.nivel,
-      grado: dto.grado,
-      seccion: dto.seccion,
-      turno,
-    });
-
-    if (dto.usuario_id) {
-      alumno.usuario = await this.loadUsuario(dto.usuario_id);
-    }
-
+  
     return this.alumnoRepo.save(alumno);
+    
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   async findAll(): Promise<Alumno[]> {
     return this.alumnoRepo.find({ relations: ['turno', 'usuario'] });
   }
+
 
   async findOne(id: string): Promise<Alumno> {
     const alumno = await this.alumnoRepo.findOne({
@@ -81,7 +101,7 @@ export class AlumnoService {
     alumno.nombre          = dto.nombre;
     alumno.apellido        = dto.apellido;
     alumno.fecha_nacimiento = new Date(dto.fecha_nacimiento);
-    alumno.direccion       = dto.direccion;
+    alumno.direccion       = dto.direccion || 'dsad';
     alumno.codigo_qr       = dto.codigo_qr;
     alumno.nivel           = dto.nivel;
     alumno.grado           = dto.grado;

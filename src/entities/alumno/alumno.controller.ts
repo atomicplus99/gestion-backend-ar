@@ -11,12 +11,21 @@ import {
   import { FileInterceptor } from '@nestjs/platform-express';
   import * as XLSX from 'xlsx';
   import { AlumnoService } from './alumno.service';
-  import { CreateAlumnoDto } from 'src/auth/dto/users/create-alumno.dto';
 import { Alumno } from './alumno.entity';
+import { AlumnoDto } from 'src/auth/dto/alumno/alumno.dto';
+import { CreateAlumnoUseCase } from './cases/create-alumno.usecase';
+import { CreateAlumnoDto } from 'src/auth/dto/users/create-alumno.dto';
+import { RegisterAlumnoDto } from 'src/auth/dto/alumno/registers/alumno-create.dto';
+import { ValidarAlumnoUseCase } from './cases/validate-alumno-qr.usecases';
+
   
   @Controller('alumno')
   export class AlumnoController {
-    constructor(private readonly alumnoService: AlumnoService) {}
+    constructor(
+      private readonly alumnoService: AlumnoService,
+      private readonly useCaseAlumno: CreateAlumnoUseCase,
+      private readonly useCaseValidateAlumno: ValidarAlumnoUseCase
+    ) {}
   
 
 
@@ -25,13 +34,14 @@ import { Alumno } from './alumno.entity';
         return this.alumnoService.findAll();
     }
 
-
-
-
+    @Get('validate/:codigoQR')
+    async validateAlumnoQr(@Param('codigoQR') codigoQr:string){
+      return this.useCaseValidateAlumno.execute(codigoQr);
+    }
   
     @Post('registrar')
-    create(@Body() createAlumnoDto: CreateAlumnoDto) {
-      return this.alumnoService.create(createAlumnoDto);
+    create(@Body() createAlumnoDto: RegisterAlumnoDto) {
+      return this.useCaseAlumno.execute(createAlumnoDto);
     }
 
 

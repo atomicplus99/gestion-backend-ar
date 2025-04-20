@@ -9,10 +9,11 @@ import { AlumnoSeeder } from './seeds/alumno.seeder';
 import { Alumno } from 'src/entities/alumno/alumno.entity';
 import { AuxiliarSeeder } from './seeds/auxiliar.seeder';
 import { Auxiliar } from 'src/entities/auxiliar/auxiliar.entity';
+import { Asistencia } from 'src/entities/asistencia/asistencia.entity';
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Usuario, Turno, Alumno, Auxiliar])],
+  imports: [TypeOrmModule.forFeature([Usuario, Turno, Alumno, Auxiliar, Asistencia])],
   providers: [SeederService, UserSeeder, TurnoSeeder, AlumnoSeeder, AuxiliarSeeder],
   exports: [SeederService]
 })
