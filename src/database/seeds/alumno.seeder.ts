@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { Alumno } from 'src/entities/alumno/alumno.entity';
+import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { Turno } from 'src/entities/turno/turno.entity';
 import { Usuario } from 'src/entities/usuario/usuario.entity';
 import { RolUsuario } from 'src/common/enums/rol-usuario.enum';

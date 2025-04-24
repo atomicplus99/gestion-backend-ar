@@ -1,8 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
-import { AlumnoTypeOrmRepository } from '../repository/alumno.repository';
+import { AlumnoTypeOrmRepository } from '../../../../infraestructure/adapters/outbounds/repository/alumno.repository';
 import { TurnoTypeOrmRepository } from 'src/entities/turno/repository/turno.repository';
 import { UsuarioTypeOrmRepository } from 'src/entities/usuario/repository/usuario.repository';
-import { AlumnoMapper } from '../alumno.mapper';
+import { AlumnoMapper } from '../../../../infraestructure/mappers/alumno.mapper';
 import { UsuarioMapper } from 'src/entities/usuario/usuario.mapper';
 
 import { CreateAlumnoDto } from 'src/auth/dto/users/create-alumno.dto';

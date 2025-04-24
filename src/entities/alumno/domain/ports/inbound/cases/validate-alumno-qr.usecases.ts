@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { Alumno } from '../alumno.entity';
-import { AlumnoTypeOrmRepository } from '../repository/alumno.repository';
+import { Alumno } from '../../../../infraestructure/orm/entities/alumno.entity';
+import { AlumnoTypeOrmRepository } from '../../../../infraestructure/adapters/outbounds/repository/alumno.repository';
 
 @Injectable()
 export class ValidarAlumnoUseCase {

@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from 'typeorm';
 import { RolUsuario } from '../../common/enums/rol-usuario.enum';
-import { Alumno } from '../alumno/alumno.entity';
+import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from '../auxiliar/auxiliar.entity';
 
 

@@ -6,8 +6,8 @@ import {
   OneToOne,
   JoinColumn,
 } from 'typeorm';
-import { Turno } from '../turno/turno.entity';
-import { Usuario } from '../usuario/usuario.entity';
+import { Turno } from '../../../../turno/turno.entity';
+import { Usuario } from '../../../../usuario/usuario.entity';
 
 @Entity('ALUMNO')
 export class Alumno {

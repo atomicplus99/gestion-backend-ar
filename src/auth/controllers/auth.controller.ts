@@ -8,7 +8,7 @@ import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { DataSource } from 'typeorm';
 import { Usuario } from 'src/entities/usuario/usuario.entity';
 import { Auxiliar } from 'src/entities/auxiliar/auxiliar.entity';
-import { Alumno } from 'src/entities/alumno/alumno.entity';
+import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { JwtService } from '@nestjs/jwt';
 
 

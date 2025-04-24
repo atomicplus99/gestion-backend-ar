@@ -1,7 +1,7 @@
 // src/database/data-source.ts
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
-import { Alumno } from '../entities/alumno/alumno.entity';
+import { Alumno } from '../entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { Usuario } from '../entities/usuario/usuario.entity';
 import { Turno } from '../entities/turno/turno.entity';
 import { Auxiliar } from '../entities/auxiliar/auxiliar.entity';

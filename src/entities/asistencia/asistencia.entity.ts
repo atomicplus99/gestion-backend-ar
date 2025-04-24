@@ -5,7 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Alumno } from '../alumno/alumno.entity';
+import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { EstadoAsistencia } from './enums/estado-asistencia.enum';
 
 @Entity('ASISTENCIA')

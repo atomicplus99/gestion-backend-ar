@@ -1,19 +1,26 @@
 import { Controller, Post, Body } from '@nestjs/common';
-import { RegistrarAsistenciaUseCase } from './cases/registrar-asistencia.usecase';
+import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.usecase';
+
+
 
 
 @Controller('asistencia')
 export class AsistenciaController {
   constructor(
-    private readonly registrarAsistencia: RegistrarAsistenciaUseCase,
+    private readonly registrarAsistencia: RegistrarAsistenciaDesdeQRUseCase,
   ) {}
 
-  @Post('registrar')
-  async registrar(@Body() body: { codigo_qr:string }) {
-    const alumno = await this.registrarAsistencia.execute(body.codigo_qr);
+  @Post('scan')
+  async escanearQr(@Body('codigo_qr') codigo_qr: string) {
+    const asistencia = await this.registrarAsistencia.execute(codigo_qr);
+
+    const mensaje = asistencia.hora_salida
+      ? 'Salida registrada correctamente ✅'
+      : 'Entrada registrada correctamente ✅';
+
     return {
-      mensaje: 'Alumno válido',
-      alumno,
+      mensaje,
+      asistencia,
     };
   }
 }

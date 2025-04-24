@@ -3,9 +3,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Alumno } from './alumno.entity';
-import { Turno } from '../turno/turno.entity';
-import { Usuario } from '../usuario/usuario.entity';
+import { Alumno } from '../../infraestructure/orm/entities/alumno.entity';
+import { Turno } from '../../../turno/turno.entity';
+import { Usuario } from '../../../usuario/usuario.entity';
 import { CreateAlumnoDto } from 'src/auth/dto/users/create-alumno.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { AlumnoDto } from 'src/auth/dto/alumno/alumno.dto';

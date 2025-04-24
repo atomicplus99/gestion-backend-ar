@@ -4,8 +4,11 @@ import { AsistenciaService } from './asistencia.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Asistencia } from './asistencia.entity';
 import { AlumnoModule } from '../alumno/alumno.module';
-import { ValidarAlumnoUseCase } from '../alumno/cases/validate-alumno-qr.usecases';
-import { RegistrarAsistenciaUseCase } from './cases/registrar-asistencia.usecase';
+import { ValidarAlumnoUseCase } from '../alumno/domain/ports/inbound/cases/validate-alumno-qr.usecases';
+
+import { AsistenciaTypeOrmRepository } from './domain/repository/asistencia.repository';
+import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.usecase';
+
 
 @Module({
   imports: [
@@ -15,7 +18,8 @@ import { RegistrarAsistenciaUseCase } from './cases/registrar-asistencia.usecase
   ],
   controllers: [AsistenciaController],
   providers: [AsistenciaService,
-      RegistrarAsistenciaUseCase, 
+      AsistenciaTypeOrmRepository,
+      RegistrarAsistenciaDesdeQRUseCase, 
       ValidarAlumnoUseCase,]
 })
 export class AsistenciaModule {}
