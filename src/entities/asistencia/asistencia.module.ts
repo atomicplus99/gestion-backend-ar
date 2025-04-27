@@ -8,6 +8,7 @@ import { ValidarAlumnoUseCase } from '../alumno/domain/ports/inbound/cases/valid
 
 import { AsistenciaTypeOrmRepository } from './domain/repository/asistencia.repository';
 import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.usecase';
+import { GetAsistenciasUseCase } from './cases/GetAsistencia.usecase';
 
 
 @Module({
@@ -19,7 +20,8 @@ import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.
   controllers: [AsistenciaController],
   providers: [AsistenciaService,
       AsistenciaTypeOrmRepository,
-      RegistrarAsistenciaDesdeQRUseCase, 
+      RegistrarAsistenciaDesdeQRUseCase,
+      GetAsistenciasUseCase, 
       ValidarAlumnoUseCase,]
 })
 export class AsistenciaModule {}

@@ -14,6 +14,8 @@ import { typeOrmConfig } from './config/typeorm.config';
 import { SeederModule } from './database/seeder.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { EstadoAlumnoModule } from './entities/estado-alumnos/estado-alumno.module';
+
 
 
 
@@ -33,6 +35,7 @@ dotenv.config();
     TurnoModule, 
     AsistenciaModule,
     SeederModule,
+    EstadoAlumnoModule
   ],
   controllers: [AppController], 
   providers: [AppService],       

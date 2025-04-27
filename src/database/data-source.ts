@@ -6,6 +6,7 @@ import { Usuario } from '../entities/usuario/usuario.entity';
 import { Turno } from '../entities/turno/turno.entity';
 import { Auxiliar } from '../entities/auxiliar/auxiliar.entity';
 import { Asistencia } from '../entities/asistencia/asistencia.entity';
+import { EstadoAlumno } from '../entities/estado-alumnos/entities/estado-alumno.entity';
 
 
 dotenv.config();
@@ -17,7 +18,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia],
+  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
 });

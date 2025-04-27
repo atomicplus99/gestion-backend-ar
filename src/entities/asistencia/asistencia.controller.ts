@@ -1,5 +1,6 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get } from '@nestjs/common';
 import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.usecase';
+import { GetAsistenciasUseCase } from './cases/GetAsistencia.usecase';
 
 
 
@@ -8,6 +9,7 @@ import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.
 export class AsistenciaController {
   constructor(
     private readonly registrarAsistencia: RegistrarAsistenciaDesdeQRUseCase,
+    private readonly listAsistencia: GetAsistenciasUseCase,
   ) {}
 
   @Post('scan')
@@ -22,5 +24,10 @@ export class AsistenciaController {
       mensaje,
       asistencia,
     };
+  }
+
+  @Get('list')
+  list() {
+    return this.listAsistencia.execute();    
   }
 }

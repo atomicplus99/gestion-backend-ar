@@ -6,7 +6,8 @@ import {
   Param,
   Body,
   UseInterceptors,
-  UploadedFile
+  UploadedFile,
+  UseGuards
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as XLSX from 'xlsx';
@@ -18,9 +19,14 @@ import { ValidarAlumnoUseCase } from '../../../../domain/ports/inbound/cases/val
 import { GetAlumnoByCodigoUseCase } from '../../../../domain/ports/inbound/cases/get-personal-alumno.usecase';
 import { UpdateAlumnoDto } from 'src/entities/alumno/domain/dtos/UpdateAlumno.dto';
 import { ActualizarAlumnoCase } from 'src/entities/alumno/domain/ports/inbound/cases/update-alumno.usecase';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from 'src/auth/roles/roles.guard';
+import { Roles } from 'src/auth/roles/roles.decorator';
+import { RolUsuario } from 'src/common/enums/rol-usuario.enum';
 
 
 @Controller('alumnos')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AlumnoController {
   constructor(
     private readonly alumnoService: AlumnoService,
@@ -33,6 +39,7 @@ export class AlumnoController {
 
   
   @Put('actualizar/:codigo')
+  @Roles(RolUsuario.ALUMNO)
   async updateAlumno(
     @Param('codigo') codigo: string,
     @Body() updateAlumnoDto: UpdateAlumnoDto
@@ -40,7 +47,9 @@ export class AlumnoController {
     return this.updateAlumnoCase.execute(codigo, updateAlumnoDto);
   }
 
+
   @Get('codigo/:codigo')
+  @Roles(RolUsuario.ALUMNO)
   async findByCodigo(
     @Param('codigo') codigo: string
   ): Promise<Partial<Alumno>> {
@@ -48,16 +57,19 @@ export class AlumnoController {
   }
 
   @Get()
+  @Roles(RolUsuario.ALUMNO)
   async findAll(): Promise<Alumno[]> {
     return this.alumnoService.findAll();
   }
 
   @Get('validate/:codigoQR')
+  @Roles(RolUsuario.ALUMNO)
   async validateAlumnoQr(@Param('codigoQR') codigoQr: string) {
     return this.useCaseValidateAlumno.execute(codigoQr);
   }
 
   @Post('registrar')
+  @Roles(RolUsuario.ALUMNO)
   create(@Body() createAlumnoDto: RegisterAlumnoDto) {
     return this.useCaseAlumno.execute(createAlumnoDto);
   }

@@ -5,9 +5,12 @@ import {
   ManyToOne,
   OneToOne,
   JoinColumn,
+  OneToMany
 } from 'typeorm';
 import { Turno } from '../../../../turno/turno.entity';
 import { Usuario } from '../../../../usuario/usuario.entity';
+
+
 
 @Entity('ALUMNO')
 export class Alumno {
@@ -36,13 +39,13 @@ export class Alumno {
   codigo_qr: string;
 
   @Column({ type: 'varchar', length: 20 })
-  nivel: string; 
+  nivel: string;
 
   @Column({ type: 'int' })
-  grado: number; 
+  grado: number;
 
   @Column({ type: 'char', length: 1 })
-  seccion: string; // ej: "A", "B", etc.
+  seccion: string;
 
   @ManyToOne(() => Turno, { nullable: true })
   @JoinColumn({ name: 'id_turno' })
@@ -51,4 +54,6 @@ export class Alumno {
   @OneToOne(() => Usuario, { nullable: true })
   @JoinColumn({ name: 'id_user' })
   usuario: Usuario;
+
+
 }
