@@ -33,11 +33,17 @@ export class AlumnoEstadoMapper {
             rol_usuario: alumno.usuario.rol_usuario,
           }
         : null,
-      estado_actual: {
-        estado: estado.estado,
-        observacion: estado.observacion,
-        fecha_actualizacion: estado.fecha_actualizacion,
-      },
+        estado_actual: estado
+        ? {
+            estado: estado.estado,
+            observacion: estado.observacion,
+            fecha_actualizacion: estado.fecha_actualizacion,
+          }
+        : {
+            estado: "inactivo", 
+            observacion: "Sin estado asignado",
+            fecha_actualizacion: new Date(),
+          },
     };
   }
 }

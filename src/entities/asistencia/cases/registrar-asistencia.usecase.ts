@@ -17,16 +17,16 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       throw new NotFoundException('Alumno no encontrado');
     }
 
-    // ✅ Simular una hora de escaneo manualmente para pruebas
+    
     const ahora = new Date();
-    ahora.setHours(12, 59, 0); // <-- Cambia esta hora para pruebas
+    ahora.setHours(13, 5, 0); 
 
-    const fechaActual = new Date(ahora.toDateString()); // Solo fecha (sin hora)
-    const horaActual = ahora.toTimeString().split(' ')[0]; // Formato HH:mm:ss
+    const fechaActual = new Date(ahora.toDateString()); 
+    const horaActual = ahora.toTimeString().split(' ')[0]; 
 
     const asistencia = await this.asistenciaRepo.findByAlumnoAndDate(alumno.id_alumno, fechaActual);
 
-    // 1️⃣ Si no hay asistencia → registrar entrada
+    
     if (!asistencia) {
       const horaLimite = alumno.turno?.hora_limite;
       const estado =

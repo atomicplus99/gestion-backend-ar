@@ -34,7 +34,8 @@ export class AuthController {
     @Get('me')
     @UseGuards(JwtAuthGuard)
     me(@Req() req: any) {
-        return this.authService.getProfileDetails(req as JwtPayload);
+      // Asegúrate de pasar el usuario extraído del token JWT
+      return this.authService.getProfileDetails(req.user);
     }
 
     @Post('logout')

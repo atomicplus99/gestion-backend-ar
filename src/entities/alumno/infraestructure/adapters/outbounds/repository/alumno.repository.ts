@@ -18,6 +18,10 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
     return this.repositoryAlumno.save(alumno);
   }
 
+  async findOne(codigo: string){
+    return this.repositoryAlumno.findOne({ where: { codigo } });
+  }
+
   async findByCodigoPersonal(codigo: string): Promise<Partial<Alumno> | null> {
     const orm = await this.repositoryAlumno.findOne({
       where: { codigo },
@@ -55,32 +59,21 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
       relations: ['turno', 'usuario']
     });
   }
+
+
+
   async updateAlumno(code: string, updateData: UpdateAlumnoDto): Promise<Alumno> {
-    const alumno = await this.repositoryAlumno.findOne({
-      where: { codigo: code },
-      relations: ['turno', 'usuario'],
-    });
-  
-    if (!alumno) {
-      throw new Error('Alumno not found');
-    }
 
+    const alumno = await this.repositoryAlumno.findOne({ where: { codigo: code }, relations: ['turno', 'usuario'] });
+    if (!alumno) throw new NotFoundException(`Alumno con código '${code}' no encontrado`);
     if (updateData.codigo !== code) {
-      const codigoExistente = await this.repositoryAlumno.findOne({
-        where: { codigo: updateData.codigo },
-      });
-  
-      if (codigoExistente && codigoExistente.id_alumno !== alumno.id_alumno) {
-        throw new ConflictException({
-          statusCode: 409,
-          message: 'El código ya está registrado',
-          error: 'Conflict',
-        });
-      }
+      const codigoExistente = await this.repositoryAlumno.findOne({ where: { codigo: updateData.codigo } });
+      if (codigoExistente?.id_alumno !== alumno.id_alumno)
+        throw new ConflictException({ statusCode: 409, message: 'El código ya está registrado', error: 'Conflict' });
     }
-
-    const updatedAlumno = AlumnoMapper.mergeUpdate(alumno, updateData);
-  
-    return await this.repositoryAlumno.save(updatedAlumno);
+    return this.repositoryAlumno.save( AlumnoMapper.mergeUpdate(alumno, updateData));
   }
+
+
+
 }

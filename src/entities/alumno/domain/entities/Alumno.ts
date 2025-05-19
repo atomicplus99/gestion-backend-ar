@@ -2,7 +2,7 @@
 
 export class Alumno {
   constructor(
-    public readonly id_alumno: string,
+    public  id_alumno: string,
     public codigo: string,
     public dni_alumno: string,
     public nombre: string,

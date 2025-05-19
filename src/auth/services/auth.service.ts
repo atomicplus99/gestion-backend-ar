@@ -56,20 +56,43 @@ export class AuthService {
 
 
 
-    async getProfileDetails(payload: JwtPayload) {
-      const usuario = await this.usuarioService.findByIdWithRelations(payload.idUser);
-    
-      if (!usuario) throw new NotFoundException('Usuario no encontrado');
-    
+    async getProfileDetails(payload: any) {
+      // Si es una solicitud HTTP y no un payload JWT, extrae el usuario del objeto req
+      let userPayload;
+      
+      // Comprueba si lo que recibimos es un objeto request o un payload JWT
+      if (payload.user) {
+        // Es un objeto request (desde el guard)
+        userPayload = payload.user;
+      } else if (payload.idUser) {
+        // Es un payload JWT directo
+        userPayload = payload;
+      } else {
+        console.error('Payload inválido:', payload);
+        throw new Error('Payload de autenticación inválido');
+      }
+      
+      console.log("ID de usuario a buscar:", userPayload.idUser);
+      
+      const usuario = await this.usuarioService.findByIdWithRelations(userPayload.idUser);
+      
+      if (!usuario) {
+        console.error('Usuario no encontrado para ID:', userPayload.idUser);
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      
+      console.log("Usuario encontrado por ID:", usuario);
+      
       let nombreCompleto = 'Desconocido';
-    
+      
       if (usuario.alumno) {
         nombreCompleto = `${usuario.alumno.nombre} ${usuario.alumno.apellido}`;
       } else if (usuario.auxiliar) {
         nombreCompleto = `${usuario.auxiliar.nombre} ${usuario.auxiliar.apellido}`;
       }
-    
+      
       return {
+        idUser: usuario.id_user,
         username: usuario.nombre_usuario,
         role: usuario.rol_usuario,
         photo: usuario.profile_image,

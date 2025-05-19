@@ -17,7 +17,7 @@ export class Alumno {
   @PrimaryGeneratedColumn('uuid')
   id_alumno: string;
 
-  @Column({ type: 'varchar', length: 10, unique: true })
+  @Column({ type: 'varchar', length: 20, unique: true })
   codigo: string;
 
   @Column({ type: 'char', length: 8, default: 'xxxxxxxx' })

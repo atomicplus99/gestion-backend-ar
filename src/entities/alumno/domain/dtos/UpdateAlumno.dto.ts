@@ -13,7 +13,7 @@ export class UpdateAlumnoDto {
 
 
     @IsString()
-    @Length(10, 10)
+    @Length(14, 14)
     codigo: string;
 
     @IsString()

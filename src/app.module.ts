@@ -15,6 +15,7 @@ import { SeederModule } from './database/seeder.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { EstadoAlumnoModule } from './entities/estado-alumnos/estado-alumno.module';
+import { ActualizacionesAsistenciaModule } from './entities/actualizaciones-asistencia/actualizaciones-asistencia.module';
 
 
 
@@ -35,7 +36,8 @@ dotenv.config();
     TurnoModule, 
     AsistenciaModule,
     SeederModule,
-    EstadoAlumnoModule
+    EstadoAlumnoModule,
+    ActualizacionesAsistenciaModule
   ],
   controllers: [AppController], 
   providers: [AppService],       
