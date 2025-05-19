@@ -40,7 +40,7 @@ export class AlumnoMapper {
     };
   }
 
-  static mergeUpdate(alumno: Alumno, dto: UpdateAlumnoDto): Alumno {
+  static updateAlumnoMapper(alumno: Alumno, dto: UpdateAlumnoDto): Alumno {
     alumno.codigo = dto.codigo;
     alumno.dni_alumno = dto.dni_alumno;
     alumno.nombre = dto.nombre; 

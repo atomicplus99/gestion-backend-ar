@@ -52,25 +52,6 @@ export class AlumnoService {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   async findAll(): Promise<Alumno[]> {
     return this.alumnoRepo.find({ relations: ['turno', 'usuario'] });
   }

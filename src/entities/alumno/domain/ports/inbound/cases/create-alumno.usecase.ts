@@ -19,7 +19,7 @@ export class CreateAlumnoUseCase {
   async execute(dto: RegisterAlumnoDto) {
    
     //Valida si en caso existe un codigo duplicado
-    if (await this.alumnoRepo.findByCodigo(dto.codigo)) {
+    if (await this.alumnoRepo.findByCodigoAlumno(dto.codigo)) {
       throw new BadRequestException(`Código '${dto.codigo}' ya registrado.`);
     }
     

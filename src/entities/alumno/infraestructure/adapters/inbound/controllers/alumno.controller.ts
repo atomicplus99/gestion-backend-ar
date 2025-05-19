@@ -35,7 +35,10 @@ import { ValidarAlumnoUseCase } from '../../../../domain/ports/inbound/cases/val
 import { GetAlumnoByCodigoUseCase } from '../../../../domain/ports/inbound/cases/get-personal-alumno.usecase';
 import { UpdateAlumnoDto } from 'src/entities/alumno/domain/dtos/UpdateAlumno.dto';
 import { ActualizarAlumnoCase } from 'src/entities/alumno/domain/ports/inbound/cases/update-alumno.usecase';
-import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import { AlumnoUpdateResponse } from 'src/entities/alumno/domain/ports/outbound/interfaces/response/AlumnoUpdateResponse.interface';
+import { GetAlumnosUseCase } from 'src/entities/alumno/domain/ports/inbound/cases/get-alumnos.usecase';
+
 
 
 
@@ -48,17 +51,24 @@ export class AlumnoController {
     private readonly useCaseValidateAlumno: ValidarAlumnoUseCase,
     private readonly getPersonalAlumno: GetAlumnoByCodigoUseCase,
     private readonly updateAlumnoCase: ActualizarAlumnoCase,
+    private readonly getAlumnosUseCase: GetAlumnosUseCase
   ) { }
 
 
   
+  
   @Put('actualizar/:codigo')
+  @ApiSecurity({describe: ['Actualizado en la fecha: 18/05/2025']})
   @ApiOperation({ summary: 'Actualiza un alumno por codigo de estudiante', 
     description: 
       `
       1. Recibe el codigo de entrada de tipo string, el codigo solo es valido si tiene una longitud de 14 caracteres.
-      2. Luego de haber validado se necesita validar el body en la cual sera de tipo UpdateAlumnoDto que en ella tiene los siguientes campos:
-        {  }
+      2. Luego de haber validado se necesita validar el body en la cual sera de tipo UpdateAlumnoDto que contiene los datos del Alumno con los respectivos
+        indicaciones para ser procesado.
+      3. Se ejecuta el metodo del updateAlumnoCase (caso de uso) enviando los datos de entrada.
+      4. Se ejecuta validaciones si el codigo existe y se envia al mapper para actualizar los datos del alumno.
+      5. Si no existe conflicto hasta este punto se habra actualizado el alumno correctamente caso contrario devolvera un error de status.
+      
       ` 
     })
   @ApiParam({ name: 'codigo', type: 'string',  description: 'Recibe un codigo de estudiante de entrada para actualizar alumno'})
@@ -67,22 +77,45 @@ export class AlumnoController {
   async updateAlumnoByCode(
     @Param('codigo') codigo: string, //ApiParam
     @Body() updateAlumnoDto: UpdateAlumnoDto //ApiBody
-  ): Promise<Alumno>  {
-    return this.updateAlumnoCase.execute(codigo, updateAlumnoDto);
+  ): Promise<AlumnoUpdateResponse>  {
+    const alumnoActualizado = await this.updateAlumnoCase.execute(codigo, updateAlumnoDto); //UseCase
+    return {
+      alumno: alumnoActualizado,
+      message: "Alumno actualizado correctamente"
+    }
   }
 
 
   @Get('codigo/:codigo')
+  @ApiSecurity({describe: ['Actualizado en la fecha: 18/05/2025']})
+  @ApiOperation({ description: 
+    `
+      1. Se ingresa un codigo de estudiante para hacer la solicitud.
+      2. Retorna ok si existe ese codigo de estudiante devolviendo la informacion de la misma.
+    ` 
+  })
+  @ApiParam({ name: "codigo", type: "string", description: "Se ingresa el codigo del estudiante para realizar el proceso de obtener estudiante" })
+  @ApiResponse({description: "Retorna el alumno segun codigo de estudiante" })
   async findAlumnoByCode(
     @Param('codigo') codigo: string
-  ): Promise<Partial<Alumno>> {
+  ): Promise<Alumno> {
     return this.getPersonalAlumno.execute(codigo);
   }
 
+
+
   @Get()
-  async findAll(): Promise<Alumno[]> {
-    return this.alumnoService.findAll();
+  @ApiSecurity({describe: ['Actualizado en la fecha : 18/05/2025']})
+  @ApiResponse({description: "Retorna la informacion de los estudiantes"})
+  @ApiOperation({description:  `1. Retorna todos los alumnos registrados hasta al momento en la base de datos.` })
+  async findAllAlumnos(): Promise<Alumno[]> {
+    return this.getAlumnosUseCase.execute();
   }
+  
+
+
+
+
 
   @Get('validate/:codigoQR')
   async validateAlumnoQr(@Param('codigoQR') codigoQr: string) {

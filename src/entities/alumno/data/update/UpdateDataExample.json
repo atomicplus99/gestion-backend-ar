@@ -1,0 +1,12 @@
+{
+  "codigo":"12046977500188",
+  "dni_alumno": "61088068",
+  "nombre":"ARTURITO PROBADOR",
+  "apellido":"APELLIDO EJEMPLO",
+  "fecha_nacimiento":"2006-05-15T10:30:00Z",
+  "direccion":"AVENIDA LOS EJEMPLOS",
+  "nivel": "Secundaria",
+  "grado": 4,
+  "seccion": "B"
+
+}

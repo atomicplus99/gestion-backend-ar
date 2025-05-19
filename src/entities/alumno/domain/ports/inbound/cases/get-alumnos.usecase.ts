@@ -6,11 +6,12 @@ import { AlumnoTypeOrmRepository } from '../../../../infraestructure/adapters/ou
 
 
 @Injectable()
-export class GetAlumnoByCodigoUseCase {
+export class GetAlumnosUseCase {
   constructor(private readonly alumnoTypeOrmRepository: AlumnoTypeOrmRepository) {}
 
-  async execute(codigo: string): Promise<Alumno> {
-     const alumno = await this.alumnoTypeOrmRepository.findByCodigoAlumno(codigo);
-     return alumno!;
+  async execute(): Promise<Alumno[]> {
+     return await this.alumnoTypeOrmRepository.findAll();
   }
+
+   
 }

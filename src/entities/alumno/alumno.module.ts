@@ -13,6 +13,7 @@ import { UsuarioTypeOrmRepository } from '../usuario/repository/usuario.reposito
 import { ValidarAlumnoUseCase } from './domain/ports/inbound/cases/validate-alumno-qr.usecases';
 import { GetAlumnoByCodigoUseCase } from './domain/ports/inbound/cases/get-personal-alumno.usecase';
 import { ActualizarAlumnoCase } from './domain/ports/inbound/cases/update-alumno.usecase';
+import { GetAlumnosUseCase } from './domain/ports/inbound/cases/get-alumnos.usecase';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ActualizarAlumnoCase } from './domain/ports/inbound/cases/update-alumno
     AlumnoTypeOrmRepository, // 👈 importante registrar
     TurnoTypeOrmRepository,
     UsuarioTypeOrmRepository,
+    GetAlumnosUseCase
   ],
   exports: [
     GetAlumnoByCodigoUseCase,
@@ -37,6 +39,7 @@ import { ActualizarAlumnoCase } from './domain/ports/inbound/cases/update-alumno
     AlumnoTypeOrmRepository,  // 👈 para que también pueda ser inyectado desde otros módulos
     TurnoTypeOrmRepository,
     UsuarioTypeOrmRepository,
+    GetAlumnosUseCase
   ]
 })
 export class AlumnoModule {}
