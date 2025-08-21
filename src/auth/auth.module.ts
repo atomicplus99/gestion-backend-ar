@@ -5,8 +5,6 @@ import { AuthService } from './services/auth.service';
 import { UsuarioModule } from 'src/entities/usuario/usuario.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtDefaultService } from './services/jwt.service';
-import { JwtCookieService } from './services/jwt-cookie.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
 import { AlumnoModule } from 'src/entities/alumno/alumno.module';
 import { AuxiliarModule } from 'src/entities/auxiliar/auxiliar.module';
 
@@ -20,7 +18,7 @@ import { AuxiliarModule } from 'src/entities/auxiliar/auxiliar.module';
         signOptions: { expiresIn: '1h' },
       }),
   ],
-  providers: [AuthService, JwtDefaultService, JwtCookieService, JwtStrategy],
+  providers: [AuthService, JwtDefaultService],
   controllers: [AuthController],
   
 })

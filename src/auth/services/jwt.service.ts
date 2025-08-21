@@ -9,7 +9,7 @@ export class JwtDefaultService {
     constructor(private readonly jwtService: JwtService) {}
 
     generateToken(payload: User): string {
-      return this.jwtService.sign(payload);
+        return this.jwtService.sign(payload);
     }
   
   

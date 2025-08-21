@@ -27,6 +27,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import * as XLSX from 'xlsx';
+
 import { AlumnoService } from '../../../../domain/services/alumno.service';
 import { Alumno } from '../../../orm/entities/alumno.entity';
 import { CreateAlumnoUseCase } from '../../../../domain/ports/inbound/cases/create-alumno.usecase';
@@ -43,7 +44,6 @@ import { GetAlumnosUseCase } from 'src/entities/alumno/domain/ports/inbound/case
 
 
 @Controller('alumnos')
-// @UseGuards(AuthGuard('jwt'), RolesGuard)
 export class AlumnoController {
   constructor(
     private readonly alumnoService: AlumnoService,
@@ -122,10 +122,26 @@ export class AlumnoController {
     return this.useCaseValidateAlumno.execute(codigoQr);
   }
 
+  /**
+   * Registra un nuevo alumno en el sistema
+   * @param createAlumnoDto Datos del alumno a registrar
+   * @returns Alumno registrado
+   */
   @Post('registrar')
-
-  create(@Body() createAlumnoDto: RegisterAlumnoDto) {
-    return this.useCaseAlumno.execute(createAlumnoDto);
+  @ApiOperation({ summary: 'Registrar un nuevo alumno' })
+  @ApiBody({ type: RegisterAlumnoDto, description: 'Datos del alumno a registrar' })
+  @ApiResponse({ status: 201, description: 'Alumno registrado exitosamente', type: Alumno })
+  @ApiResponse({ status: 400, description: 'Datos inválidos o código duplicado' })
+  @ApiResponse({ status: 401, description: 'No autorizado' })
+  @ApiResponse({ status: 404, description: 'Turno no encontrado' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor' })
+  async create(@Body() createAlumnoDto: RegisterAlumnoDto) {
+    try {
+      return await this.useCaseAlumno.execute(createAlumnoDto);
+    } catch (error) {
+      console.error('Error al registrar alumno:', error);
+      throw error; // Re-lanzar el error para que se maneje en el nivel superior
+    }
   }
 
 

@@ -4,8 +4,6 @@ import { LoginDto } from '../dto/login.dto';
 import { UsuarioService } from 'src/entities/usuario/usuario.service';
 import * as bcrypt from 'bcrypt';
 import { JwtDefaultService } from './jwt.service';
-import { JwtPayload } from 'jsonwebtoken';
-import { JwtCookieService } from './jwt-cookie.service';
 import { JwtService } from '@nestjs/jwt';
 import { Response as ExpressResponse, Response } from 'express'; 
 
@@ -15,7 +13,6 @@ export class AuthService {
     constructor( 
                 private readonly usuarioService: UsuarioService,
                 private readonly jwtService: JwtDefaultService,
-                private readonly jwtCookieService:JwtCookieService,
                 private readonly jwtServiceCore: JwtService
             ){}
 
@@ -31,25 +28,22 @@ export class AuthService {
             throw new UnauthorizedException('Contraseña incorrecta');
         }
 
-       
-
-        return this.jwtService.generateToken({ idUser: userFind.id_user,
-                                         username: userFind.nombre_usuario,
-                                         userRole: userFind.rol_usuario,
-                                         profile_image: userFind.profile_image,
-                                        });
-
-
+        return this.jwtService.generateToken({ 
+            idUser: userFind.id_user,
+            username: userFind.nombre_usuario,
+            userRole: userFind.rol_usuario,
+            profile_image: userFind.profile_image,
+        });
     }
 
     async handleLogin(loginDto: LoginDto, res: Response) {
       const accessToken = await this.login(loginDto);
-      this.jwtCookieService.setAuthCookie(res, accessToken);
       const payload = this.jwtServiceCore.verify(accessToken);
       const userProfile = await this.getProfileDetails(payload);
     
       return {
         message: 'Inicio de sesión exitoso',
+        access_token: accessToken,
         user: userProfile,
       };
     }
@@ -57,10 +51,9 @@ export class AuthService {
 
 
     async getProfileDetails(payload: any) {
-      // Si es una solicitud HTTP y no un payload JWT, extrae el usuario del objeto req
+      // Extrae el payload del JWT
       let userPayload;
       
-      // Comprueba si lo que recibimos es un objeto request o un payload JWT
       if (payload.user) {
         // Es un objeto request (desde el guard)
         userPayload = payload.user;
@@ -72,32 +65,61 @@ export class AuthService {
         throw new Error('Payload de autenticación inválido');
       }
       
-      console.log("ID de usuario a buscar:", userPayload.idUser);
-      
-      const usuario = await this.usuarioService.findByIdWithRelations(userPayload.idUser);
-      
-      if (!usuario) {
-        console.error('Usuario no encontrado para ID:', userPayload.idUser);
-        throw new NotFoundException('Usuario no encontrado');
-      }
-      
-      console.log("Usuario encontrado por ID:", usuario);
-      
-      let nombreCompleto = 'Desconocido';
-      
-      if (usuario.alumno) {
-        nombreCompleto = `${usuario.alumno.nombre} ${usuario.alumno.apellido}`;
-      } else if (usuario.auxiliar) {
-        nombreCompleto = `${usuario.auxiliar.nombre} ${usuario.auxiliar.apellido}`;
-      }
-      
-      return {
-        idUser: usuario.id_user,
-        username: usuario.nombre_usuario,
-        role: usuario.rol_usuario,
-        photo: usuario.profile_image,
-        nombreCompleto,
+      // Construye respuesta base con datos del JWT
+      const response = {
+        idUser: userPayload.idUser,
+        username: userPayload.username,
+        role: userPayload.userRole,
+        photo: userPayload.profile_image,
       };
+      
+      // Consulta solo la entidad correspondiente al rol
+      switch (userPayload.userRole) {
+        case 'AUXILIAR':
+          const auxiliar = await this.usuarioService.findAuxiliarByUserId(userPayload.idUser);
+          if (auxiliar) {
+            return {
+              ...response,
+              auxiliar: {
+                id_auxiliar: auxiliar.id_auxiliar,
+                nombre: auxiliar.nombre,
+                apellido: auxiliar.apellido,
+                correo_electronico: auxiliar.correo_electronico,
+                telefono: auxiliar.telefono,
+              }
+            };
+          }
+          break;
+          
+        case 'ALUMNO':
+          const alumno = await this.usuarioService.findAlumnoByUserId(userPayload.idUser);
+          if (alumno) {
+            return {
+              ...response,
+              alumno: {
+                id_alumno: alumno.id_alumno,
+                nombre: alumno.nombre,
+                apellido: alumno.apellido,
+                codigo: alumno.codigo,
+                grado: alumno.grado,
+                seccion: alumno.seccion,
+              }
+            };
+          }
+          break;
+          
+        case 'ADMIN':
+          // Admin solo retorna datos básicos del usuario
+          return response;
+          
+        default:
+          console.error('Rol de usuario no reconocido:', userPayload.userRole);
+          return response;
+      }
+      
+      // Si no se encontró la entidad correspondiente, retorna solo datos básicos
+      console.warn(`No se encontró ${userPayload.userRole.toLowerCase()} para el usuario:`, userPayload.idUser);
+      return response;
     }
     
       

@@ -14,9 +14,9 @@ import { Usuario } from '../usuario/usuario.entity';
     @PrimaryGeneratedColumn('uuid')
     id_auxiliar: string;
   
-    @OneToOne(() => Usuario, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'id_user' })
-    usuario: Usuario;
+      @OneToOne(() => Usuario, (usuario) => usuario.auxiliar, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'id_user' })
+  usuario: Usuario;
   
     @Column({ type: 'char', length: 8 })
     dni_auxiliar: string;

@@ -1,8 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-
-import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from 'src/auth/roles/roles.guard';
-import { Roles } from 'src/auth/roles/roles.decorator';
+import { Controller, Post, Body } from '@nestjs/common';
 import { CreateActualizacionAsistenciaCase } from './infraestructure/cases/CreateActualizacionAsistencia.usecase';
 import { CreateActualizacionAsistenciaDto } from './domain/dto/ActualizacionAsistencia.dto';
 

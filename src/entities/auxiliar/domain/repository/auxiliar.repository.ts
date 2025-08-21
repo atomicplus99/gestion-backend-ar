@@ -35,7 +35,7 @@ export class AuxiliarRepository {
   async findByUsuarioId(idUser: string): Promise<Auxiliar | null> {
     return this.repo.createQueryBuilder('auxiliar')
       .innerJoinAndSelect('auxiliar.usuario', 'usuario')
-      .where('usuario.id_user = :idUser', { idUser }) // Usar id_user en lugar de id
+      .where('usuario.id_user = :idUser', { idUser })
       .getOne();
   }
 

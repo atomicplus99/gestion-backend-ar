@@ -8,15 +8,15 @@ import { Usuario } from '../usuario.entity';
 export class UsuarioTypeOrmRepository {
   constructor(
     @InjectRepository(Usuario)
-    private readonly repositoryTurno: Repository<Usuario>
+    private readonly repositoryUsuario: Repository<Usuario>
   ) {}
 
   save(usuario: Usuario): Promise<Usuario> {
-    return this.repositoryTurno.save(usuario);
+    return this.repositoryUsuario.save(usuario);
   }
 
   findById(id_user:string): Promise<Usuario | null>{
-    return this.repositoryTurno.findOne({ where: { id_user } });
+    return this.repositoryUsuario.findOne({ where: { id_user } });
   }
 
 }

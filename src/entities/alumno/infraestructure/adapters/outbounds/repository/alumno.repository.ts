@@ -43,9 +43,8 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
     return AlumnoMapper.toDomain(orm);
   }
 
-  findByCodigoAlumno(codigo: string): Promise<Alumno | null> {
-    const alumno = this.repositoryAlumno.findOne({ where: { codigo }, relations: ['turno','usuario'] });
-    if(!alumno){ throw new NotFoundException(`Alumno con código ${codigo} no encontrado`) }
+  async findByCodigoAlumno(codigo: string): Promise<Alumno | null> {
+    const alumno = await this.repositoryAlumno.findOne({ where: { codigo }, relations: ['turno','usuario'] });
     return alumno;
   }
 

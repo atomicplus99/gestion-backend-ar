@@ -1,4 +1,4 @@
-import { AlumnoDto } from "src/auth/dto/alumno/alumno.dto";
+import { RegisterAlumnoDto } from "src/auth/dto/alumno/registers/alumno-create.dto";
 import { Alumno } from "../orm/entities/alumno.entity";
 import { Turno } from "../../../turno/turno.entity";
 import { Usuario } from "../../../usuario/usuario.entity";
@@ -6,7 +6,7 @@ import { UpdateAlumnoDto } from "../../domain/dtos/UpdateAlumno.dto";
 
 
 export class AlumnoMapper {
-  static toEntity(dto: AlumnoDto, turno: Turno, usuario?: Usuario | null): Alumno {
+  static toEntity(dto: RegisterAlumnoDto, turno: Turno, usuario?: Usuario | null): Alumno {
     const a = new Alumno();
     Object.assign(a, {
       codigo: dto.codigo,

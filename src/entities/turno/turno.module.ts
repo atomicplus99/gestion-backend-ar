@@ -10,4 +10,8 @@ import { Turno } from './turno.entity';
   providers: [TurnoService],
   exports: [TurnoService], 
 })
-export class TurnoModule {}
+export class TurnoModule {
+  constructor() {
+    console.log('📦 [TurnoModule] Módulo de turnos inicializado');
+  }
+}

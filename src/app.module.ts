@@ -16,6 +16,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { EstadoAlumnoModule } from './entities/estado-alumnos/estado-alumno.module';
 import { ActualizacionesAsistenciaModule } from './entities/actualizaciones-asistencia/actualizaciones-asistencia.module';
+import { AuxiliarModule } from './entities/auxiliar/auxiliar.module';
 
 
 
@@ -33,6 +34,7 @@ dotenv.config();
     AuthModule,
     UsuarioModule,
     AlumnoModule,
+    AuxiliarModule,
     TurnoModule, 
     AsistenciaModule,
     SeederModule,
