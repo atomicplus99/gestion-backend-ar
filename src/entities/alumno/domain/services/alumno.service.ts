@@ -56,6 +56,45 @@ export class AlumnoService {
     return this.alumnoRepo.find({ relations: ['turno', 'usuario'] });
   }
 
+  async getAllAlumnos(includeApoderado?: boolean): Promise<any[]> {
+    try {
+      console.log('🔍 [AlumnoService] Obteniendo todos los alumnos');
+      console.log('🔍 [AlumnoService] Include apoderado:', includeApoderado);
+      
+      if (includeApoderado) {
+        // Incluir información de apoderado
+        const alumnos = await this.alumnoRepo.find({
+          relations: ['turno', 'usuario', 'apoderados'],
+        });
+        
+        console.log('✅ [AlumnoService] Alumnos con apoderado obtenidos:', alumnos.length);
+        
+        return alumnos.map(alumno => ({
+          ...alumno,
+          apoderado: alumno.apoderados && alumno.apoderados.length > 0 
+            ? {
+                id_apoderado: alumno.apoderados[0].id_apoderado,
+                nombre: alumno.apoderados[0].nombre,
+                apellido: alumno.apoderados[0].apellido,
+                telefono: alumno.apoderados[0].telefono,
+                email: alumno.apoderados[0].email,
+                dni: alumno.apoderados[0].dni,
+                tipo_relacion: alumno.apoderados[0].tipo_relacion
+              }
+            : null
+        }));
+      } else {
+        // Sin información de apoderado (comportamiento original)
+        const alumnos = await this.alumnoRepo.find({ relations: ['turno', 'usuario'] });
+        console.log('✅ [AlumnoService] Alumnos obtenidos (sin apoderado):', alumnos.length);
+        return alumnos;
+      }
+    } catch (error) {
+      console.error('❌ [AlumnoService] Error al obtener alumnos:', error);
+      throw error;
+    }
+  }
+
 
   async findOne(id: string): Promise<Alumno> {
     const alumno = await this.alumnoRepo.findOne({

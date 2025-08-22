@@ -5,12 +5,12 @@ import {
   ManyToOne,
   OneToOne,
   JoinColumn,
-  OneToMany
+  OneToMany,
+  ManyToMany
 } from 'typeorm';
 import { Turno } from '../../../../turno/turno.entity';
 import { Usuario } from '../../../../usuario/usuario.entity';
-
-
+import { Apoderado } from '../../../../apoderado/infraestructure/orm/entities/apoderado.entity';
 
 @Entity('ALUMNO')
 export class Alumno {
@@ -55,5 +55,7 @@ export class Alumno {
   @JoinColumn({ name: 'id_user' })
   usuario: Usuario;
 
-
+  // Relación inversa con Apoderado
+  @ManyToMany(() => Apoderado, apoderado => apoderado.pupilos)
+  apoderados: Apoderado[];
 }

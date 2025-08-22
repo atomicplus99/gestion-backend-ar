@@ -23,13 +23,14 @@ import { ValidarAlumnoUseCase } from '../../../../domain/ports/inbound/cases/val
 import { GetAlumnoByCodigoUseCase } from '../../../../domain/ports/inbound/cases/get-personal-alumno.usecase';
 import { UpdateAlumnoDto } from 'src/entities/alumno/domain/dtos/UpdateAlumno.dto';
 import { ActualizarAlumnoCase } from 'src/entities/alumno/domain/ports/inbound/cases/update-alumno.usecase';
-import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiSecurity } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiResponse, ApiSecurity, ApiQuery } from '@nestjs/swagger';
 import { AlumnoUpdateResponseDto, ErrorResponseDto, ValidationErrorResponseDto } from 'src/entities/alumno/domain/dtos/response/SuccessResponse.dto';
 import { AlumnoSearchResponseDto } from 'src/entities/alumno/domain/dtos/response/AlumnoSearchResponse.dto';
 import { GetAlumnosUseCase } from 'src/entities/alumno/domain/ports/inbound/cases/get-alumnos.usecase';
 import { ImportAlumnosExcelDto } from '../../../../domain/dtos/ImportAlumnosExcel.dto';
 import { ExcelProcessorService } from '../../../../infraestructure/services/ExcelProcessor.service';
 import { ImportAlumnosExcelService } from '../../../../infraestructure/services/ImportAlumnosExcel.service';
+import { AlumnoResponseDto, AlumnoConApoderadoResponseDto } from 'src/entities/alumno/domain/dtos/response/AlumnoResponse.dto';
 
 @Controller('alumnos')
 export class AlumnoController {
@@ -155,19 +156,48 @@ export class AlumnoController {
   }
 
   @Get()
-  @ApiSecurity({describe: ['Actualizado en la fecha : 18/05/2025']})
-  @ApiResponse({description: "Retorna la informacion de los estudiantes"})
-  @ApiOperation({description:  `1. Retorna todos los alumnos registrados hasta al momento en la base de datos.` })
-  async findAllAlumnos(): Promise<Alumno[]> {
-    this.logger.log(`🔍 [Controller] Buscando todos los alumnos`);
-    try {
-      const alumnos = await this.getAlumnosUseCase.execute();
-      this.logger.log(`✅ [Controller] Encontrados ${alumnos.length} alumnos`);
-      return alumnos;
-    } catch (error) {
-      this.logger.error(`❌ [Controller] Error al buscar todos los alumnos: ${error.message}`);
-      throw error;
+  @ApiOperation({ summary: 'Obtener todos los alumnos' })
+  @ApiQuery({ 
+    name: 'includeApoderado', 
+    required: false, 
+    type: Boolean,
+    description: 'Incluir información de apoderado en la respuesta (opcional)'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de alumnos obtenida exitosamente',
+    type: [AlumnoResponseDto]
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de alumnos con información de apoderado',
+    type: [AlumnoConApoderadoResponseDto],
+    schema: {
+      oneOf: [
+        { type: 'array', items: { $ref: '#/components/schemas/AlumnoResponseDto' } },
+        { type: 'array', items: { $ref: '#/components/schemas/AlumnoConApoderadoResponseDto' } }
+      ]
     }
+  })
+  async getAllAlumnos(
+    @Query('includeApoderado') includeApoderado?: boolean
+  ) {
+    console.log('🔍 [AlumnoController] Obteniendo todos los alumnos');
+    console.log('🔍 [AlumnoController] Include apoderado:', includeApoderado);
+    
+    const alumnos = await this.alumnoService.getAllAlumnos(includeApoderado);
+    
+    console.log('✅ [AlumnoController] Alumnos obtenidos:', alumnos.length);
+    if (includeApoderado) {
+      console.log('🔍 [AlumnoController] Información de apoderado incluida');
+    }
+    
+    return {
+      success: true,
+      message: 'Alumnos obtenidos exitosamente',
+      data: alumnos,
+      timestamp: new Date().toISOString()
+    };
   }
 
   @Get('validate/:codigoQR')
