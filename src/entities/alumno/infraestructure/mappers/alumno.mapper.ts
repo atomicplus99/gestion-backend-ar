@@ -34,22 +34,48 @@ export class AlumnoMapper {
       apellido:        orm.apellido,
       fecha_nacimiento: orm.fecha_nacimiento,
       direccion:       orm.direccion,
+      codigo_qr:       orm.codigo_qr,
       nivel:           orm.nivel,
       grado:           orm.grado,
       seccion:         orm.seccion,
+      turno:           orm.turno,
+      usuario:         orm.usuario,
     };
   }
 
   static updateAlumnoMapper(alumno: Alumno, dto: UpdateAlumnoDto): Alumno {
-    alumno.codigo = dto.codigo;
-    alumno.dni_alumno = dto.dni_alumno;
-    alumno.nombre = dto.nombre; 
-    alumno.apellido = dto.apellido;
-    alumno.fecha_nacimiento = new Date(dto.fecha_nacimiento);
-    alumno.direccion = dto.direccion;
-    alumno.nivel = dto.nivel;
-    alumno.grado = dto.grado;
-    alumno.seccion = dto.seccion;
+    // Solo actualizar los campos que se proporcionen en el DTO
+    if (dto.codigo !== undefined) {
+      alumno.codigo = dto.codigo;
+    }
+    if (dto.dni_alumno !== undefined) {
+      alumno.dni_alumno = dto.dni_alumno;
+    }
+    if (dto.nombre !== undefined) {
+      alumno.nombre = dto.nombre;
+    }
+    if (dto.apellido !== undefined) {
+      alumno.apellido = dto.apellido;
+    }
+    if (dto.fecha_nacimiento !== undefined) {
+      alumno.fecha_nacimiento = new Date(dto.fecha_nacimiento);
+    }
+    if (dto.direccion !== undefined) {
+      alumno.direccion = dto.direccion;
+    }
+    if (dto.codigo_qr !== undefined) {
+      alumno.codigo_qr = dto.codigo_qr;
+    }
+    if (dto.nivel !== undefined) {
+      alumno.nivel = dto.nivel;
+    }
+    if (dto.grado !== undefined) {
+      alumno.grado = dto.grado;
+    }
+    if (dto.seccion !== undefined) {
+      alumno.seccion = dto.seccion;
+    }
+    
     return alumno;
   }
 }

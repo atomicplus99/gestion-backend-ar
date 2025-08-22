@@ -6,44 +6,63 @@ import {
     MaxLength,
     Min,
     Max,
-    IsIn
+    IsIn,
+    IsOptional,
+    IsUUID
 } from 'class-validator';
 
 export class UpdateAlumnoDto {
 
-
+    @IsOptional()
     @IsString()
     @Length(14, 14)
-    codigo: string;
+    codigo?: string;
 
+    @IsOptional()
     @IsString()
     @Length(8, 8)
-    dni_alumno: string;
+    dni_alumno?: string;
 
+    @IsOptional()
     @IsString()
     @MaxLength(100)
-    nombre: string;
+    nombre?: string;
 
+    @IsOptional()
     @IsString()
     @MaxLength(100)
-    apellido: string;
+    apellido?: string;
 
+    @IsOptional()
     @IsDateString()
-    fecha_nacimiento: Date;
+    fecha_nacimiento?: Date;
 
+    @IsOptional()
     @IsString()
     @MaxLength(100)
-    direccion: string;
+    direccion?: string;
 
+    @IsOptional()
+    @IsString()
+    @MaxLength(255)
+    codigo_qr?: string;
+
+    @IsOptional()
     @IsIn(['Inicial', 'Primaria', 'Secundaria'])
-    nivel: string;
+    nivel?: string;
 
+    @IsOptional()
     @IsInt()
     @Min(1)
-    @Max(6)
-    grado: number;
+    @Max(12)
+    grado?: number;
 
+    @IsOptional()
     @IsString()
     @Length(1, 1)
-    seccion: string;
+    seccion?: string;
+
+    @IsOptional()
+    @IsUUID()
+    id_turno?: string;
 }

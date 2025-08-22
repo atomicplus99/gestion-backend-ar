@@ -98,7 +98,7 @@ export class AlumnoService {
     return this.alumnoRepo.save(alumno);
   }
 
-  async importarDesdeExcel(data: Array<Record<string, any>>, turnoId: string): Promise<Alumno[]> {
+  async importarDesdeExcel(data: Array<Record<string, any>>, turnoId: string, crearUsuarios: boolean = false): Promise<any> {
     // Verificar si hay datos
     if (!data || data.length === 0) {
       throw new BadRequestException('No se proporcionaron datos para importar');
@@ -277,31 +277,48 @@ export class AlumnoService {
     // Guardar todos los alumnos primero
     const savedAlumnos = await this.alumnoRepo.save(toSave);
     
-    // Ahora guardar los usuarios y asociarlos con los alumnos
-    for (let i = 0; i < savedAlumnos.length; i++) {
-      if (i < usersToCreate.length) {
-        const { alumno, usuario } = usersToCreate[i];
-        
-        // Verificar si ya existe un usuario con ese nombre de usuario
-        const existingUser = await this.usuarioRepo.findOne({
-          where: { nombre_usuario: usuario.nombre_usuario }
-        });
-        
-        if (existingUser) {
-          // Si ya existe, agregarle un sufijo aleatorio al nombre de usuario
-          usuario.nombre_usuario = `${usuario.nombre_usuario}${Math.floor(Math.random() * 1000)}`;
+    let usuariosCreados = 0;
+    
+    // Solo crear usuarios si se solicita
+    if (crearUsuarios) {
+      // Ahora guardar los usuarios y asociarlos con los alumnos
+      for (let i = 0; i < savedAlumnos.length; i++) {
+        if (i < usersToCreate.length) {
+          const { alumno, usuario } = usersToCreate[i];
+          
+          // Verificar si ya existe un usuario con ese nombre de usuario
+          const existingUser = await this.usuarioRepo.findOne({
+            where: { nombre_usuario: usuario.nombre_usuario }
+          });
+          
+          if (existingUser) {
+            // Si ya existe, agregarle un sufijo aleatorio al nombre de usuario
+            usuario.nombre_usuario = `${usuario.nombre_usuario}${Math.floor(Math.random() * 1000)}`;
+          }
+          
+          // Guardar el usuario
+          const savedUser = await this.usuarioRepo.save(usuario);
+          usuariosCreados++;
+          
+          // Asociar el usuario con el alumno
+          savedAlumnos[i].usuario = savedUser;
+          await this.alumnoRepo.save(savedAlumnos[i]);
         }
-        
-        // Guardar el usuario
-        const savedUser = await this.usuarioRepo.save(usuario);
-        
-        // Asociar el usuario con el alumno
-        savedAlumnos[i].usuario = savedUser;
-        await this.alumnoRepo.save(savedAlumnos[i]);
       }
     }
 
-    return savedAlumnos;
+    // Agregar estadísticas al resultado
+    const resultado = {
+      alumnos: savedAlumnos,
+      estadisticas: {
+        totalImportados: savedAlumnos.length,
+        usuariosCreados: usuariosCreados,
+        porcentajeUsuariosCreados: crearUsuarios ? Math.round((usuariosCreados / savedAlumnos.length) * 100) : 0,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    return resultado;
   }
 
 

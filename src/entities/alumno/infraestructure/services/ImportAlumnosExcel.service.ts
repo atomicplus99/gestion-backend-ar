@@ -1,0 +1,531 @@
+import { Injectable } from '@nestjs/common';
+import { ImportAlumnosExcelPort } from '../../domain/ports/outbound/interfaces/ImportAlumnosExcelPort.interface';
+import { AlumnoExcelData } from '../../domain/dtos/ImportAlumnosExcel.dto';
+import { ImportAlumnosExcelResponse } from '../../domain/dtos/ImportAlumnosExcelResponse.dto';
+import { ImportAlumnosExcelMapper } from '../mappers/ImportAlumnosExcel.mapper';
+import { UsuarioMapper } from '../mappers/UsuarioMapper.mapper';
+import { AlumnoTypeOrmRepository } from '../adapters/outbounds/repository/alumno.repository';
+import { UsuarioTypeOrmRepository } from '../../../usuario/repository/usuario.repository';
+import { DataSource } from 'typeorm';
+import { EstadoAlumno } from '../../../estado-alumnos/entities/estado-alumno.entity';
+
+@Injectable()
+export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
+  constructor(
+    private readonly alumnoRepository: AlumnoTypeOrmRepository,
+    private readonly usuarioRepository: UsuarioTypeOrmRepository,
+    private readonly importMapper: ImportAlumnosExcelMapper,
+    private readonly usuarioMapper: UsuarioMapper,
+    private readonly dataSource: DataSource
+  ) {}
+
+  async importarAlumnos(
+    alumnosExcel: AlumnoExcelData[],
+    turnoId: string,
+    crearUsuarios: boolean
+  ): Promise<ImportAlumnosExcelResponse> {
+    const startTime = Date.now();
+    
+    try {
+      // Filtrar y validar datos
+      const alumnosValidos = alumnosExcel.filter(alumno => 
+        this.importMapper.validateAlumnoData(alumno)
+      );
+
+      if (alumnosValidos.length === 0) {
+        return this.generarRespuestaError(
+          'No hay datos válidos para importar',
+          [],
+          startTime,
+          alumnosExcel.length
+        );
+      }
+
+      // Mapear a entidades Alumno
+      const alumnos = alumnosValidos.map(alumnoExcel => 
+        this.importMapper.mapToAlumno(alumnoExcel, turnoId)
+      );
+
+      // FLUJO CORRECTO: ALUMNO → USUARIO → ESTADO
+      const alumnosGuardados: any[] = [];
+      let usuariosCreados = 0;
+      
+      // Usar transacción para garantizar consistencia
+      await this.dataSource.transaction(async (manager) => {
+        for (let i = 0; i < alumnos.length; i++) {
+          const alumnoData = alumnos[i];
+          const datosOriginales = alumnosValidos[i]; // Mantener referencia a datos originales
+          
+        try {
+          // PASO 1: Crear ALUMNO
+            const alumnoGuardado = await manager.save('ALUMNO', alumnoData);
+          console.log(`✅ Alumno creado: ${alumnoGuardado.nombre} (ID: ${alumnoGuardado.id_alumno})`);
+          
+          // PASO 2: Crear USUARIO para este alumno
+          if (crearUsuarios) {
+              // Crear usuario directamente con los campos necesarios
+              const usuario = new (await import('../../../usuario/usuario.entity')).Usuario();
+              
+              const nombreUsuario = this.generarNombreUsuario(datosOriginales);
+              console.log(`🔍 Generando nombre de usuario para: ${datosOriginales.nombre} → ${nombreUsuario}`);
+              
+              let nombreUsuarioUnico = await this.generarNombreUsuarioUnico(nombreUsuario, datosOriginales);
+              console.log(`✅ Nombre de usuario final: ${nombreUsuarioUnico}`);
+              
+              // VERIFICACIÓN DENTRO DE LA TRANSACCIÓN para evitar condición de carrera
+              let usuarioExistente = await manager.findOne('USUARIO', { 
+                where: { nombre_usuario: nombreUsuarioUnico } 
+              });
+              
+              // Si existe, generar otro nombre hasta encontrar uno disponible
+              let intentos = 0;
+              let contadorNumeracion = 1;
+              let nombreBase = nombreUsuario;
+              
+              while (usuarioExistente && intentos < 5) {
+                console.log(`⚠️ Usuario ${nombreUsuarioUnico} ya existe en transacción, regenerando...`);
+                
+                // Generar nombre con numeración incremental
+                nombreUsuarioUnico = `${nombreBase}${contadorNumeracion}`;
+                console.log(`🔄 Probando nombre incremental: ${nombreUsuarioUnico}`);
+                
+                // Verificar si este nombre está disponible
+                usuarioExistente = await manager.findOne('USUARIO', { 
+                  where: { nombre_usuario: nombreUsuarioUnico } 
+                });
+                
+                contadorNumeracion++;
+                intentos++;
+                
+                if (!usuarioExistente) {
+                  console.log(`✅ Nombre incremental disponible: ${nombreUsuarioUnico}`);
+                  break;
+                }
+              }
+              
+              if (usuarioExistente) {
+                // Si después de 5 intentos no se encuentra nombre único, usar timestamp
+                nombreUsuarioUnico = `${nombreBase}${Date.now().toString().slice(-4)}`;
+                console.log(`⚠️ Usando timestamp como último recurso: ${nombreUsuarioUnico}`);
+                
+                // Verificar una vez más
+                usuarioExistente = await manager.findOne('USUARIO', { 
+                  where: { nombre_usuario: nombreUsuarioUnico } 
+                });
+                
+                if (usuarioExistente) {
+                  throw new Error(`No se pudo generar nombre de usuario único después de ${intentos} intentos`);
+                }
+              }
+              
+              console.log(`✅ Nombre de usuario final confirmado: ${nombreUsuarioUnico}`);
+              
+            usuario.nombre_usuario = nombreUsuarioUnico;
+              usuario.password_user = await this.hashPassword(nombreUsuario);
+              usuario.rol_usuario = 'ALUMNO' as any;
+              usuario.profile_image = 'uploads/profiles/no-image.png';
+            
+              const usuarioGuardado = await manager.save('USUARIO', usuario);
+            console.log(`✅ Usuario creado: ${nombreUsuarioUnico} para alumno ${alumnoGuardado.nombre}`);
+            
+            // Asociar usuario con alumno
+            alumnoGuardado.usuario = usuarioGuardado;
+              await manager.save('ALUMNO', alumnoGuardado);
+            console.log(`✅ Usuario asociado con alumno ${alumnoGuardado.nombre}`);
+              
+              usuariosCreados++;
+          }
+          
+          // PASO 3: Crear ESTADO ACTIVO
+            if (alumnoGuardado.id_alumno) {
+              await this.crearEstadoAlumnoConManager(manager, alumnoGuardado.id_alumno);
+          console.log(`✅ Estado ACTIVO creado para alumno ${alumnoGuardado.nombre}`);
+            } else {
+              throw new Error(`No se pudo obtener ID del alumno creado: ${alumnoGuardado.nombre}`);
+            }
+          
+          alumnosGuardados.push(alumnoGuardado);
+          
+        } catch (error) {
+          console.error(`❌ Error procesando alumno ${alumnoData.nombre}:`, error);
+            throw error; // Revertir transacción si hay error
+        }
+      }
+      });
+
+      const endTime = Date.now();
+      const tiempoProcesamiento = Math.round((endTime - startTime) / 1000);
+
+      // Log del resumen completo
+      console.log(`\n🎉 IMPORTACIÓN COMPLETADA EXITOSAMENTE:`);
+      console.log(`   📊 Total alumnos procesados: ${alumnosExcel.length}`);
+      console.log(`   ✅ Alumnos creados: ${alumnosGuardados.length}`);
+      console.log(`   👤 Usuarios creados: ${usuariosCreados}`);
+      console.log(`   ⏱️  Tiempo total: ${tiempoProcesamiento} segundos`);
+      console.log(`   🔄 Transacción: COMPLETADA\n`);
+
+      // Generar respuesta exitosa
+      return this.generarRespuestaExitosa(
+        alumnosGuardados,
+        usuariosCreados,
+        tiempoProcesamiento,
+        alumnosExcel.length,
+        0 // No hay duplicados
+      );
+
+    } catch (error) {
+      console.error('❌ Error en importación:', error);
+      return this.generarRespuestaErrorServidor(
+        error.message || 'Error interno del servidor',
+        error,
+        startTime
+      );
+    }
+  }
+
+  /**
+   * Genera nombre de usuario único para el alumno
+   */
+  private generarNombreUsuario(alumno: AlumnoExcelData): string {
+    const nombre = (alumno.nombre || '').toString().trim();
+    const apellido = (alumno.apellidoPaterno || alumno.apellidoMaterno || '').toString().trim();
+    
+    console.log(`🔍 DEBUG generarNombreUsuario:`);
+    console.log(`   Nombre original: "${nombre}"`);
+    console.log(`   Apellido original: "${apellido}"`);
+    
+    if (nombre && apellido) {
+      // Tomar SOLO el primer nombre y primer apellido, SIN ESPACIOS
+      const primerNombre = nombre.split(' ')[0];
+      const primerApellido = apellido.split(' ')[0];
+      
+      console.log(`   Primer nombre: "${primerNombre}"`);
+      console.log(`   Primer apellido: "${primerApellido}"`);
+      
+      const resultado = `${primerNombre.toUpperCase()}.${primerApellido.toUpperCase()}`;
+      console.log(`   Resultado final: "${resultado}"`);
+      
+      return resultado;
+    }
+    
+    const resultado = `${nombre.toUpperCase()}`;
+    console.log(`   Solo nombre: "${resultado}"`);
+    return resultado;
+  }
+
+  /**
+   * Genera un nombre de usuario único con numeración secuencial
+   */
+  private async generarNombreUsuarioUnico(nombreBase: string, alumnoData: AlumnoExcelData): Promise<string> {
+    let nombreUsuario = nombreBase;
+    let contador = 1;
+    let intentoAlternativo = 1;
+    
+    console.log(`🔍 Verificando si existe usuario: ${nombreUsuario}`);
+    
+    // Verificar si ya existe un usuario con ese nombre
+    let usuarioExistente: any = await this.usuarioRepository.findByUsername(nombreUsuario);
+    
+    // Si existe, intentar con nombres alternativos primero
+    while (usuarioExistente && intentoAlternativo <= 3) {
+      console.log(`🔄 Usuario ${nombreUsuario} ya existe, intentando alternativa ${intentoAlternativo}`);
+      
+      // Intentar con nombre alternativo
+      nombreUsuario = this.generarNombreUsuarioAlternativo(alumnoData, intentoAlternativo);
+      console.log(`🔄 Probando nombre alternativo: ${nombreUsuario}`);
+      
+      usuarioExistente = await this.usuarioRepository.findByUsername(nombreUsuario);
+      intentoAlternativo++;
+      
+      if (!usuarioExistente) {
+        console.log(`✅ Nombre alternativo disponible: ${nombreUsuario}`);
+        return nombreUsuario;
+      }
+    }
+    
+    // Si los nombres alternativos también están ocupados, usar numeración
+    console.log(`⚠️ Todos los nombres alternativos están ocupados, usando numeración`);
+    
+    // IMPORTANTE: Reinicializar la verificación para la numeración
+    usuarioExistente = true; // Forzar entrada al bucle
+    contador = 1;
+    
+    // NUNCA devolver el nombre base, siempre generar uno único
+    while (usuarioExistente) {
+      nombreUsuario = `${nombreBase}${contador}`;
+      console.log(`🔄 Probando con numeración: ${nombreUsuario}`);
+      
+      usuarioExistente = await this.usuarioRepository.findByUsername(nombreUsuario);
+      contador++;
+      
+      // Evitar bucle infinito (máximo 10 intentos)
+      if (contador > 10) {
+        console.warn(`⚠️ Demasiados intentos para generar nombre único para: ${nombreBase}`);
+        // Usar timestamp solo como último recurso
+        nombreUsuario = `${nombreBase}${Date.now().toString().slice(-4)}`;
+        break;
+      }
+    }
+    
+    if (contador > 1) {
+      console.log(`🔄 Usuario duplicado, generando nombre único: ${nombreBase} → ${nombreUsuario}`);
+    }
+    
+    return nombreUsuario;
+  }
+
+  /**
+   * Genera nombre de usuario alternativo usando nombres/apellidos adicionales
+   */
+  private generarNombreUsuarioAlternativo(alumno: AlumnoExcelData, intento: number = 1): string {
+    const nombre = (alumno.nombre || '').toString().trim();
+    const apellido = (alumno.apellidoPaterno || alumno.apellidoMaterno || '').toString().trim();
+    
+    console.log(`🔍 Generando alternativa ${intento} para: ${nombre} ${apellido}`);
+    
+    if (nombre && apellido) {
+      const nombres = nombre.split(' ');
+      const apellidos = apellido.split(' ');
+      
+      console.log(`   Nombres disponibles: [${nombres.join(', ')}]`);
+      console.log(`   Apellidos disponibles: [${apellidos.join(', ')}]`);
+      
+      switch (intento) {
+        case 1:
+          // Primer intento: primer nombre + segundo apellido (si existe)
+          if (apellidos.length > 1) {
+            const resultado = `${nombres[0].toUpperCase()}.${apellidos[1].toUpperCase()}`;
+            console.log(`   Alternativa 1: ${nombres[0]} + ${apellidos[1]} = ${resultado}`);
+            return resultado;
+          }
+          // Si no hay segundo apellido, usar segundo nombre + primer apellido
+          if (nombres.length > 1) {
+            const resultado = `${nombres[1].toUpperCase()}.${apellidos[0].toUpperCase()}`;
+            console.log(`   Alternativa 1: ${nombres[1]} + ${apellidos[0]} = ${resultado}`);
+            return resultado;
+          }
+          break;
+        
+        case 2:
+          // Segundo intento: segundo nombre + segundo apellido (si ambos existen)
+          if (nombres.length > 1 && apellidos.length > 1) {
+            const resultado = `${nombres[1].toUpperCase()}.${apellidos[1].toUpperCase()}`;
+            console.log(`   Alternativa 2: ${nombres[1]} + ${apellidos[1]} = ${resultado}`);
+            return resultado;
+          }
+          // Si no, usar tercer nombre o apellido
+          if (nombres.length > 2) {
+            const resultado = `${nombres[2].toUpperCase()}.${apellidos[0].toUpperCase()}`;
+            console.log(`   Alternativa 2: ${nombres[2]} + ${apellidos[0]} = ${resultado}`);
+            return resultado;
+          }
+          if (apellidos.length > 2) {
+            const resultado = `${nombres[0].toUpperCase()}.${apellidos[2].toUpperCase()}`;
+            console.log(`   Alternativa 2: ${nombres[0]} + ${apellidos[2]} = ${resultado}`);
+            return resultado;
+          }
+          break;
+        
+        case 3:
+          // Tercer intento: combinaciones más específicas
+          if (nombres.length > 2 && apellidos.length > 1) {
+            const resultado = `${nombres[2].toUpperCase()}.${apellidos[1].toUpperCase()}`;
+            console.log(`   Alternativa 3: ${nombres[2]} + ${apellidos[1]} = ${resultado}`);
+            return resultado;
+          }
+          if (nombres.length > 1 && apellidos.length > 2) {
+            const resultado = `${nombres[1].toUpperCase()}.${apellidos[2].toUpperCase()}`;
+            console.log(`   Alternativa 3: ${nombres[1]} + ${apellidos[2]} = ${resultado}`);
+            return resultado;
+          }
+          break;
+      }
+    }
+    
+    // Si no se puede generar alternativa, crear una combinación única
+    console.log(`   No se pudo generar alternativa estándar, creando combinación única`);
+    
+    // Usar el primer nombre + timestamp para garantizar unicidad
+    const primerNombre = nombre.split(' ')[0];
+    const timestamp = Date.now().toString().slice(-4);
+    const resultado = `${primerNombre.toUpperCase()}.${timestamp}`;
+    
+    console.log(`   Combinación única generada: ${resultado}`);
+    return resultado;
+  }
+
+  /**
+   * Crea un estado ACTIVO para un alumno usando el manager de transacción
+   */
+  private async crearEstadoAlumnoConManager(manager: any, idAlumno: string): Promise<void> {
+    try {
+      const estadoAlumno = new EstadoAlumno();
+      estadoAlumno.estado = 'activo';
+      estadoAlumno.observacion = 'Alumno registrado por importación de Excel';
+      estadoAlumno.id_alumno = idAlumno;
+      estadoAlumno.fecha_actualizacion = new Date();
+
+      await manager.save('ESTADO_ALUMNO', estadoAlumno);
+      
+      console.log(`✅ Estado ACTIVO creado para alumno ID: ${idAlumno}`);
+    } catch (error) {
+      console.error(`❌ Error al crear estado para alumno ID: ${idAlumno}:`, error);
+      throw error; // Revertir transacción si hay error
+    }
+  }
+
+  /**
+   * Crea un estado ACTIVO para un alumno
+   */
+  private async crearEstadoAlumno(idAlumno: string): Promise<void> {
+    try {
+      const estadoAlumno = new EstadoAlumno();
+      estadoAlumno.estado = 'activo';
+      estadoAlumno.observacion = 'Alumno registrado por importación de Excel';
+      estadoAlumno.id_alumno = idAlumno;
+      estadoAlumno.fecha_actualizacion = new Date();
+
+      const estadoRepo = this.dataSource.getRepository(EstadoAlumno);
+      await estadoRepo.save(estadoAlumno);
+      
+      console.log(`✅ Estado ACTIVO creado para alumno ID: ${idAlumno}`);
+    } catch (error) {
+      console.error(`❌ Error al crear estado para alumno ID: ${idAlumno}:`, error);
+      // No lanzar error para no detener el proceso de importación
+    }
+  }
+
+  /**
+   * Hashea una contraseña usando bcrypt
+   */
+  private async hashPassword(password: string): Promise<string> {
+    const bcrypt = await import('bcrypt');
+    const saltRounds = 10;
+    return bcrypt.hash(password, saltRounds);
+  }
+
+  private generarRespuestaError(
+    message: string,
+    alumnos: any[],
+    startTime: number,
+    totalAlumnosExcel: number
+  ): ImportAlumnosExcelResponse {
+    const endTime = Date.now();
+    const tiempoProcesamiento = Math.round((endTime - startTime) / 1000);
+
+    const estadisticas = {
+      total_importados: 0,
+      exitosos: 0,
+      con_errores: totalAlumnosExcel,
+      usuarios_creados: 0,
+      tiempo_procesamiento: tiempoProcesamiento
+    };
+
+    return {
+      success: false,
+      message: message,
+      total: 0,
+      data: [],
+      estadisticas
+    };
+  }
+
+  private generarRespuestaErrorServidor(
+    message: string,
+    error: any,
+    startTime: number
+  ): ImportAlumnosExcelResponse {
+    const endTime = Date.now();
+    const tiempoProcesamiento = Math.round((endTime - startTime) / 1000);
+
+    const estadisticas = {
+      total_importados: 0,
+      exitosos: 0,
+      con_errores: 0,
+      usuarios_creados: 0,
+      tiempo_procesamiento: tiempoProcesamiento
+    };
+
+    return {
+      success: false,
+      message: message,
+      total: 0,
+      data: [],
+      error: error.message || 'Error interno del servidor',
+      estadisticas
+    };
+  }
+
+  private generarRespuestaExitosa(
+    alumnosGuardados: any[],
+    usuariosCreados: number,
+    tiempoProcesamiento: number,
+    totalAlumnosExcel: number,
+    duplicadosEncontrados: number
+  ): ImportAlumnosExcelResponse {
+    const estadisticas = {
+      total_importados: alumnosGuardados.length,
+      exitosos: alumnosGuardados.length,
+      con_errores: totalAlumnosExcel - alumnosGuardados.length - duplicadosEncontrados,
+      usuarios_creados: usuariosCreados,
+      tiempo_procesamiento: tiempoProcesamiento
+    };
+
+    // Generar mensaje de confirmación claro
+    const mensajeConfirmacion = this.generarMensajeConfirmacion(estadisticas, usuariosCreados > 0);
+
+    // Mapear alumnos al formato esperado por el frontend
+    const data = alumnosGuardados.map(alumno => ({
+      id_alumno: alumno.id_alumno,
+      codigo: alumno.codigo,
+      dni_alumno: alumno.dni_alumno,
+      nombre: alumno.nombre,
+      apellido: alumno.apellido,
+      fecha_nacimiento: alumno.fecha_nacimiento ? alumno.fecha_nacimiento.toISOString().split('T')[0] : null,
+      direccion: alumno.direccion,
+      nivel: alumno.nivel,
+      grado: alumno.grado,
+      seccion: alumno.seccion,
+      turno_id: alumno.id_turno,
+      qr_code: alumno.codigo_qr,
+      usuario: {
+        id_user: alumno.usuario?.id_user || alumno.id_alumno,
+        username: alumno.usuario?.nombre_usuario || `${alumno.nombre}.${alumno.apellido}`.toLowerCase(),
+        role: alumno.usuario?.rol_usuario || 'ALUMNO'
+      },
+      estado: 'REGISTRADO'
+    }));
+
+    return {
+      success: true,
+      message: mensajeConfirmacion,
+      total: estadisticas.total_importados,
+      data,
+      estadisticas
+    };
+  }
+
+  /**
+   * Genera mensaje de confirmación detallado y claro
+   */
+  private generarMensajeConfirmacion(estadisticas: any, crearUsuarios: boolean): string {
+    const partes: string[] = [];
+    
+    // Resultado principal
+    if (estadisticas.total_importados > 0) {
+      partes.push(`✅ IMPORTACIÓN EXITOSA: ${estadisticas.total_importados} alumnos registrados`);
+    } else {
+      partes.push(`⚠️ NO SE REGISTRARON NUEVOS ALUMNOS`);
+    }
+    
+    // Detalles de usuarios
+    if (crearUsuarios && estadisticas.usuarios_creados > 0) {
+      partes.push(`${estadisticas.usuarios_creados} usuarios creados`);
+    }
+    
+    // Tiempo de proceso
+    partes.push(`Procesado en ${estadisticas.tiempo_procesamiento}s`);
+    
+    return partes.join(' | ');
+  }
+}

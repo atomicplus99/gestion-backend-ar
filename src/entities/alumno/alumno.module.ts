@@ -14,6 +14,11 @@ import { ValidarAlumnoUseCase } from './domain/ports/inbound/cases/validate-alum
 import { GetAlumnoByCodigoUseCase } from './domain/ports/inbound/cases/get-personal-alumno.usecase';
 import { ActualizarAlumnoCase } from './domain/ports/inbound/cases/update-alumno.usecase';
 import { GetAlumnosUseCase } from './domain/ports/inbound/cases/get-alumnos.usecase';
+import { ImportAlumnosExcelUseCase } from './domain/ports/inbound/cases/import-alumnos-excel.usecase';
+import { ExcelProcessorService } from './infraestructure/services/ExcelProcessor.service';
+import { ImportAlumnosExcelService } from './infraestructure/services/ImportAlumnosExcel.service';
+import { ImportAlumnosExcelMapper } from './infraestructure/mappers/ImportAlumnosExcel.mapper';
+import { UsuarioMapper } from './infraestructure/mappers/UsuarioMapper.mapper';
 
 @Module({
   imports: [
@@ -30,7 +35,11 @@ import { GetAlumnosUseCase } from './domain/ports/inbound/cases/get-alumnos.usec
     AlumnoTypeOrmRepository, // 👈 importante registrar
     TurnoTypeOrmRepository,
     UsuarioTypeOrmRepository,
-    GetAlumnosUseCase
+    GetAlumnosUseCase,
+    ExcelProcessorService,
+    ImportAlumnosExcelService,
+    ImportAlumnosExcelMapper,
+    UsuarioMapper
   ],
   exports: [
     GetAlumnoByCodigoUseCase,

@@ -17,12 +17,38 @@ export class SeederService implements OnModuleInit{
 
     async onModuleInit() {
         console.warn("Ejecutacion seeders");
-        await this.userSeeder.run();
-        await this.turnoSeeder.run();
-        await this.alumnoSeeder.run();
-        await this.auxiliarSeeder.run();
-        await this.estadoAlumnoSeeder.run();
-        console.log("Seeders ejecutados")
+        
+        try {
+            await this.userSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en UserSeeder:", error.message);
+        }
+        
+        try {
+            await this.turnoSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en TurnoSeeder:", error.message);
+        }
+        
+        try {
+            await this.alumnoSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en AlumnoSeeder:", error.message);
+        }
+        
+        try {
+            await this.auxiliarSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en AuxiliarSeeder:", error.message);
+        }
+        
+        try {
+            await this.estadoAlumnoSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en EstadoAlumnoSeeder:", error.message);
+        }
+        
+        console.log("✅ Seeders ejecutados (con manejo de errores)");
     }
 
 }

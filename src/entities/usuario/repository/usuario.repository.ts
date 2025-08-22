@@ -19,4 +19,8 @@ export class UsuarioTypeOrmRepository {
     return this.repositoryUsuario.findOne({ where: { id_user } });
   }
 
+  findByUsername(nombre_usuario: string): Promise<Usuario | null> {
+    return this.repositoryUsuario.findOne({ where: { nombre_usuario } });
+  }
+
 }

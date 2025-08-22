@@ -6,6 +6,7 @@ import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
 
 async function bootstrap() {
   console.log('🚀 [Main] Iniciando aplicación...');
@@ -49,6 +50,9 @@ async function bootstrap() {
   
   // Aplicar filtro global de excepciones
   app.useGlobalFilters(new HttpExceptionFilter());
+  
+  // Aplicar interceptor global de transformación de respuestas
+  app.useGlobalInterceptors(new ResponseTransformInterceptor());
   
   console.log('🌐 [Main] Iniciando servidor en puerto 3000...');
   await app.listen(3000, 'localhost');
