@@ -47,3 +47,4 @@ export class UsuarioMapper {
     return `${nombreUsuario}${Math.floor(Math.random() * 1000)}`;
   }
 }
+
