@@ -14,6 +14,10 @@ import { AlumnoTypeOrmRepository } from '../alumno/infraestructure/adapters/outb
 import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { ActualizacionesAsistencia } from '../actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
 import { CrearAsistenciaManualUseCase } from './cases/CreateAsistenciaManual.usecase';
+import { VerificarAsistenciaUseCase } from './cases/verificar-asistencia.usecase';
+import { CrearAusenciaAlumnoUseCase } from './cases/crear-ausencia-alumno.usecase';
+import { ActualizarAsistenciaPorCodigoUseCase } from './cases/actualizar-asistencia-por-codigo.usecase';
+import { AnularAsistenciaUseCase } from './cases/anular-asistencia.usecase';
 import { Auxiliar } from '../auxiliar/auxiliar.entity';
 import { AuxiliarModule } from '../auxiliar/auxiliar.module';
 import { ActualizacionesAsistenciaRepository } from '../actualizaciones-asistencia/domain/repository/actualizaciones-asistencia.repository';
@@ -35,9 +39,13 @@ import { ActualizacionesAsistenciaModule } from '../actualizaciones-asistencia/a
       AlumnoTypeOrmRepository,
       RegistrarAsistenciaDesdeQRUseCase,
       CrearAsistenciaManualUseCase,
+      CrearAusenciaAlumnoUseCase,
+      ActualizarAsistenciaPorCodigoUseCase,
+      AnularAsistenciaUseCase,
       UpdateAsistenciaUseCase,
       GetAsistenciasUseCase, 
-      ValidarAlumnoUseCase,],
+      ValidarAlumnoUseCase,
+      VerificarAsistenciaUseCase,],
   exports:[AsistenciaTypeOrmRepository]
 })
 export class AsistenciaModule {}

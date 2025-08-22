@@ -15,8 +15,8 @@ export class RegisterAlumnoDto {
   })
   @IsString({ message: 'El código debe ser una cadena de texto' })
   @IsNotEmpty({ message: 'El código es obligatorio' })
-  @Length(14, 14, { message: 'El código debe tener exactamente 14 dígitos' })
-  @Matches(/^\d{14}$/, { message: 'El código debe contener solo números' })
+  @Length(10, 14, { message: 'El código debe tener entre 10 y 14 dígitos' })
+  @Matches(/^\d{10,14}$/, { message: 'El código debe contener solo números y tener entre 10 y 14 dígitos' })
   codigo: string;
 
   @ApiProperty({ 

@@ -1,6 +1,7 @@
 
   export enum EstadoAsistencia {
-    PUNTUAL = 'PUNTUAL',
-    TARDANZA = 'TARDANZA',
-    AUSENTE = 'AUSENTE',
-  }
+  PUNTUAL = 'PUNTUAL',
+  TARDANZA = 'TARDANZA',
+  AUSENTE = 'AUSENTE',
+  ANULADO = 'ANULADO',
+}

@@ -58,10 +58,10 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
   async findByCodigoAlumno(codigo: string): Promise<Alumno | null> {
     this.logger.log(`🔍 [Repository] Iniciando búsqueda de alumno con código: ${codigo}`);
     
-    // Validar que el código tenga 14 dígitos
-    if (!codigo || codigo.length !== 14) {
+    // Validar que el código tenga entre 10 y 14 dígitos
+    if (!codigo || codigo.length < 10 || codigo.length > 14) {
       this.logger.error(`❌ [Repository] Código inválido: ${codigo} (longitud: ${codigo?.length || 0})`);
-      throw new BadRequestException('El código del alumno debe tener exactamente 14 dígitos');
+      throw new BadRequestException('El código del alumno debe tener entre 10 y 14 dígitos');
     }
 
     this.logger.log(`✅ [Repository] Código válido, procediendo con búsqueda en BD`);
@@ -128,10 +128,10 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
   async updateAlumno(code: string, updateData: UpdateAlumnoDto): Promise<Alumno> {
     this.logger.log(`🔄 [Repository] Iniciando actualización de alumno con código: ${code}`);
     
-    // Validar que el código tenga 14 dígitos
-    if (!code || code.length !== 14) {
+    // Validar que el código tenga entre 10 y 14 dígitos
+    if (!code || code.length < 10 || code.length > 14) {
       this.logger.error(`❌ [Repository] Código inválido para actualización: ${code} (longitud: ${code?.length || 0})`);
-      throw new BadRequestException('El código del alumno debe tener exactamente 14 dígitos');
+      throw new BadRequestException('El código del alumno debe tener entre 10 y 14 dígitos');
     }
 
     try {

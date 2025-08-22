@@ -1,10 +1,23 @@
-import { Controller, Post, Body, Get, Put, Param, ValidationPipe, NotFoundException, HttpException, HttpStatus, Patch, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, Param, ValidationPipe, NotFoundException, HttpException, HttpStatus, Patch, BadRequestException, Query, HttpCode } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.usecase';
 import { GetAsistenciasUseCase } from './cases/GetAsistencia.usecase';
 import { UpdateAsistenciaUseCase } from './cases/UpdateAsistencia.usecase';
 import { CrearAsistenciaManualUseCase } from './cases/CreateAsistenciaManual.usecase';
+import { VerificarAsistenciaUseCase } from './cases/verificar-asistencia.usecase';
+import { CrearAusenciaAlumnoUseCase } from './cases/crear-ausencia-alumno.usecase';
+import { ActualizarAsistenciaPorCodigoUseCase } from './cases/actualizar-asistencia-por-codigo.usecase';
+import { AnularAsistenciaUseCase } from './cases/anular-asistencia.usecase';
 import { UpdateAsistenciaDto } from './infraestructure/dto/UpdateAsistencia.dto';
 import { CreateAsistenciaManualDto } from './infraestructure/dto/CreateAsistencia.dto';
+import { CrearAusenciaAlumnoDto } from './infraestructure/dto/CrearAusenciaAlumno.dto';
+import { VerificarAsistenciaResponse } from './infraestructure/dto/VerificarAsistenciaResponse.dto';
+import { RegistroAsistenciaResponseManual } from './infraestructure/dto/RegistroAsistenciaResponse.dto';
+import { ResponseAusenciaAlumno } from './infraestructure/dto/ResponseAusenciaAlumno.dto';
+import { UpdateAsistenciaRequestDto } from './infraestructure/dto/UpdateAsistenciaRequest.dto';
+import { UpdateAsistenciaResponseDto } from './infraestructure/dto/UpdateAsistenciaResponse.dto';
+import { AnularAsistenciaRequestDto } from './infraestructure/dto/AnularAsistenciaRequest.dto';
+import { AnularAsistenciaResponseDto } from './infraestructure/dto/AnularAsistenciaResponse.dto';
 import { IsDateString, IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator';
 import { Asistencia } from './asistencia.entity';
 import { AlumnoTypeOrmRepository } from '../alumno/infraestructure/adapters/outbounds/repository/alumno.repository';
@@ -54,6 +67,7 @@ export class UpdateAsistenciaAlumnoDto {
   motivo: string;
 }
 
+@ApiTags('Asistencia')
 @Controller('asistencia')
 export class AsistenciaController {
   constructor(
@@ -61,9 +75,13 @@ export class AsistenciaController {
     private readonly listAsistencia: GetAsistenciasUseCase,
     private readonly auxiliarRepository: AuxiliarRepository,
     private readonly crearAsistenciaManual: CrearAsistenciaManualUseCase,
+    private readonly crearAusenciaAlumno: CrearAusenciaAlumnoUseCase,
     private readonly alumnoRepository: AlumnoTypeOrmRepository,
     private readonly actualizacionesAsistenciaRepository: ActualizacionesAsistenciaRepository,
     private readonly asistenciaRepository: AsistenciaTypeOrmRepository,
+    private readonly verificarAsistenciaUseCase: VerificarAsistenciaUseCase,
+    private readonly actualizarAsistenciaPorCodigo: ActualizarAsistenciaPorCodigoUseCase,
+    private readonly anularAsistencia: AnularAsistenciaUseCase,
   ) { }
 
   @Get('list')
@@ -107,13 +125,76 @@ export class AsistenciaController {
   }
 
   @Post('manual')
-  async crearAsistenciaManualEndpoint(@Body() body: CreateAsistenciaManualDto) {
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ 
+    summary: 'Crear asistencia manual',
+    description: 'Crea un registro de asistencia manual para un alumno con información detallada'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Asistencia creada exitosamente',
+    type: RegistroAsistenciaResponseManual
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Error en los datos proporcionados'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno o auxiliar no encontrado'
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Error interno del servidor'
+  })
+  async crearAsistenciaManualEndpoint(@Body() body: CreateAsistenciaManualDto): Promise<RegistroAsistenciaResponseManual> {
     const asistencia = await this.crearAsistenciaManual.execute(body);
 
-    return {
+    // Construir respuesta estructurada
+    const response: RegistroAsistenciaResponseManual = {
       message: 'Asistencia manual registrada correctamente ✅',
-      asistencia,
+      asistencia: {
+        id_asistencia: asistencia.id_asistencia,
+        hora_de_llegada: asistencia.hora_de_llegada,
+        hora_salida: asistencia.hora_salida || undefined,
+        estado_asistencia: asistencia.estado_asistencia,
+        fecha: asistencia.fecha,
+        alumno: {
+          nombre: asistencia.alumno.nombre,
+          apellido: asistencia.alumno.apellido,
+          codigo: asistencia.alumno.codigo,
+        },
+      },
     };
+
+    return response;
+  }
+
+  @Post('crear-ausencia-alumno')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ 
+    summary: 'Crear ausencia de alumno',
+    description: 'Registra la ausencia de un alumno para una fecha específica o la fecha actual'
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Ausencia registrada exitosamente',
+    type: ResponseAusenciaAlumno
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Error en los datos proporcionados'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno no encontrado'
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'Ya existe un registro de asistencia para esa fecha'
+  })
+  async crearAusenciaAlumnoEndpoint(@Body() body: CrearAusenciaAlumnoDto): Promise<ResponseAusenciaAlumno> {
+    return await this.crearAusenciaAlumno.execute(body);
   }
 
   @Patch('update/:id_asistencia')
@@ -176,5 +257,130 @@ async updateAsistencia(
     data: updatedAsistencia
   };
 }
+
+  @Get('verificar/:codigo')
+  @ApiOperation({ 
+    summary: 'Verificar asistencia de un alumno',
+    description: 'Verifica si un alumno tiene asistencia registrada para una fecha específica o la fecha actual si no se proporciona. Devuelve información del alumno si no tiene asistencia, o detalles de la asistencia existente si ya está registrada.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Verificación completada exitosamente',
+    type: VerificarAsistenciaResponse
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Error en los parámetros (fecha inválida si se proporciona)'
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Error interno del servidor'
+  })
+  async verificarAsistencia(
+    @Param('codigo') codigo: string,
+    @Query('fecha') fecha?: string,
+  ): Promise<VerificarAsistenciaResponse> {
+    try {
+      console.log('🔍 [AsistenciaController] Verificando asistencia para código:', codigo, 'fecha:', fecha);
+
+      // Si no se proporciona fecha, usar fecha actual
+      let fechaDate: Date;
+      if (!fecha) {
+        fechaDate = new Date();
+        console.log('📅 [AsistenciaController] No se proporcionó fecha, usando fecha actual:', fechaDate.toISOString().split('T')[0]);
+      } else {
+        fechaDate = new Date(fecha);
+        
+        if (isNaN(fechaDate.getTime())) {
+          throw new BadRequestException('El formato de fecha no es válido. Use YYYY-MM-DD');
+        }
+      }
+
+      const resultado = await this.verificarAsistenciaUseCase.execute(codigo, fechaDate);
+
+      console.log('✅ [AsistenciaController] Verificación completada:', resultado.tiene_asistencia);
+      
+      return resultado;
+
+    } catch (error) {
+      console.error('❌ [AsistenciaController] Error al verificar asistencia:', error);
+      
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        {
+          success: false,
+          message: 'Error al verificar la asistencia',
+          error: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Put('actualizar/:codigo')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Actualizar asistencia por código de alumno',
+    description: 'Actualiza los datos de asistencia de un alumno específico por su código. Permite modificar hora de llegada, hora de salida, estado de asistencia y registra el motivo del cambio.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Asistencia actualizada exitosamente',
+    type: UpdateAsistenciaResponseDto
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Error en los datos proporcionados o validación fallida'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno, asistencia o auxiliar no encontrado'
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Error interno del servidor'
+  })
+  async actualizarAsistenciaPorCodigoEndpoint(
+    @Param('codigo') codigo: string,
+    @Body() updateDto: UpdateAsistenciaRequestDto
+  ): Promise<UpdateAsistenciaResponseDto> {
+    return await this.actualizarAsistenciaPorCodigo.execute(codigo, updateDto);
+  }
+
+  @Patch('anular')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Anular asistencia de un alumno',
+    description: 'Anula la asistencia de un alumno del día actual, cambiando su estado a ANULADO. Solo se pueden anular asistencias PUNTUAL o TARDANZA. Las ausencias no se pueden anular.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Asistencia anulada exitosamente',
+    type: AnularAsistenciaResponseDto
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Error en los datos proporcionados o asistencia no se puede anular'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno, asistencia o auxiliar no encontrado'
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'La asistencia ya está anulada'
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Error interno del servidor'
+  })
+  async anularAsistenciaEndpoint(
+    @Body() anularDto: AnularAsistenciaRequestDto
+  ): Promise<AnularAsistenciaResponseDto> {
+    return await this.anularAsistencia.execute(anularDto);
+  }
 
 }

@@ -35,13 +35,15 @@ export class AsistenciaTypeOrmRepository {
     id_alumno: string,
     fecha: Date,
   ): Promise<Asistencia | null> {
-    return this.repo.findOne({
-      where: {
-        alumno: { id_alumno },
-        fecha,
-      },
-      relations: ['alumno'],
-    });
+    // Usar la misma lógica que en CreateAsistenciaManual para evitar problemas de zona horaria
+    const fechaFormato = fecha.toISOString().split('T')[0]; // "2025-08-22"
+    
+    return this.repo
+      .createQueryBuilder('asistencia')
+      .leftJoinAndSelect('asistencia.alumno', 'alumno')
+      .where('alumno.id_alumno = :alumnoId', { alumnoId: id_alumno })
+      .andWhere('DATE(asistencia.fecha) = :fecha', { fecha: fechaFormato })
+      .getOne();
   }
 
   async existeAsistenciaDelDia(
@@ -63,14 +65,15 @@ export class AsistenciaTypeOrmRepository {
    * Devuelve todas las asistencias ordenadas por fecha DESC
    * e incluye las relaciones necesarias (`alumno` y su `turno`)
    * para el DTO de listado.
+   * Usa createQueryBuilder para asegurar datos frescos sin caché.
    */
   async findAllWithAlumnoYTurno(): Promise<Asistencia[]> {
-    return this.repo.find({
-      relations: {
-        alumno: { turno: true },
-      },
-      order: { fecha: 'DESC' },
-    });
+    return this.repo
+      .createQueryBuilder('asistencia')
+      .leftJoinAndSelect('asistencia.alumno', 'alumno')
+      .leftJoinAndSelect('alumno.turno', 'turno')
+      .orderBy('asistencia.fecha', 'DESC')
+      .getMany();
   }
 
   async findOne(id_asistencia : string){

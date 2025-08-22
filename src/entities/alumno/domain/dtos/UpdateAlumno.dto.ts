@@ -15,7 +15,7 @@ export class UpdateAlumnoDto {
 
     @IsOptional()
     @IsString()
-    @Length(14, 14)
+    @Length(10, 14)
     codigo?: string;
 
     @IsOptional()
