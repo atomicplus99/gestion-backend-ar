@@ -18,6 +18,7 @@ import { EstadoAlumnoModule } from './entities/estado-alumnos/estado-alumno.modu
 import { ActualizacionesAsistenciaModule } from './entities/actualizaciones-asistencia/actualizaciones-asistencia.module';
 import { AuxiliarModule } from './entities/auxiliar/auxiliar.module';
 import { ApoderadoModule } from './entities/apoderado/apoderado.module';
+import { JustificacionModule } from './entities/justificacion/justificacion.module';
 
 
 
@@ -41,7 +42,8 @@ dotenv.config();
     SeederModule,
     EstadoAlumnoModule,
     ActualizacionesAsistenciaModule,
-    ApoderadoModule
+    ApoderadoModule,
+    JustificacionModule
   ],
   controllers: [AppController], 
   providers: [AppService],       

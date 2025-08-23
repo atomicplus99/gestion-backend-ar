@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddDatabaseTables1755900084796 implements MigrationInterface {
-    name = 'AddDatabaseTables1755900084796'
+export class AddDatabaseTables1755906805252 implements MigrationInterface {
+    name = 'AddDatabaseTables1755906805252'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE \`TURNOS\` (\`id_turno\` varchar(36) NOT NULL, \`hora_inicio\` time NOT NULL, \`hora_fin\` time NOT NULL, \`hora_limite\` time NOT NULL, \`turno\` varchar(20) NOT NULL, PRIMARY KEY (\`id_turno\`)) ENGINE=InnoDB`);
@@ -12,6 +12,7 @@ export class AddDatabaseTables1755900084796 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE \`ASISTENCIA\` (\`id_asistencia\` varchar(36) NOT NULL, \`hora_de_llegada\` time NOT NULL, \`hora_salida\` time NULL, \`estado_asistencia\` enum ('PUNTUAL', 'TARDANZA', 'AUSENTE', 'ANULADO') NOT NULL, \`fecha\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP, \`id_alumno\` varchar(36) NOT NULL, PRIMARY KEY (\`id_asistencia\`)) ENGINE=InnoDB`);
         await queryRunner.query(`CREATE TABLE \`ESTADO_ALUMNO\` (\`id_estado\` varchar(36) NOT NULL, \`estado\` varchar(20) NOT NULL DEFAULT 'activo', \`observacion\` varchar(255) NULL, \`fecha_actualizacion\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, \`id_alumno\` varchar(255) NOT NULL, PRIMARY KEY (\`id_estado\`)) ENGINE=InnoDB`);
         await queryRunner.query(`CREATE TABLE \`actualizaciones_asistencia\` (\`id\` varchar(36) NOT NULL, \`motivo\` text NOT NULL, \`fecha_actualizacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), \`id_asistencia\` varchar(36) NULL, \`id_alumno\` varchar(36) NULL, \`id_auxiliar\` varchar(36) NULL, PRIMARY KEY (\`id\`)) ENGINE=InnoDB`);
+        await queryRunner.query(`CREATE TABLE \`JUSTIFICACIONES\` (\`id_justificacion\` varchar(36) NOT NULL, \`tipo_justificacion\` enum ('MEDICA', 'FAMILIAR', 'ACADEMICA', 'PERSONAL', 'EMERGENCIA') NOT NULL, \`motivo\` text NOT NULL, \`fecha_de_justificacion\` text NULL, \`documentos_adjuntos\` text NULL, \`estado\` enum ('PENDIENTE', 'APROBADA', 'RECHAZADA', 'EN_REVISION') NOT NULL DEFAULT 'PENDIENTE', \`observaciones_admin\` text NULL, \`fecha_creacion\` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP, \`fecha_actualizacion\` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, \`id_alumno\` varchar(36) NOT NULL, \`id_auxiliar\` varchar(36) NOT NULL, PRIMARY KEY (\`id_justificacion\`)) ENGINE=InnoDB`);
         await queryRunner.query(`CREATE TABLE \`APODERADO_ALUMNO\` (\`id_apoderado\` varchar(36) NOT NULL, \`id_alumno\` varchar(36) NOT NULL, INDEX \`IDX_f216af213e2b9854f62c2008b1\` (\`id_apoderado\`), INDEX \`IDX_4502f74931d4bfc94c272a02cd\` (\`id_alumno\`), PRIMARY KEY (\`id_apoderado\`, \`id_alumno\`)) ENGINE=InnoDB`);
         await queryRunner.query(`ALTER TABLE \`AUXILIAR\` ADD CONSTRAINT \`FK_55c3be167bf65c8cfd08a96bfd5\` FOREIGN KEY (\`id_user\`) REFERENCES \`USUARIO\`(\`id_user\`) ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`ALUMNO\` ADD CONSTRAINT \`FK_70599428afea9552d94ca4d2a50\` FOREIGN KEY (\`id_turno\`) REFERENCES \`TURNOS\`(\`id_turno\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -20,6 +21,8 @@ export class AddDatabaseTables1755900084796 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE \`actualizaciones_asistencia\` ADD CONSTRAINT \`FK_6bbc02d4fd9b527ca76a5f37a0c\` FOREIGN KEY (\`id_asistencia\`) REFERENCES \`ASISTENCIA\`(\`id_asistencia\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`actualizaciones_asistencia\` ADD CONSTRAINT \`FK_bcd00e252f5c308f245a0e60946\` FOREIGN KEY (\`id_alumno\`) REFERENCES \`ALUMNO\`(\`id_alumno\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`actualizaciones_asistencia\` ADD CONSTRAINT \`FK_b0cb25ec6b8f2af75f42bf020c2\` FOREIGN KEY (\`id_auxiliar\`) REFERENCES \`AUXILIAR\`(\`id_auxiliar\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` ADD CONSTRAINT \`FK_dc9611276be3f9dc4830660fbfb\` FOREIGN KEY (\`id_alumno\`) REFERENCES \`ALUMNO\`(\`id_alumno\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` ADD CONSTRAINT \`FK_724e3ae5655202b446648dfbd61\` FOREIGN KEY (\`id_auxiliar\`) REFERENCES \`AUXILIAR\`(\`id_auxiliar\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` ADD CONSTRAINT \`FK_f216af213e2b9854f62c2008b1f\` FOREIGN KEY (\`id_apoderado\`) REFERENCES \`APODERADO\`(\`id_apoderado\`) ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` ADD CONSTRAINT \`FK_4502f74931d4bfc94c272a02cde\` FOREIGN KEY (\`id_alumno\`) REFERENCES \`ALUMNO\`(\`id_alumno\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
     }
@@ -27,6 +30,8 @@ export class AddDatabaseTables1755900084796 implements MigrationInterface {
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` DROP FOREIGN KEY \`FK_4502f74931d4bfc94c272a02cde\``);
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` DROP FOREIGN KEY \`FK_f216af213e2b9854f62c2008b1f\``);
+        await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` DROP FOREIGN KEY \`FK_724e3ae5655202b446648dfbd61\``);
+        await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` DROP FOREIGN KEY \`FK_dc9611276be3f9dc4830660fbfb\``);
         await queryRunner.query(`ALTER TABLE \`actualizaciones_asistencia\` DROP FOREIGN KEY \`FK_b0cb25ec6b8f2af75f42bf020c2\``);
         await queryRunner.query(`ALTER TABLE \`actualizaciones_asistencia\` DROP FOREIGN KEY \`FK_bcd00e252f5c308f245a0e60946\``);
         await queryRunner.query(`ALTER TABLE \`actualizaciones_asistencia\` DROP FOREIGN KEY \`FK_6bbc02d4fd9b527ca76a5f37a0c\``);
@@ -37,6 +42,7 @@ export class AddDatabaseTables1755900084796 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX \`IDX_4502f74931d4bfc94c272a02cd\` ON \`APODERADO_ALUMNO\``);
         await queryRunner.query(`DROP INDEX \`IDX_f216af213e2b9854f62c2008b1\` ON \`APODERADO_ALUMNO\``);
         await queryRunner.query(`DROP TABLE \`APODERADO_ALUMNO\``);
+        await queryRunner.query(`DROP TABLE \`JUSTIFICACIONES\``);
         await queryRunner.query(`DROP TABLE \`actualizaciones_asistencia\``);
         await queryRunner.query(`DROP TABLE \`ESTADO_ALUMNO\``);
         await queryRunner.query(`DROP TABLE \`ASISTENCIA\``);
