@@ -3,12 +3,14 @@ import { ValidarAlumnoUseCase } from 'src/entities/alumno/domain/ports/inbound/c
 import { Asistencia } from '../asistencia.entity';
 import { AsistenciaTypeOrmRepository } from '../domain/repository/asistencia.repository';
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
+import { TelegramNotificationService } from '../../telegram/services/telegram-notification.service';
 
 @Injectable()
 export class RegistrarAsistenciaDesdeQRUseCase {
   constructor(
     private readonly validarAlumno: ValidarAlumnoUseCase,
     private readonly asistenciaRepo: AsistenciaTypeOrmRepository,
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(codigo_qr: string): Promise<Asistencia> {
@@ -17,12 +19,29 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       throw new NotFoundException('Alumno no encontrado');
     }
 
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar que el alumno tenga turno asignado
+    if (!alumno.turno) {
+      throw new BadRequestException('El alumno no tiene un turno asignado. No se puede registrar asistencia.');
+    }
+
     
     const ahora = new Date();
     ahora.setHours(13, 5, 0); 
 
     const fechaActual = new Date(ahora.toDateString()); 
     const horaActual = ahora.toTimeString().split(' ')[0]; 
+
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar que la hora actual esté dentro del rango del turno
+    const turno = alumno.turno;
+    if (turno.hora_inicio && turno.hora_fin) {
+      if (horaActual < turno.hora_inicio || horaActual > turno.hora_fin) {
+        throw new BadRequestException(
+          `No se puede registrar asistencia fuera del horario del turno. ` +
+          `Turno: ${turno.turno} (${turno.hora_inicio} - ${turno.hora_fin}). ` +
+          `Hora actual: ${horaActual}`
+        );
+      }
+    }
 
     const asistencia = await this.asistenciaRepo.findByAlumnoAndDate(alumno.id_alumno, fechaActual);
 
@@ -42,7 +61,31 @@ export class RegistrarAsistenciaDesdeQRUseCase {
         fecha: fechaActual,
       });
 
-      return this.asistenciaRepo.save(nuevaAsistencia);
+                   const asistenciaGuardada = await this.asistenciaRepo.save(nuevaAsistencia);
+             
+             // Enviar notificación de Telegram al apoderado
+             await this.telegramNotificationService.notificarAsistenciaApoderado(asistenciaGuardada);
+             
+             return asistenciaGuardada;
+           }
+
+    // 🔒 VALIDACIÓN CRÍTICA: Verificar que no tenga estados conflictivos
+    if (asistencia.estado_asistencia === EstadoAsistencia.AUSENTE) {
+      throw new BadRequestException(
+        `No se puede registrar asistencia. El alumno ya tiene estado AUSENTE para el día de hoy.`
+      );
+    }
+
+    if (asistencia.estado_asistencia === EstadoAsistencia.JUSTIFICADO) {
+      throw new BadRequestException(
+        `No se puede registrar asistencia. El alumno ya tiene estado JUSTIFICADO para el día de hoy.`
+      );
+    }
+
+    if (asistencia.estado_asistencia === EstadoAsistencia.ANULADO) {
+      throw new BadRequestException(
+        `No se puede registrar asistencia. El alumno ya tiene estado ANULADO para el día de hoy.`
+      );
     }
 
     // 2️⃣ Ya tiene entrada pero no salida → validar si puede registrar salida

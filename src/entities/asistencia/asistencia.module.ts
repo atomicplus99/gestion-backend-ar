@@ -22,18 +22,23 @@ import { Auxiliar } from '../auxiliar/auxiliar.entity';
 import { AuxiliarModule } from '../auxiliar/auxiliar.module';
 import { ActualizacionesAsistenciaRepository } from '../actualizaciones-asistencia/domain/repository/actualizaciones-asistencia.repository';
 import { ActualizacionesAsistenciaModule } from '../actualizaciones-asistencia/actualizaciones-asistencia.module';
+import { AusenciasMasivasService } from './services/ausencias-masivas.service';
+import { AusenciasMasivasController } from './ausencias-masivas.controller';
+import { AusenciasMasivasSchedulerService } from './services/ausencias-masivas-scheduler.service';
+import { TelegramModule } from '../telegram/telegram.module';
+import { AusenciasMasivasLog } from './entities/ausencias-masivas-log.entity';
 
 
 
 @Module({
   imports: [
     AlumnoModule,
-    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar]),
+    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog]),
     AuxiliarModule,
-    ActualizacionesAsistenciaModule
-    
+    ActualizacionesAsistenciaModule,
+    TelegramModule
   ],
-  controllers: [AsistenciaController],
+  controllers: [AsistenciaController, AusenciasMasivasController],
   providers: [AsistenciaService,
       AsistenciaTypeOrmRepository,
       AlumnoTypeOrmRepository,
@@ -45,7 +50,9 @@ import { ActualizacionesAsistenciaModule } from '../actualizaciones-asistencia/a
       UpdateAsistenciaUseCase,
       GetAsistenciasUseCase, 
       ValidarAlumnoUseCase,
-      VerificarAsistenciaUseCase,],
+      VerificarAsistenciaUseCase,
+      AusenciasMasivasService,
+      AusenciasMasivasSchedulerService],
   exports:[AsistenciaTypeOrmRepository]
 })
 export class AsistenciaModule {}

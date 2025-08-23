@@ -10,6 +10,9 @@ import { EstadoAlumno } from '../entities/estado-alumnos/entities/estado-alumno.
 import { ActualizacionesAsistencia } from '../entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
 import { Apoderado } from '../entities/apoderado/infraestructure/orm/entities/apoderado.entity';
 import { Justificacion } from '../entities/justificacion/justificacion.entity';
+import { AusenciasMasivasLog } from '../entities/asistencia/entities/ausencias-masivas-log.entity';
+import { TelegramUser } from '../entities/telegram/telegram-user.entity';
+import { TelegramChat } from '../entities/telegram/telegram-chat.entity';
 
 
 dotenv.config();
@@ -21,7 +24,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion],
+  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion, AusenciasMasivasLog, TelegramUser, TelegramChat],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: true,
 });

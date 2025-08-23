@@ -13,12 +13,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmConfig } from './config/typeorm.config';
 import { SeederModule } from './database/seeder.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ScheduleModule } from '@nestjs/schedule';
 import { join } from 'path';
 import { EstadoAlumnoModule } from './entities/estado-alumnos/estado-alumno.module';
 import { ActualizacionesAsistenciaModule } from './entities/actualizaciones-asistencia/actualizaciones-asistencia.module';
 import { AuxiliarModule } from './entities/auxiliar/auxiliar.module';
 import { ApoderadoModule } from './entities/apoderado/apoderado.module';
 import { JustificacionModule } from './entities/justificacion/justificacion.module';
+import { TelegramModule } from './entities/telegram/telegram.module';
 
 
 
@@ -33,6 +35,7 @@ dotenv.config();
       serveRoot: '/uploads',
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsuarioModule,
     AlumnoModule,
@@ -43,7 +46,8 @@ dotenv.config();
     EstadoAlumnoModule,
     ActualizacionesAsistenciaModule,
     ApoderadoModule,
-    JustificacionModule
+    JustificacionModule,
+    TelegramModule
   ],
   controllers: [AppController], 
   providers: [AppService],       
