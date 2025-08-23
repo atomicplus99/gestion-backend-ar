@@ -7,12 +7,14 @@ import { ListJustificacionesUseCase } from './use-cases/list-justificaciones.use
 import { GetJustificacionesByAlumnoUseCase } from './use-cases/get-justificaciones-by-alumno.usecase';
 import { UpdateEstadoJustificacionUseCase } from './use-cases/update-estado-justificacion.usecase';
 import { JustificacionRepository } from './justificacion.repository';
+import { JustificacionAsistenciaService } from './services/justificacion-asistencia.service';
 import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from '../auxiliar/auxiliar.entity';
+import { Asistencia } from '../asistencia/asistencia.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar]),
+    TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar, Asistencia]),
   ],
   controllers: [JustificacionController],
   providers: [
@@ -21,6 +23,7 @@ import { Auxiliar } from '../auxiliar/auxiliar.entity';
     GetJustificacionesByAlumnoUseCase,
     UpdateEstadoJustificacionUseCase,
     JustificacionRepository,
+    JustificacionAsistenciaService,
   ],
   exports: [
     JustificacionRepository,
@@ -28,6 +31,7 @@ import { Auxiliar } from '../auxiliar/auxiliar.entity';
     ListJustificacionesUseCase,
     GetJustificacionesByAlumnoUseCase,
     UpdateEstadoJustificacionUseCase,
+    JustificacionAsistenciaService,
   ],
 })
 export class JustificacionModule {}

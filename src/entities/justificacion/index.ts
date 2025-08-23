@@ -16,6 +16,9 @@ export { ListJustificacionesUseCase } from './use-cases/list-justificaciones.use
 export { GetJustificacionesByAlumnoUseCase } from './use-cases/get-justificaciones-by-alumno.usecase';
 export { UpdateEstadoJustificacionUseCase } from './use-cases/update-estado-justificacion.usecase';
 
+// Servicios
+export { JustificacionAsistenciaService } from './services/justificacion-asistencia.service';
+
 // Repositorio
 export { JustificacionRepository } from './justificacion.repository';
 

@@ -1,0 +1,114 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Justificacion } from '../justificacion.entity';
+import { Asistencia } from '../../asistencia/asistencia.entity';
+import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity';
+import { EstadoAsistencia } from '../../asistencia/enums/estado-asistencia.enum';
+
+@Injectable()
+export class JustificacionAsistenciaService {
+  private readonly logger = new Logger(JustificacionAsistenciaService.name);
+
+  constructor(
+    @InjectRepository(Asistencia)
+    private readonly asistenciaRepository: Repository<Asistencia>,
+    @InjectRepository(Alumno)
+    private readonly alumnoRepository: Repository<Alumno>,
+  ) {}
+
+  /**
+   * Crea o actualiza asistencias para las fechas justificadas cuando se aprueba una justificación
+   */
+  async procesarAsistenciasJustificadas(justificacion: Justificacion): Promise<void> {
+    try {
+      this.logger.log(`Procesando asistencias justificadas para alumno ${justificacion.alumno.id_alumno}`);
+
+      // Procesar cada fecha de justificación
+      for (const fechaStr of justificacion.fecha_de_justificacion) {
+        await this.procesarFechaJustificada(justificacion, fechaStr);
+      }
+
+      this.logger.log(`Asistencias justificadas procesadas exitosamente para ${justificacion.fecha_de_justificacion.length} fechas`);
+    } catch (error) {
+      this.logger.error(`Error procesando asistencias justificadas: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Procesa una fecha específica de justificación
+   */
+  private async procesarFechaJustificada(justificacion: Justificacion, fechaStr: string): Promise<void> {
+    try {
+      // Convertir fecha DD-MM-YYYY a Date
+      const [dia, mes, anio] = fechaStr.split('-').map(Number);
+      const fecha = new Date(anio, mes - 1, dia, 0, 0, 0, 0);
+
+      // Buscar si ya existe una asistencia para esta fecha
+      const asistenciaExistente = await this.buscarAsistenciaExistente(
+        justificacion.alumno.id_alumno,
+        fecha
+      );
+
+      if (asistenciaExistente) {
+        // Actualizar asistencia existente
+        await this.actualizarAsistenciaExistente(asistenciaExistente, justificacion);
+        this.logger.log(`Asistencia actualizada a JUSTIFICADO para fecha ${fechaStr}`);
+      } else {
+        // Crear nueva asistencia justificada
+        await this.crearAsistenciaJustificada(justificacion, fecha);
+        this.logger.log(`Nueva asistencia JUSTIFICADO creada para fecha ${fechaStr}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error procesando fecha ${fechaStr}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca si existe una asistencia para el alumno en la fecha específica
+   */
+  private async buscarAsistenciaExistente(idAlumno: string, fecha: Date): Promise<Asistencia | null> {
+    const fechaInicio = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0, 0);
+    const fechaFin = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59, 999);
+
+    return await this.asistenciaRepository
+      .createQueryBuilder('asistencia')
+      .leftJoinAndSelect('asistencia.alumno', 'alumno')
+      .where('alumno.id_alumno = :idAlumno', { idAlumno })
+      .andWhere('asistencia.fecha >= :fechaInicio', { fechaInicio })
+      .andWhere('asistencia.fecha <= :fechaFin', { fechaFin })
+      .getOne();
+  }
+
+  /**
+   * Actualiza una asistencia existente a estado JUSTIFICADO
+   * Usa la misma estrategia que funcionó con ANULADO: modificar entidad y usar save()
+   */
+  private async actualizarAsistenciaExistente(asistencia: Asistencia, justificacion: Justificacion): Promise<void> {
+    // Modificar directamente la entidad
+    asistencia.estado_asistencia = EstadoAsistencia.JUSTIFICADO;
+    
+    // Guardar la entidad modificada (misma estrategia que ANULADO)
+    await this.asistenciaRepository.save(asistencia);
+    
+    this.logger.log(`Asistencia ${asistencia.id_asistencia} actualizada a estado: ${asistencia.estado_asistencia}`);
+  }
+
+  /**
+   * Crea una nueva asistencia con estado JUSTIFICADO
+   */
+  private async crearAsistenciaJustificada(justificacion: Justificacion, fecha: Date): Promise<void> {
+    const nuevaAsistencia = this.asistenciaRepository.create({
+      alumno: justificacion.alumno,
+      fecha: fecha,
+      estado_asistencia: EstadoAsistencia.JUSTIFICADO,
+      hora_de_llegada: '00:00', // Hora por defecto para asistencias justificadas
+      hora_salida: null,
+    });
+
+    const asistenciaGuardada = await this.asistenciaRepository.save(nuevaAsistencia);
+    this.logger.log(`Nueva asistencia creada con ID: ${asistenciaGuardada.id_asistencia} y estado: ${asistenciaGuardada.estado_asistencia}`);
+  }
+}
