@@ -2,16 +2,21 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Justificacion } from '../justificacion.entity';
+import { Asistencia } from '../../asistencia/asistencia.entity';
 import { UpdateEstadoJustificacionDto } from '../dto/update-estado-justificacion.dto';
 import { JustificacionListResponseDto } from '../dto/list-justificaciones-response.dto';
 import { JustificacionAsistenciaService } from '../services/justificacion-asistencia.service';
+import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 
 @Injectable()
 export class UpdateEstadoJustificacionUseCase {
   constructor(
     @InjectRepository(Justificacion)
     private readonly justificacionRepository: Repository<Justificacion>,
+    @InjectRepository(Asistencia)
+    private readonly asistenciaRepository: Repository<Asistencia>,
     private readonly justificacionAsistenciaService: JustificacionAsistenciaService,
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(
@@ -58,6 +63,27 @@ export class UpdateEstadoJustificacionUseCase {
       try {
         await this.justificacionAsistenciaService.procesarAsistenciasJustificadas(justificacionActualizada);
         console.log(`✅ Asistencias justificadas procesadas exitosamente`);
+        
+        // 5.1 Enviar notificación de Telegram para justificación aprobada
+        try {
+          console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM (JUSTIFICACIÓN APROBADA) 🔔🔔🔔');
+          // Buscar las asistencias justificadas para notificar
+          const asistenciasJustificadas = await this.buscarAsistenciasJustificadas(justificacionActualizada);
+          if (asistenciasJustificadas && asistenciasJustificadas.length > 0) {
+            // Notificar cada asistencia justificada
+            for (const asistencia of asistenciasJustificadas) {
+              await this.telegramNotificationService.notificarAsistenciaApoderado(
+                asistencia, 
+                `JUSTIFICACIÓN APROBADA: ${justificacionActualizada.motivo}`, 
+                'JUSTIFICACION'
+              );
+            }
+            console.log(`✅✅✅ NOTIFICACIONES TELEGRAM ENVIADAS PARA ${asistenciasJustificadas.length} ASISTENCIAS JUSTIFICADAS ✅✅✅`);
+          }
+        } catch (telegramError) {
+          console.error('[UpdateEstadoJustificacionUseCase] Error enviando notificación Telegram:', telegramError);
+          // No lanzamos error para no afectar la aprobación de justificación
+        }
       } catch (error) {
         // Log del error pero no fallar la operación principal
         console.error('❌ Error procesando asistencias justificadas:', error);
@@ -101,5 +127,47 @@ export class UpdateEstadoJustificacionUseCase {
       },
       asistencias_creadas: justificacion.fecha_de_justificacion?.length || 0,
     };
+  }
+
+  /**
+   * Busca las asistencias justificadas para una justificación específica
+   */
+  private async buscarAsistenciasJustificadas(justificacion: Justificacion): Promise<Asistencia[]> {
+    const asistencias: Asistencia[] = [];
+    
+    // Buscar asistencias para cada fecha de justificación
+    for (const fechaStr of justificacion.fecha_de_justificacion) {
+      try {
+        // Convertir fecha DD-MM-YYYY a Date
+        const [dia, mes, anio] = fechaStr.split('-').map(Number);
+        const fecha = new Date(anio, mes - 1, dia, 0, 0, 0, 0);
+        
+        // Buscar asistencia para esta fecha
+        const asistencia = await this.buscarAsistenciaPorFecha(justificacion.alumno.id_alumno, fecha);
+        if (asistencia) {
+          asistencias.push(asistencia);
+        }
+      } catch (error) {
+        console.error(`Error buscando asistencia para fecha ${fechaStr}:`, error);
+      }
+    }
+    
+    return asistencias;
+  }
+
+  /**
+   * Busca una asistencia específica por alumno y fecha
+   */
+  private async buscarAsistenciaPorFecha(idAlumno: string, fecha: Date): Promise<Asistencia | null> {
+    const fechaInicio = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0, 0);
+    const fechaFin = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59, 999);
+
+    return await this.asistenciaRepository
+      .createQueryBuilder('asistencia')
+      .leftJoinAndSelect('asistencia.alumno', 'alumno')
+      .where('alumno.id_alumno = :idAlumno', { idAlumno })
+      .andWhere('asistencia.fecha >= :fechaInicio', { fechaInicio })
+      .andWhere('asistencia.fecha <= :fechaFin', { fechaFin })
+      .getOne();
   }
 }

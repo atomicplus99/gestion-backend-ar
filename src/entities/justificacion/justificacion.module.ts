@@ -11,10 +11,12 @@ import { JustificacionAsistenciaService } from './services/justificacion-asisten
 import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from '../auxiliar/auxiliar.entity';
 import { Asistencia } from '../asistencia/asistencia.entity';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar, Asistencia]),
+    TelegramModule,
   ],
   controllers: [JustificacionController],
   providers: [

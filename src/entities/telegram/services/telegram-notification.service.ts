@@ -150,8 +150,18 @@ export class TelegramNotificationService {
   /**
    * Envía notificación de asistencia al apoderado del alumno
    */
-  async notificarAsistenciaApoderado(asistencia: Asistencia): Promise<void> {
+  async notificarAsistenciaApoderado(
+    asistencia: Asistencia, 
+    motivo?: string, 
+    tipoOperacion?: 'REGISTRO' | 'ACTUALIZACION' | 'ANULACION' | 'JUSTIFICACION'
+  ): Promise<void> {
     try {
+      this.logger.log(`🚀🚀🚀 INICIANDO NOTIFICACIÓN TELEGRAM 🚀🚀🚀`);
+      this.logger.log(`📱 Alumno: ${asistencia.alumno.codigo} (ID: ${asistencia.alumno.id_alumno})`);
+      this.logger.log(`📅 Fecha: ${asistencia.fecha}`);
+      this.logger.log(`⏰ Hora: ${asistencia.hora_de_llegada}`);
+      this.logger.log(`📊 Estado: ${asistencia.estado_asistencia}`);
+      
       if (!this.bot) {
         this.logger.warn('⚠️ Bot no inicializado, saltando notificación');
         return;
@@ -174,7 +184,7 @@ export class TelegramNotificationService {
       }
 
       // Generar mensaje de notificación
-      const mensaje = this.generarMensajeAsistencia(asistencia);
+      const mensaje = this.generarMensajeAsistencia(asistencia, motivo, tipoOperacion);
 
       // Enviar notificación
       await this.bot.sendMessage(chat.chat_id, mensaje, { parse_mode: 'HTML' });
@@ -191,25 +201,50 @@ export class TelegramNotificationService {
    */
   private async buscarApoderadoDelAlumno(idAlumno: string): Promise<TelegramUser | null> {
     try {
+      this.logger.log(`🔍 Buscando apoderado para alumno ID: ${idAlumno}`);
+      
       // Buscar alumno con apoderados
       const alumno = await this.alumnoRepository.findOne({
         where: { id_alumno: idAlumno },
         relations: ['apoderados'],
       });
 
-      if (!alumno || !alumno.apoderados || alumno.apoderados.length === 0) {
+      if (!alumno) {
+        this.logger.log(`❌ Alumno no encontrado: ${idAlumno}`);
         return null;
       }
 
-      // Buscar si el apoderado está registrado en Telegram
-      // Por ahora, asumimos que el apoderado tiene un campo que lo vincula con Telegram
-      // Esto se puede ajustar según tu estructura de datos
-      return await this.telegramUserRepository.findOne({
-        where: { 
-          tipo_usuario: 'APODERADO',
-          activo: true 
+      if (!alumno.apoderados || alumno.apoderados.length === 0) {
+        this.logger.log(`ℹ️ Alumno ${alumno.codigo} no tiene apoderados asignados`);
+        return null;
+      }
+
+      this.logger.log(`✅ Alumno ${alumno.codigo} tiene ${alumno.apoderados.length} apoderado(s)`);
+
+      // Buscar si alguno de los apoderados está registrado en Telegram
+      // Buscamos por DNI del apoderado en el nombre del usuario (formato: "Apoderado_{DNI}")
+      for (const apoderado of alumno.apoderados) {
+        if (apoderado.dni) {
+          this.logger.log(`🔍 Verificando apoderado con DNI: ${apoderado.dni}`);
+          
+          // Buscar usuario de Telegram que tenga el DNI en su nombre
+          const telegramUser = await this.telegramUserRepository.findOne({
+            where: { 
+              tipo_usuario: 'APODERADO',
+              activo: true,
+              first_name: `Apoderado_${apoderado.dni}`
+            }
+          });
+
+          if (telegramUser) {
+            this.logger.log(`✅ Apoderado encontrado en Telegram: ${telegramUser.first_name} (DNI: ${apoderado.dni})`);
+            return telegramUser;
+          }
         }
-      });
+      }
+
+      this.logger.log(`ℹ️ Ningún apoderado del alumno ${alumno.codigo} está registrado en Telegram`);
+      return null;
 
     } catch (error) {
       this.logger.error(`❌ Error buscando apoderado: ${error.message}`);
@@ -237,7 +272,11 @@ export class TelegramNotificationService {
   /**
    * Genera el mensaje de notificación de asistencia
    */
-  private generarMensajeAsistencia(asistencia: Asistencia): string {
+  private generarMensajeAsistencia(
+    asistencia: Asistencia, 
+    motivo?: string, 
+    tipoOperacion?: 'REGISTRO' | 'ACTUALIZACION' | 'ANULACION' | 'JUSTIFICACION'
+  ): string {
     const alumno = asistencia.alumno;
     const fecha = new Date(asistencia.fecha).toLocaleDateString('es-ES', {
       weekday: 'long',
@@ -250,8 +289,41 @@ export class TelegramNotificationService {
     const estado = this.obtenerEmojiEstado(asistencia.estado_asistencia);
     const estadoTexto = this.obtenerTextoEstado(asistencia.estado_asistencia);
 
+    // Determinar el título y tipo de registro según la operación
+    let titulo = '🔄 <b>NOTIFICACIÓN DE ASISTENCIA</b>';
+    let tipoRegistro = 'Sistema QR';
+    
+    if (tipoOperacion) {
+      switch (tipoOperacion) {
+        case 'ACTUALIZACION':
+          titulo = '🔄 <b>ACTUALIZACIÓN DE ASISTENCIA</b>';
+          tipoRegistro = 'Sistema de Actualización';
+          break;
+        case 'ANULACION':
+          titulo = '🚫 <b>ANULACIÓN DE ASISTENCIA</b>';
+          tipoRegistro = 'Sistema de Anulación';
+          break;
+        case 'JUSTIFICACION':
+          titulo = '📝 <b>JUSTIFICACIÓN DE ASISTENCIA</b>';
+          tipoRegistro = 'Sistema de Justificaciones';
+          break;
+        case 'REGISTRO':
+        default:
+          titulo = '✅ <b>REGISTRO DE ASISTENCIA</b>';
+          tipoRegistro = 'Sistema QR/Manual';
+          break;
+      }
+    } else {
+      // Fallback a la lógica anterior
+      const esActualizacion = asistencia.hora_salida && asistencia.hora_salida !== '00:00';
+      if (esActualizacion) {
+        titulo = '🔄 <b>ACTUALIZACIÓN DE ASISTENCIA</b>';
+        tipoRegistro = 'Sistema de Actualización';
+      }
+    }
+
     return `
-🔄 <b>NOTIFICACIÓN DE ASISTENCIA</b>
+${titulo}
 
 👤 <b>ALUMNO:</b> ${alumno.nombre} ${alumno.apellido}
 📅 <b>FECHA:</b> ${fecha}
@@ -265,7 +337,8 @@ ${estado} <b>ESTADO:</b> ${estadoTexto}
 • Sección: ${alumno.seccion || 'No especificado'}
 
 ${asistencia.alumno.turno ? `🕐 <b>Horario del turno:</b> ${asistencia.alumno.turno.hora_inicio} - ${asistencia.alumno.turno.hora_fin}` : ''}
-📍 <b>Registrado por:</b> Sistema QR
+📍 <b>Registrado por:</b> ${tipoRegistro}
+${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
 
 ---
 <i>Sistema de Gestión Académica</i>
@@ -837,15 +910,19 @@ ${estadoUsuario.apoderado.alumnos.map((alumno, index) =>
           return;
         }
 
-      // Confirmar registro
-      const resultado = await this.telegramApoderadoService.confirmarRegistro(
-        {
-          dni_apoderado: estadoUsuario.dniApoderado!,
-          dni_alumnos: dniAlumnos
-        },
-        chatId,
-        userId
-      );
+             // Confirmar registro
+       this.logger.log(`🔍 Confirmando registro con datos:`);
+       this.logger.log(`   - DNI Apoderado: ${estadoUsuario.dniApoderado}`);
+       this.logger.log(`   - DNIs Alumnos: ${dniAlumnos.join(', ')}`);
+       
+       const resultado = await this.telegramApoderadoService.confirmarRegistro(
+         {
+           dni_apoderado: estadoUsuario.dniApoderado!,
+           dni_alumnos: dniAlumnos
+         },
+         chatId,
+         userId
+       );
 
       if (resultado.success) {
         // Registro exitoso

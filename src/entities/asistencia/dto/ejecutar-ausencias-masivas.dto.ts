@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, Matches } from 'class-validator';
 
+export enum TurnosAusenciasMasivas {
+  MAÑANA = 'MAÑANA',
+  TARDE = 'TARDE',
+  AMBOS = 'AMBOS'
+}
+
 export class EjecutarAusenciasMasivasDto {
   @ApiProperty({
     description: 'Fecha para ejecutar el programa (YYYY-MM-DD). Si no se especifica, usa la fecha actual',
@@ -29,10 +35,26 @@ export class EjecutarAusenciasMasivasDto {
   @ApiProperty({
     description: 'Turnos a procesar: MAÑANA, TARDE, AMBOS. Si no se especifica, procesa ambos turnos',
     required: false,
-    enum: ['MAÑANA', 'TARDE', 'AMBOS'],
-    example: 'TARDE'
+    enum: TurnosAusenciasMasivas,
+    example: TurnosAusenciasMasivas.TARDE
   })
   @IsOptional()
-  @IsEnum(['MAÑANA', 'TARDE', 'AMBOS'])
-  turnos?: string;
+  @IsEnum(TurnosAusenciasMasivas, {
+    message: `turnos debe ser uno de los siguientes valores: ${Object.keys(TurnosAusenciasMasivas).join(', ')}`
+  })
+  turnos?: TurnosAusenciasMasivas;
+
+  // Constructor para logging
+  constructor() {
+    console.log('🔍 [DTO] Constructor EjecutarAusenciasMasivasDto llamado');
+  }
+
+  // Método para logging cuando se valida
+  afterLoad() {
+    console.log('🔍 [DTO] afterLoad() llamado');
+    console.log('🔍 [DTO] this.fecha:', this.fecha);
+    console.log('🔍 [DTO] this.hora:', this.hora);
+    console.log('🔍 [DTO] this.turnos:', this.turnos);
+    console.log('🔍 [DTO] typeof this.turnos:', typeof this.turnos);
+  }
 }

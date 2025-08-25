@@ -8,6 +8,7 @@ import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistenc
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { AnularAsistenciaRequestDto } from '../infraestructure/dto/AnularAsistenciaRequest.dto';
 import { AnularAsistenciaResponseDto } from '../infraestructure/dto/AnularAsistenciaResponse.dto';
+import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 
 @Injectable()
 export class AnularAsistenciaUseCase {
@@ -23,6 +24,8 @@ export class AnularAsistenciaUseCase {
 
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
+    
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(dto: AnularAsistenciaRequestDto): Promise<AnularAsistenciaResponseDto> {
@@ -45,7 +48,13 @@ export class AnularAsistenciaUseCase {
     }
 
     // 3. Buscar la asistencia del día actual del alumno
-    const fechaHoy = new Date();
+    // Obtener fecha actual en zona horaria de Perú (UTC-5)
+    const ahora = new Date();
+    const offsetPeru = -5 * 60; // UTC-5 en minutos
+    const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+    
+    // Construir fecha a las 00:00:00 en hora local de Perú
+    const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
     const fechaFormato = fechaHoy.toISOString().split('T')[0];
 
     const asistencia = await this.asistenciaRepository
@@ -107,7 +116,21 @@ export class AnularAsistenciaUseCase {
 
     await this.actualizacionesRepository.save(actualizacion);
 
-    // 8. Construir la respuesta
+          // 8. Enviar notificación de Telegram al apoderado
+      try {
+        console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM (ANULAR) 🔔🔔🔔');
+        await this.telegramNotificationService.notificarAsistenciaApoderado(
+          asistenciaAnulada, 
+          `ANULACIÓN: ${dto.motivo}`, 
+          'ANULACION'
+        );
+        console.log('✅✅✅ NOTIFICACIÓN TELEGRAM ENVIADA EXITOSAMENTE (ANULAR) ✅✅✅');
+      } catch (telegramError) {
+        console.error('[AnularAsistenciaUseCase] Error enviando notificación Telegram:', telegramError);
+        // No lanzamos error para no afectar la anulación de asistencia
+      }
+
+    // 9. Construir la respuesta
     const response: AnularAsistenciaResponseDto = {
       message: `Asistencia anulada exitosamente para el alumno ${alumno.nombre} ${alumno.apellido}`,
       codigo_estudiante: alumno.codigo,

@@ -7,6 +7,7 @@ import { Asistencia } from '../asistencia.entity';
 import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
 import { UpdateAsistenciaDto } from '../infraestructure/dto/UpdateAsistencia.dto';
+import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 
 
 @Injectable()
@@ -20,10 +21,15 @@ export class UpdateAsistenciaUseCase {
 
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
+    
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(updateDto: UpdateAsistenciaDto) {
     try {
+      console.log('🚀🚀🚀 UPDATE ASISTENCIA USE CASE EJECUTÁNDOSE 🚀🚀🚀');
+      console.log('📝 Datos recibidos:', JSON.stringify(updateDto, null, 2));
+      
       // 1. Buscar al alumno por código o DNI
       const alumno = await this.alumnoRepository.findOne({
         where: updateDto.codigo_alumno
@@ -68,6 +74,18 @@ export class UpdateAsistenciaUseCase {
       }
 
       await this.asistenciaRepository.save(asistencia);
+
+      // 5. Enviar notificación de Telegram al apoderado
+      console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM 🔔🔔🔔');
+      console.log('📱 TelegramNotificationService disponible:', !!this.telegramNotificationService);
+      
+      try {
+        await this.telegramNotificationService.notificarAsistenciaApoderado(asistencia);
+        console.log('✅✅✅ NOTIFICACIÓN TELEGRAM ENVIADA EXITOSAMENTE ✅✅✅');
+      } catch (telegramError) {
+        console.error('[UpdateAsistenciaUseCase] Error enviando notificación Telegram:', telegramError);
+        // No lanzamos error para no afectar la actualización de asistencia
+      }
 
       return asistencia;
 

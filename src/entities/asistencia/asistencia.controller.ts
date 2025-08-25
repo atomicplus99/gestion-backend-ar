@@ -283,11 +283,18 @@ async updateAsistencia(
     try {
       console.log('🔍 [AsistenciaController] Verificando asistencia para código:', codigo, 'fecha:', fecha);
 
-      // Si no se proporciona fecha, usar fecha actual
+      // Si no se proporciona fecha, usar fecha actual en zona horaria de Perú (UTC-5)
       let fechaDate: Date;
       if (!fecha) {
-        fechaDate = new Date();
-        console.log('📅 [AsistenciaController] No se proporcionó fecha, usando fecha actual:', fechaDate.toISOString().split('T')[0]);
+        // Crear fecha actual en zona horaria de Perú
+        const ahora = new Date();
+        const offsetPeru = -5 * 60; // UTC-5 en minutos
+        const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+        
+        // Construir fecha a las 00:00:00 en hora local de Perú
+        fechaDate = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
+        
+        console.log('📅 [AsistenciaController] No se proporcionó fecha, usando fecha actual Perú:', fechaDate.toISOString().split('T')[0]);
       } else {
         fechaDate = new Date(fecha);
         

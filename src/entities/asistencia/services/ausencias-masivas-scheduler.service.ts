@@ -24,35 +24,85 @@ export class AusenciasMasivasSchedulerService {
       this.logger.log('🔍 Verificando ausencias programadas...');
       
       const ahora = new Date();
-      const fechaActual = ahora.toISOString().split('T')[0]; // YYYY-MM-DD
-      const horaActual = ahora.toTimeString().split(' ')[0]; // HH:MM:SS
 
-      // Buscar ausencias programadas para ejecutar ahora
+      // Buscar TODAS las ausencias programadas
       const ausenciasProgramadas = await this.ausenciasMasivasLogRepository
         .createQueryBuilder('log')
-        .where('DATE(log.fecha_ejecucion) = :fecha', { fecha: fechaActual })
-        .andWhere('log.hora_programada = :hora', { hora: horaActual })
-        .andWhere('log.estado = :estado', { estado: 'PROGRAMADA' })
+        .where('log.estado = :estado', { estado: 'PROGRAMADA' })
         .getMany();
 
-      if (ausenciasProgramadas.length === 0) {
-        this.logger.log('✅ No hay ausencias programadas para ejecutar ahora');
+      // Filtrar las que están en el minuto exacto programado
+      const ausenciasParaEjecutar = ausenciasProgramadas.filter(log => {
+        // Obtener la fecha actual del sistema (no de la BD)
+        const ahora = new Date();
+        const [horas, minutos, segundos] = log.hora_programada.split(':').map(Number);
+        
+        // Crear fecha programada usando la fecha actual del sistema
+        const fechaProgramada = new Date(
+          ahora.getFullYear(),
+          ahora.getMonth(),
+          ahora.getDate(),
+          horas,
+          minutos,
+          segundos || 0,
+          0
+        );
+        
+        // Obtener solo hora y minuto actual (ignorar segundos y milisegundos)
+        const ahoraHoraMinuto = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), ahora.getHours(), ahora.getMinutes(), 0, 0);
+        
+        // Obtener solo hora y minuto programado (ignorar segundos y milisegundos)
+        const fechaProgramadaHoraMinuto = new Date(
+          fechaProgramada.getFullYear(),
+          fechaProgramada.getMonth(),
+          fechaProgramada.getDate(),
+          fechaProgramada.getHours(),
+          fechaProgramada.getMinutes(),
+          0,
+          0
+        );
+        
+        this.logger.log(`🔍 [DEBUG] Ausencia ${log.id_log}:`);
+        this.logger.log(`   - Fecha base: ${log.fecha_ejecucion}`);
+        this.logger.log(`   - Hora programada: ${log.hora_programada}`);
+        this.logger.log(`   - Fecha+Hora construida: ${fechaProgramada.toLocaleString('es-PE')}`);
+        this.logger.log(`   - Fecha+Hora ISO: ${fechaProgramada.toISOString()}`);
+        this.logger.log(`   - Hora+Minuto programado: ${fechaProgramadaHoraMinuto.toLocaleString('es-PE')}`);
+        this.logger.log(`   - Ahora: ${ahora.toLocaleString('es-PE')}`);
+        this.logger.log(`   - Hora+Minuto actual: ${ahoraHoraMinuto.toLocaleString('es-PE')}`);
+        this.logger.log(`   - ¿Coinciden hora+minuto?: ${fechaProgramadaHoraMinuto.getTime() === ahoraHoraMinuto.getTime()}`);
+        
+        // Ejecutar si estamos en la hora y minuto programados (ignorar segundos)
+        const debeEjecutar = fechaProgramadaHoraMinuto.getTime() === ahoraHoraMinuto.getTime();
+        
+        this.logger.log(`   - ¿Debe ejecutar?: ${debeEjecutar}`);
+        
+        return debeEjecutar;
+      });
+
+      if (ausenciasParaEjecutar.length === 0) {
+        this.logger.log('✅ No hay ausencias programadas para ejecutar en este minuto exacto');
         return;
       }
 
-      this.logger.log(`🚀 Ejecutando ${ausenciasProgramadas.length} ausencias programadas...`);
+      this.logger.log(`🚀 Ejecutando ${ausenciasParaEjecutar.length} ausencias programadas...`);
 
-      for (const ausenciaProgramada of ausenciasProgramadas) {
+      for (const ausenciaProgramada of ausenciasParaEjecutar) {
         try {
           // Extraer turnos del string almacenado
           const turnos = ausenciaProgramada.turnos_procesados.split(', ').map(t => t.trim());
           
-          // Ejecutar la ausencia programada
-          const resultado = await this.ausenciasMasivasService.ejecutarProgramaAusencias(
-            ausenciaProgramada.fecha_ejecucion,
-            ausenciaProgramada.hora_programada,
-            turnos
-          );
+                     // Convertir fecha_ejecucion a Date si no lo es
+           const fechaEjecucion = ausenciaProgramada.fecha_ejecucion instanceof Date 
+             ? ausenciaProgramada.fecha_ejecucion 
+             : new Date(ausenciaProgramada.fecha_ejecucion);
+
+           // Ejecutar la ausencia programada
+           const resultado = await this.ausenciasMasivasService.ejecutarProgramaAusencias(
+             fechaEjecucion,
+             ausenciaProgramada.hora_programada,
+             turnos
+           );
 
           // Actualizar estado a COMPLETADO
           await this.ausenciasMasivasLogRepository.update(

@@ -63,12 +63,32 @@ export class AusenciasMasivasService {
         relations: ['turno'],
       });
 
-      // 2. Filtrar alumnos por turnos especificados
-      const turnosProcesar = turnos || ['MAÑANA', 'TARDE'];
-      const alumnosFiltrados = alumnos.filter(alumno => {
-        if (!alumno.turno) return false;
-        return turnosProcesar.includes(alumno.turno.turno);
+             // 2. Filtrar alumnos por turnos especificados
+       const turnosProcesar = turnos || ['MAÑANA', 'TARDE'];
+      
+      // Log detallado de cada alumno y su turno
+      this.logger.log(`🔍 [DEBUG] Analizando ${alumnos.length} alumnos:`);
+      alumnos.forEach((alumno, index) => {
+        this.logger.log(`   Alumno ${index + 1}: ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
+        this.logger.log(`     - Tiene turno: ${!!alumno.turno}`);
+        if (alumno.turno) {
+          this.logger.log(`     - Turno asignado: ${alumno.turno.turno}`);
+          this.logger.log(`     - ¿Coincide con ${turnosProcesar.join(', ')}?: ${turnosProcesar.includes(alumno.turno.turno)}`);
+        } else {
+          this.logger.log(`     - Sin turno asignado`);
+        }
       });
+
+             const alumnosFiltrados = alumnos.filter(alumno => {
+         if (!alumno.turno) return false;
+         // Comparar insensible a mayúsculas/minúsculas
+         // turnosProcesar ahora es ['MAÑANA'] o ['TARDE'], pero la BD tiene 'mañana', 'tarde'
+         return turnosProcesar.some(turno => {
+           const turnoFrontend = turno; // 'MAÑANA'
+           const turnoBD = alumno.turno.turno; // 'mañana'
+           return turnoFrontend.toLowerCase() === turnoBD.toLowerCase();
+         });
+       });
 
       this.logger.log(`📊 Total de alumnos encontrados: ${alumnos.length}`);
       this.logger.log(`🎯 Alumnos del turno(s) ${turnosProcesar.join(', ')}: ${alumnosFiltrados.length}`);
@@ -100,34 +120,34 @@ export class AusenciasMasivasService {
         fechaProcesada: fechaProcesada.toDateString(),
         horaEjecucion,
         horaProgramada: hora || horaInicio.toTimeString().split(' ')[0],
-        turnosProcesados: turnos || ['MAÑANA', 'TARDE'],
+        turnosProcesados: turnos || ['mañana', 'tarde'],
         programada: false,
       };
 
       this.logger.log(`✅ Programa de ausencias completado: ${JSON.stringify(resultado)}`);
       
-      // Guardar historial de la ejecución
-      await this.guardarHistorialEjecucion(
-        fechaHoraProcesada,
-        horaInicio,
-        resultado,
-        turnos || ['MAÑANA', 'TARDE']
-      );
+             // Guardar historial de la ejecución
+       await this.guardarHistorialEjecucion(
+         fechaHoraProcesada,
+         horaInicio,
+         resultado,
+         turnos || ['MAÑANA', 'TARDE']
+       );
       
       return resultado;
 
     } catch (error) {
       this.logger.error(`❌ Error en programa de ausencias masivas: ${error.message}`);
       
-      // Guardar historial con error
-      await this.guardarHistorialEjecucion(
-        fechaProcesada,
-        horaInicio,
-        { totalAlumnos: 0, ausenciasCreadas: 0, alumnosConAsistencia: 0, fechaProcesada: fechaProcesada.toDateString(), horaEjecucion, turnosProcesados: turnos || ['MAÑANA', 'TARDE'] },
-        turnos || ['MAÑANA', 'TARDE'],
-        'ERROR',
-        error.message
-      );
+             // Guardar historial con error
+       await this.guardarHistorialEjecucion(
+         fechaProcesada,
+         horaInicio,
+         { totalAlumnos: 0, ausenciasCreadas: 0, alumnosConAsistencia: 0, fechaProcesada: fechaProcesada.toDateString(), horaEjecucion, turnosProcesados: turnos || ['MAÑANA', 'TARDE'] },
+         turnos || ['MAÑANA', 'TARDE'],
+         'ERROR',
+         error.message
+       );
       
       throw error;
     }
@@ -159,10 +179,10 @@ export class AusenciasMasivasService {
       const fechaActual = new Date();
       const fechaProcesada = new Date(fecha);
       
-      // Solo procesar si es la fecha actual o pasada
-      if (fechaProcesada > fechaActual) {
-        return { ausenciaCreada: false, motivo: 'Fecha futura - no se procesa' };
-      }
+      // Permitir fechas futuras para programación automática
+      // if (fechaProcesada > fechaActual) {
+      //   return { ausenciaCreada: false, motivo: 'Fecha futura - no se procesa' };
+      // }
 
       // Crear ausencia
       const nuevaAusencia = this.asistenciaRepository.create({
@@ -295,14 +315,24 @@ export class AusenciasMasivasService {
     mensaje: string;
   }> {
     try {
+      console.log('🔍 [SERVICE] ==========================================');
+      console.log('🔍 [SERVICE] ENTRANDO A programarAusencia');
+      console.log('🔍 [SERVICE] ==========================================');
+      console.log('🔍 [SERVICE] fecha recibida:', fecha);
+      console.log('🔍 [SERVICE] hora recibida:', hora);
+      console.log('🔍 [SERVICE] turnos recibidos:', turnos);
+      console.log('🔍 [SERVICE] tipo de turnos:', typeof turnos);
+      console.log('🔍 [SERVICE] ¿Es array?:', Array.isArray(turnos));
+      console.log('🔍 [SERVICE] ==========================================');
+      
       this.logger.log(`📅 Programando ausencia para ${fecha.toDateString()} a las ${hora}`);
 
       // Crear registro de programación
       const log = this.ausenciasMasivasLogRepository.create({
         fecha_ejecucion: fecha,
         hora_programada: hora,
-        hora_inicio: null,
-        hora_fin: null,
+        hora_inicio: '00:00:00',  // Valor por defecto para programaciones
+        hora_fin: '00:00:00',     // Valor por defecto para programaciones
         total_alumnos: 0,
         ausencias_creadas: 0,
         alumnos_con_asistencia: 0,
@@ -359,6 +389,37 @@ export class AusenciasMasivasService {
 
     } catch (error) {
       this.logger.error(`❌ Error obteniendo historial: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene todas las ausencias programadas para ejecución futura
+   */
+  async obtenerAusenciasProgramadas(): Promise<any[]> {
+    try {
+      this.logger.log(`📅 Obteniendo ausencias programadas para ejecución futura`);
+
+      const programadas = await this.ausenciasMasivasLogRepository.find({
+        where: { estado: 'PROGRAMADA' },
+        order: { fecha_ejecucion: 'ASC' },
+      });
+
+      // Transformar a formato de respuesta
+      const programadasFormateadas = programadas.map(log => ({
+        id: log.id_log,
+        fecha: new Date(log.fecha_ejecucion).toLocaleDateString('es-ES'),
+        hora: log.hora_programada,
+        turnos: log.turnos_procesados,
+        estado: log.estado,
+        fechaProgramacion: log.fecha_creacion.toISOString(),
+      }));
+
+      this.logger.log(`✅ Ausencias programadas obtenidas: ${programadasFormateadas.length} registros`);
+      return programadasFormateadas;
+
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo ausencias programadas: ${error.message}`);
       throw error;
     }
   }

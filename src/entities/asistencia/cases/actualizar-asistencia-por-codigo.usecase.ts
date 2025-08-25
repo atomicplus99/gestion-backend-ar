@@ -8,6 +8,7 @@ import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistenc
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { UpdateAsistenciaRequestDto } from '../infraestructure/dto/UpdateAsistenciaRequest.dto';
 import { UpdateAsistenciaResponseDto } from '../infraestructure/dto/UpdateAsistenciaResponse.dto';
+import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 
 @Injectable()
 export class ActualizarAsistenciaPorCodigoUseCase {
@@ -23,6 +24,8 @@ export class ActualizarAsistenciaPorCodigoUseCase {
 
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
+    
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(codigo: string, updateDto: UpdateAsistenciaRequestDto): Promise<UpdateAsistenciaResponseDto> {
@@ -37,7 +40,13 @@ export class ActualizarAsistenciaPorCodigoUseCase {
     }
 
     // 2. Buscar la asistencia más reciente del alumno (hoy o la última)
-    const fechaHoy = new Date();
+    // Obtener fecha actual en zona horaria de Perú (UTC-5)
+    const ahora = new Date();
+    const offsetPeru = -5 * 60; // UTC-5 en minutos
+    const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+    
+    // Construir fecha a las 00:00:00 en hora local de Perú
+    const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
     const fechaFormato = fechaHoy.toISOString().split('T')[0];
 
     const asistencia = await this.asistenciaRepository
@@ -106,7 +115,21 @@ export class ActualizarAsistenciaPorCodigoUseCase {
 
     await this.actualizacionesRepository.save(actualizacion);
 
-    // 9. Construir la respuesta
+          // 9. Enviar notificación de Telegram al apoderado
+      try {
+        console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM 🔔🔔🔔');
+        await this.telegramNotificationService.notificarAsistenciaApoderado(
+          asistenciaActualizada, 
+          `ACTUALIZACIÓN: ${updateDto.motivo}`, 
+          'ACTUALIZACION'
+        );
+        console.log('✅✅✅ NOTIFICACIÓN TELEGRAM ENVIADA EXITOSAMENTE ✅✅✅');
+      } catch (telegramError) {
+        console.error('[ActualizarAsistenciaPorCodigoUseCase] Error enviando notificación Telegram:', telegramError);
+        // No lanzamos error para no afectar la actualización de asistencia
+      }
+
+    // 10. Construir la respuesta
     const response: UpdateAsistenciaResponseDto = {
       success: true,
       mensaje: `Asistencia del alumno ${alumno.nombre} ${alumno.apellido} actualizada exitosamente`,

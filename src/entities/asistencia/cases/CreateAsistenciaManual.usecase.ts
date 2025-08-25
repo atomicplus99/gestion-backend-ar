@@ -7,6 +7,7 @@ import { Asistencia } from '../asistencia.entity';
 import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from 'src/entities/auxiliar/auxiliar.entity';
 import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
+import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 import { CreateAsistenciaManualDto } from '../infraestructure/dto/CreateAsistencia.dto';
 
 
@@ -24,6 +25,8 @@ export class CrearAsistenciaManualUseCase {
 
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
+    
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(createDto: CreateAsistenciaManualDto) {
@@ -47,7 +50,18 @@ export class CrearAsistenciaManualUseCase {
       }
 
       // 3. Validar que no exista asistencia duplicada para el mismo alumno y fecha
-      const fechaAsistencia = createDto.fecha ? new Date(createDto.fecha) : new Date();
+      let fechaAsistencia: Date;
+      if (createDto.fecha) {
+        fechaAsistencia = new Date(createDto.fecha);
+      } else {
+        // Crear fecha actual en zona horaria de Perú (UTC-5)
+        const ahora = new Date();
+        const offsetPeru = -5 * 60; // UTC-5 en minutos
+        const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+        
+        // Construir fecha a las 00:00:00 en hora local de Perú
+        fechaAsistencia = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
+      }
       
       // Buscar asistencia existente usando query builder para evitar problemas de zona horaria
       let asistenciaExistente: any = null;
@@ -78,7 +92,15 @@ export class CrearAsistenciaManualUseCase {
 
       const nuevaAsistencia = await this.asistenciaRepository.save(asistencia);
 
-      // 5. Registrar historial de creación
+      // 5. Enviar notificación de Telegram al apoderado
+      try {
+        await this.telegramNotificationService.notificarAsistenciaApoderado(nuevaAsistencia);
+      } catch (telegramError) {
+        console.error('[CrearAsistenciaManualUseCase] Error enviando notificación Telegram:', telegramError);
+        // No lanzamos error para no afectar el registro de asistencia
+      }
+
+      // 6. Registrar historial de creación
       const historial = this.actualizacionesRepository.create({
         asistencia: nuevaAsistencia,
         alumno: alumno,

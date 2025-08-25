@@ -135,9 +135,19 @@ export class TelegramApoderadoService {
 
       // Verificar que todos los DNIs de alumnos son correctos
       const alumnosAsignados = apoderado.pupilos.map(alumno => alumno.dni_alumno);
-      const dniesCorrectos = datos.dni_alumnos.every(dni => alumnosAsignados.includes(dni));
+      
+      this.logger.log(`🔍 DNIs enviados por el usuario: ${datos.dni_alumnos.join(', ')}`);
+      this.logger.log(`🔍 DNIs de alumnos asignados al apoderado: ${alumnosAsignados.join(', ')}`);
+      
+      // Verificar cada DNI individualmente
+      const dniesCorrectos = datos.dni_alumnos.every(dni => {
+        const esCorrecto = alumnosAsignados.includes(dni);
+        this.logger.log(`🔍 DNI ${dni}: ${esCorrecto ? '✅ CORRECTO' : '❌ INCORRECTO'}`);
+        return esCorrecto;
+      });
 
       if (!dniesCorrectos) {
+        this.logger.log(`❌ Validación fallida. DNIs incorrectos detectados.`);
         return {
           success: false,
           message: 'Algunos DNIs de alumnos no son correctos',

@@ -6,6 +6,7 @@ import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { CrearAusenciaAlumnoDto } from '../infraestructure/dto/CrearAusenciaAlumno.dto';
 import { ResponseAusenciaAlumno } from '../infraestructure/dto/ResponseAusenciaAlumno.dto';
+import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 
 @Injectable()
 export class CrearAusenciaAlumnoUseCase {
@@ -15,6 +16,8 @@ export class CrearAusenciaAlumnoUseCase {
     
     @InjectRepository(Alumno)
     private readonly alumnoRepository: Repository<Alumno>,
+    
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   async execute(dto: CrearAusenciaAlumnoDto): Promise<ResponseAusenciaAlumno> {
@@ -35,10 +38,17 @@ export class CrearAusenciaAlumnoUseCase {
            fechaAusencia = new Date(year, month - 1, day, 0, 0, 0, 0);
            console.log('📅 [CrearAusenciaAlumnoUseCase] Fecha proporcionada:', dto.fecha);
            console.log('📅 [CrearAusenciaAlumnoUseCase] Fecha procesada:', fechaAusencia.toISOString());
-         } else {
-           fechaAusencia = new Date();
-           console.log('📅 [CrearAusenciaAlumnoUseCase] Usando fecha actual:', fechaAusencia.toISOString());
-         }
+                 } else {
+          // Crear fecha actual en zona horaria de Perú (UTC-5)
+          const ahora = new Date();
+          const offsetPeru = -5 * 60; // UTC-5 en minutos
+          const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+          
+          // Construir fecha a las 00:00:00 en hora local de Perú
+          fechaAusencia = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
+          
+          console.log('📅 [CrearAusenciaAlumnoUseCase] Usando fecha actual Perú:', fechaAusencia.toISOString());
+        }
     
     // 3. Verificar que no exista asistencia para ese alumno en esa fecha
     // Usar la MISMA lógica que funciona en CreateAsistenciaManual
@@ -143,7 +153,15 @@ export class CrearAusenciaAlumnoUseCase {
 
     const ausenciaGuardada = await this.asistenciaRepository.save(ausencia);
 
-    // 5. Construir la respuesta
+    // 5. Enviar notificación de Telegram al apoderado
+    try {
+      await this.telegramNotificationService.notificarAsistenciaApoderado(ausenciaGuardada);
+    } catch (telegramError) {
+      console.error('[CrearAusenciaAlumnoUseCase] Error enviando notificación Telegram:', telegramError);
+      // No lanzamos error para no afectar el registro de ausencia
+    }
+
+    // 6. Construir la respuesta
     const response: ResponseAusenciaAlumno = {
       message: 'Ausencia registrada exitosamente',
       id: ausenciaGuardada.id_asistencia,
