@@ -22,6 +22,8 @@ import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { RolUsuario } from '../../../common/enums/rol-usuario.enum';
+import { UsuariosCompletosResponseDto } from '../dto/usuario-completo-response.dto';
+import { UsuariosCompletosFiltersDto } from '../dto/usuarios-completos-filters.dto';
 
 @ApiTags('Usuarios')
 @Controller('usuarios')
@@ -75,6 +77,25 @@ export class UsuarioController {
       message: 'Estadísticas obtenidas exitosamente',
       data: estadisticas
     };
+  }
+
+  @Get('completos')
+  @ApiOperation({ 
+    summary: 'Obtener usuarios con entidades enlazadas',
+    description: 'Obtiene todos los usuarios con sus datos de entidades enlazadas (alumno, auxiliar, administrador, director) y filtros avanzados'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Usuarios obtenidos exitosamente con entidades enlazadas',
+    type: UsuariosCompletosResponseDto
+  })
+  @ApiQuery({ name: 'rol', required: false, enum: RolUsuario, description: 'Filtrar por rol de usuario' })
+  @ApiQuery({ name: 'activo', required: false, type: Boolean, description: 'Filtrar por estado activo' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Buscar por nombre de usuario, nombres, apellidos o email' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Número de página (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Límite por página (default: 10, max: 100)' })
+  async findAllCompletos(@Query() filters: UsuariosCompletosFiltersDto): Promise<UsuariosCompletosResponseDto> {
+    return await this.usuarioService.findAllCompletos(filters);
   }
 
   @Get(':id')
@@ -215,4 +236,5 @@ export class UsuarioController {
       message: 'Foto de perfil eliminada exitosamente'
     };
   }
+
 }

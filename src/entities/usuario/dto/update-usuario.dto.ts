@@ -7,6 +7,10 @@ export class UpdateUsuarioDto {
   nombre_usuario?: string;
 
   @IsOptional()
+  @IsString()
+  profile_image?: string;
+
+  @IsOptional()
   @IsBoolean()
   activo?: boolean;
 }

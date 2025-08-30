@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException, BadRequestException, ConflictExc
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, FindManyOptions } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Usuario } from '../usuario.entity';
 import { CreateUsuarioDto } from '../dto/create-usuario.dto';
 import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
@@ -11,6 +13,8 @@ import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { UsuarioFotoService } from './usuario-foto.service';
 import { RolUsuario } from '../../../common/enums/rol-usuario.enum';
 import { UsuarioResponseDto } from '../dto/usuario-response.dto';
+import { UsuarioCompletoResponseDto, UsuariosCompletosResponseDto } from '../dto/usuario-completo-response.dto';
+import { UsuariosCompletosFiltersDto } from '../dto/usuarios-completos-filters.dto';
 
 @Injectable()
 export class UsuarioService {
@@ -191,19 +195,40 @@ export class UsuarioService {
   }
 
   /**
-   * Elimina un usuario (soft delete)
+   * Elimina un usuario con validación de referencias
    */
   async remove(id: string): Promise<void> {
     try {
       const usuario = await this.usuarioRepository.findOne({
-        where: { id_user: id }
+        where: { id_user: id },
+        relations: ['alumno', 'auxiliar', 'administrador', 'director']
       });
 
       if (!usuario) {
         throw new NotFoundException('Usuario no encontrado');
       }
 
-      // Eliminar físicamente el usuario
+      // Verificar si el usuario está siendo utilizado en alguna entidad
+      if (usuario.alumno) {
+        throw new ConflictException('No se puede eliminar el usuario porque está siendo utilizado en: alumno');
+      }
+
+      if (usuario.auxiliar) {
+        throw new ConflictException('No se puede eliminar el usuario porque está siendo utilizado en: auxiliar');
+      }
+
+      if (usuario.administrador) {
+        throw new ConflictException('No se puede eliminar el usuario porque está siendo utilizado en: administrador');
+      }
+
+      if (usuario.director) {
+        throw new ConflictException('No se puede eliminar el usuario porque está siendo utilizado en: director');
+      }
+
+      // Eliminar la foto de perfil del usuario (si existe y no es la imagen por defecto)
+      await this.eliminarFotoPerfilUsuario(usuario);
+
+      // Eliminar físicamente el usuario (solo si no tiene referencias)
       await this.usuarioRepository.remove(usuario);
       
       this.logger.log(`✅ Usuario eliminado físicamente: ${usuario.nombre_usuario}`);
@@ -537,6 +562,183 @@ export class UsuarioService {
     } catch (error) {
       this.logger.error(`❌ Error buscando administrador por userId ${userId}: ${error.message}`);
       throw error;
+    }
+  }
+
+  /**
+   * Obtiene todos los usuarios con sus entidades enlazadas y filtros
+   */
+  async findAllCompletos(filters: UsuariosCompletosFiltersDto): Promise<UsuariosCompletosResponseDto> {
+    try {
+      const { rol, activo, search, page = 1, limit = 10 } = filters;
+      
+      // Construir query builder
+      const queryBuilder = this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.alumno', 'alumno')
+        .leftJoinAndSelect('usuario.auxiliar', 'auxiliar')
+        .leftJoinAndSelect('usuario.administrador', 'administrador')
+        .leftJoinAndSelect('usuario.director', 'director');
+
+      // Aplicar filtros
+      if (rol) {
+        queryBuilder.andWhere('usuario.rol_usuario = :rol', { rol });
+      }
+
+      if (activo !== undefined) {
+        queryBuilder.andWhere('usuario.activo = :activo', { activo });
+      }
+
+      if (search) {
+        queryBuilder.andWhere(
+          '(usuario.nombre_usuario LIKE :search OR ' +
+          'alumno.nombres LIKE :search OR alumno.apellidos LIKE :search OR alumno.email LIKE :search OR ' +
+          'auxiliar.nombre LIKE :search OR auxiliar.apellido LIKE :search OR auxiliar.correo_electronico LIKE :search OR ' +
+          'administrador.nombres LIKE :search OR administrador.apellidos LIKE :search OR administrador.email LIKE :search OR ' +
+          'director.nombres LIKE :search OR director.apellidos LIKE :search OR director.email LIKE :search)',
+          { search: `%${search}%` }
+        );
+      }
+
+      // Aplicar paginación
+      const offset = (page - 1) * limit;
+      queryBuilder
+        .orderBy('usuario.fecha_creacion', 'DESC')
+        .skip(offset)
+        .take(limit);
+
+      // Ejecutar consulta
+      const [usuarios, total] = await queryBuilder.getManyAndCount();
+
+      // Mapear resultados
+      const usuariosCompletos: UsuarioCompletoResponseDto[] = usuarios.map(usuario => {
+        const usuarioCompleto: UsuarioCompletoResponseDto = {
+          id_user: usuario.id_user,
+          nombre_usuario: usuario.nombre_usuario,
+          rol_usuario: usuario.rol_usuario,
+          profile_image: usuario.profile_image,
+          activo: usuario.activo,
+          fecha_creacion: usuario.fecha_creacion,
+          fecha_actualizacion: usuario.fecha_actualizacion,
+        };
+
+        // Agregar datos de la entidad enlazada según el rol
+        if (usuario.alumno) {
+          usuarioCompleto.alumno = {
+            id_alumno: usuario.alumno.id_alumno,
+            codigo: usuario.alumno.codigo,
+            dni_alumno: usuario.alumno.dni_alumno,
+            nombre: usuario.alumno.nombre,
+            apellido: usuario.alumno.apellido,
+            fecha_nacimiento: usuario.alumno.fecha_nacimiento,
+            direccion: usuario.alumno.direccion,
+            codigo_qr: usuario.alumno.codigo_qr,
+            nivel: usuario.alumno.nivel,
+            grado: usuario.alumno.grado,
+            seccion: usuario.alumno.seccion,
+          };
+        }
+
+        if (usuario.auxiliar) {
+          usuarioCompleto.auxiliar = {
+            id_auxiliar: usuario.auxiliar.id_auxiliar,
+            nombre: usuario.auxiliar.nombre,
+            apellido: usuario.auxiliar.apellido,
+            correo_electronico: usuario.auxiliar.correo_electronico,
+            telefono: usuario.auxiliar.telefono,
+            dni_auxiliar: usuario.auxiliar.dni_auxiliar,
+            fecha_nacimiento: usuario.auxiliar.fecha_nacimiento,
+          };
+        }
+
+        if (usuario.administrador) {
+          usuarioCompleto.administrador = {
+            id_administrador: usuario.administrador.id_administrador,
+            nombres: usuario.administrador.nombres,
+            apellidos: usuario.administrador.apellidos,
+            email: usuario.administrador.email,
+            telefono: usuario.administrador.telefono || '',
+            direccion: usuario.administrador.direccion || '',
+          };
+        }
+
+        if (usuario.director) {
+          usuarioCompleto.director = {
+            id_director: usuario.director.id_director,
+            nombres: usuario.director.nombres,
+            apellidos: usuario.director.apellidos,
+            email: usuario.director.email,
+            telefono: usuario.director.telefono || '',
+            direccion: usuario.director.direccion || '',
+          };
+        }
+
+        return usuarioCompleto;
+      });
+
+      const totalPages = Math.ceil(total / limit);
+
+      this.logger.log(`✅ Usuarios completos obtenidos: ${usuariosCompletos.length} de ${total} total`);
+
+      return {
+        usuarios: usuariosCompletos,
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo usuarios completos: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina la foto de perfil del usuario (solo si no es la imagen por defecto)
+   */
+  private async eliminarFotoPerfilUsuario(usuario: Usuario): Promise<void> {
+    try {
+      // Verificar si el usuario tiene una foto personalizada (no es la imagen por defecto)
+      if (!usuario.profile_image || usuario.profile_image === 'no-image.png') {
+        this.logger.log(`ℹ️ Usuario ${usuario.nombre_usuario} no tiene foto personalizada, omitiendo eliminación`);
+        return;
+      }
+
+      // Extraer el nombre del archivo de la URL
+      const fileName = path.basename(usuario.profile_image);
+      
+      // Verificar que el archivo pertenece al usuario (contiene su ID)
+      if (!fileName.includes(usuario.id_user)) {
+        this.logger.warn(`⚠️ Archivo ${fileName} no pertenece al usuario ${usuario.id_user}, omitiendo eliminación`);
+        return;
+      }
+
+      // Construir la ruta completa del archivo
+      const filePath = path.join(process.cwd(), 'public', 'profiles', 'usuarios', fileName);
+
+      // Verificar que el archivo existe
+      if (!fs.existsSync(filePath)) {
+        this.logger.warn(`⚠️ Archivo ${filePath} no existe, omitiendo eliminación`);
+        return;
+      }
+
+      // Verificar que el archivo está en la ruta correcta (seguridad)
+      const normalizedPath = path.normalize(filePath);
+      const expectedPath = path.join(process.cwd(), 'public', 'profiles', 'usuarios');
+      
+      if (!normalizedPath.startsWith(expectedPath)) {
+        this.logger.error(`❌ Intento de eliminar archivo fuera de la ruta permitida: ${filePath}`);
+        return;
+      }
+
+      // Eliminar el archivo
+      fs.unlinkSync(filePath);
+      this.logger.log(`✅ Foto de perfil eliminada: ${fileName} para usuario ${usuario.nombre_usuario}`);
+
+    } catch (error) {
+      this.logger.error(`❌ Error eliminando foto de perfil del usuario ${usuario.nombre_usuario}: ${error.message}`);
+      // No lanzar error para no interrumpir la eliminación del usuario
     }
   }
 }
