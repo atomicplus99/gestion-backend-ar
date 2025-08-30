@@ -4,6 +4,7 @@ import { AusenciasMasivasService } from './ausencias-masivas.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AusenciasMasivasLog } from '../entities/ausencias-masivas-log.entity';
+import { TelegramNotificationService } from '../../telegram/services/telegram-notification.service';
 
 @Injectable()
 export class AusenciasMasivasSchedulerService {
@@ -13,6 +14,7 @@ export class AusenciasMasivasSchedulerService {
     private readonly ausenciasMasivasService: AusenciasMasivasService,
     @InjectRepository(AusenciasMasivasLog)
     private readonly ausenciasMasivasLogRepository: Repository<AusenciasMasivasLog>,
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   /**
@@ -89,17 +91,15 @@ export class AusenciasMasivasSchedulerService {
 
       for (const ausenciaProgramada of ausenciasParaEjecutar) {
         try {
-          // Extraer turnos del string almacenado
-          const turnos = ausenciaProgramada.turnos_procesados.split(', ').map(t => t.trim());
-          
-                     // Convertir fecha_ejecucion a Date si no lo es
-           const fechaEjecucion = ausenciaProgramada.fecha_ejecucion instanceof Date 
-             ? ausenciaProgramada.fecha_ejecucion 
-             : new Date(ausenciaProgramada.fecha_ejecucion);
+                     // Extraer turnos del string almacenado
+           const turnos = ausenciaProgramada.turnos_procesados.split(', ').map(t => t.trim());
+           
+           // Usar la fecha actual del sistema (no la fecha de la BD)
+           const fechaActual = new Date();
 
            // Ejecutar la ausencia programada
            const resultado = await this.ausenciasMasivasService.ejecutarProgramaAusencias(
-             fechaEjecucion,
+             fechaActual,
              ausenciaProgramada.hora_programada,
              turnos
            );

@@ -21,6 +21,8 @@ import { AuxiliarModule } from './entities/auxiliar/auxiliar.module';
 import { ApoderadoModule } from './entities/apoderado/apoderado.module';
 import { JustificacionModule } from './entities/justificacion/justificacion.module';
 import { TelegramModule } from './entities/telegram/telegram.module';
+import { AdministradorModule } from './entities/administrador/administrador.module';
+import { DirectorModule } from './entities/director/director.module';
 
 
 
@@ -33,6 +35,10 @@ dotenv.config();
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public/profiles'),
+      serveRoot: '/profiles',
     }),
     TypeOrmModule.forRoot(typeOrmConfig),
     ScheduleModule.forRoot(),
@@ -47,7 +53,9 @@ dotenv.config();
     ActualizacionesAsistenciaModule,
     ApoderadoModule,
     JustificacionModule,
-    TelegramModule
+    TelegramModule,
+    AdministradorModule,
+    DirectorModule
   ],
   controllers: [AppController], 
   providers: [AppService],       

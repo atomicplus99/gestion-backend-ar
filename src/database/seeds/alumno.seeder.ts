@@ -65,7 +65,10 @@ export class AlumnoSeeder {
       alumno.turno = turno;
 
       const usuario = usuarios.find(u => u.nombre_usuario === data.user);
-      if (!usuario) throw new Error(`No se encontró el usuario: ${data.user}`);
+      if (!usuario) {
+        console.error(`❌ No se encontró el usuario: ${data.user}. Usuarios disponibles:`, usuarios.map(u => u.nombre_usuario));
+        continue; // Saltar este alumno y continuar con el siguiente
+      }
       alumno.usuario = usuario;
 
       alumnos.push(alumno);

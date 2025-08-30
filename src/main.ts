@@ -46,7 +46,14 @@ async function bootstrap() {
     next();
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })); 
+  app.useGlobalPipes(new ValidationPipe({ 
+    whitelist: true, 
+    forbidNonWhitelisted: true,
+    transform: true,
+    skipMissingProperties: true,
+    skipNullProperties: true,
+    skipUndefinedProperties: true
+  })); 
   
   // Aplicar filtro global de excepciones
   app.useGlobalFilters(new HttpExceptionFilter());

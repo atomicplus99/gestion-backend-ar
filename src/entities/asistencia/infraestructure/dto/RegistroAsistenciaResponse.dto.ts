@@ -15,8 +15,8 @@ export class AsistenciaInfoResponse {
   @ApiProperty({ example: 'uuid-asistencia', description: 'UUID del registro creado' })
   id_asistencia: string;
 
-  @ApiProperty({ example: '08:15', description: 'Hora confirmada' })
-  hora_de_llegada: string;
+  @ApiProperty({ example: '08:15', description: 'Hora confirmada', nullable: true })
+  hora_de_llegada: string | null;
 
   @ApiProperty({ example: '14:00', description: 'Hora de salida si se proporcionó', required: false })
   hora_salida?: string;

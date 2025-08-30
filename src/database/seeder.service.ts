@@ -4,6 +4,8 @@ import { TurnoSeeder } from './seeds/turno.seeder';
 import { AlumnoSeeder } from './seeds/alumno.seeder';
 import { AuxiliarSeeder } from './seeds/auxiliar.seeder';
 import { EstadoAlumnoSeeder } from './seeds/estado-alumnos.seeder';
+import { AdministradorSeeder } from './seeds/administrador.seeder';
+import { DirectorSeeder } from './seeds/director.seeder';
 
 @Injectable()
 export class SeederService implements OnModuleInit{
@@ -13,6 +15,8 @@ export class SeederService implements OnModuleInit{
                 private readonly alumnoSeeder: AlumnoSeeder,
                 private readonly auxiliarSeeder: AuxiliarSeeder,
                 private readonly estadoAlumnoSeeder: EstadoAlumnoSeeder,
+                private readonly administradorSeeder: AdministradorSeeder,
+                private readonly directorSeeder: DirectorSeeder,
     ){}
 
     async onModuleInit() {
@@ -46,6 +50,18 @@ export class SeederService implements OnModuleInit{
             await this.estadoAlumnoSeeder.run();
         } catch (error) {
             console.error("❌ Error en EstadoAlumnoSeeder:", error.message);
+        }
+        
+        try {
+            await this.administradorSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en AdministradorSeeder:", error.message);
+        }
+        
+        try {
+            await this.directorSeeder.run();
+        } catch (error) {
+            console.error("❌ Error en DirectorSeeder:", error.message);
         }
         
         console.log("✅ Seeders ejecutados (con manejo de errores)");

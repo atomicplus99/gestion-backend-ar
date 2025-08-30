@@ -30,8 +30,8 @@ export class AsistenciaExistenteManual {
   @ApiProperty({ example: 'uuid-asistencia', description: 'ID único de la asistencia' })
   id_asistencia: string;
 
-  @ApiProperty({ example: '08:00:00', description: 'Hora de llegada' })
-  hora_de_llegada: string;
+  @ApiProperty({ example: '08:00:00', description: 'Hora de llegada', nullable: true })
+  hora_de_llegada: string | null;
 
   @ApiProperty({ example: '15:00:00', description: 'Hora de salida', required: false })
   hora_salida?: string;

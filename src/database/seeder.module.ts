@@ -13,11 +13,15 @@ import { Asistencia } from 'src/entities/asistencia/asistencia.entity';
 import { EstadoAlumno } from 'src/entities/estado-alumnos/entities/estado-alumno.entity';
 import { EstadoAlumnoSeeder } from './seeds/estado-alumnos.seeder';
 import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
+import { AdministradorSeeder } from './seeds/administrador.seeder';
+import { DirectorSeeder } from './seeds/director.seeder';
+import { Administrador } from 'src/entities/administrador/administrador.entity';
+import { Director } from 'src/entities/director/director.entity';
 
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia])],
-  providers: [SeederService, UserSeeder, TurnoSeeder, AlumnoSeeder, AuxiliarSeeder, EstadoAlumnoSeeder],
+  imports: [TypeOrmModule.forFeature([Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Administrador, Director])],
+  providers: [SeederService, UserSeeder, TurnoSeeder, AlumnoSeeder, AuxiliarSeeder, EstadoAlumnoSeeder, AdministradorSeeder, DirectorSeeder],
   exports: [SeederService]
 })
 export class SeederModule {}

@@ -11,10 +11,10 @@ export class AuxiliarRepository {
   ) {}
 
   /**
-   * Encuentra todos los auxiliares
+   * Encuentra todos los auxiliares (método simple)
    * @returns Lista de auxiliares
    */
-  async findAll(): Promise<Auxiliar[]> {
+  async findAllSimple(): Promise<Auxiliar[]> {
     return this.repo.find();
   }
 
@@ -75,7 +75,26 @@ export class AuxiliarRepository {
    * @returns Resultado de la operación
    */
   async remove(id_auxiliar: string): Promise<void> {
+    // Obtener el auxiliar con su usuario antes de eliminar
+    const auxiliar = await this.repo.findOne({
+      where: { id_auxiliar },
+      relations: ['usuario']
+    });
+
+    if (!auxiliar) {
+      throw new Error('Auxiliar no encontrado');
+    }
+
+    // Guardar referencia al usuario antes de eliminar el auxiliar
+    const usuarioAEliminar = auxiliar.usuario;
+
+    // Eliminar PRIMERO el auxiliar
     await this.repo.delete({ id_auxiliar });
+
+    // DESPUÉS eliminar el usuario (si existe)
+    if (usuarioAEliminar) {
+      await this.repo.manager.delete('USUARIO', { id_user: usuarioAEliminar.id_user });
+    }
   }
 
   /**
@@ -84,5 +103,100 @@ export class AuxiliarRepository {
    */
   async count(): Promise<number> {
     return this.repo.count();
+  }
+
+  /**
+   * Crea un nuevo auxiliar
+   * @param data Datos del auxiliar
+   * @returns Auxiliar creado
+   */
+  async create(data: Partial<Auxiliar>): Promise<Auxiliar> {
+    const auxiliar = this.repo.create(data);
+    return this.repo.save(auxiliar);
+  }
+
+  /**
+   * Obtiene auxiliares con paginación y búsqueda
+   * @param page Página
+   * @param limit Límite por página
+   * @param search Término de búsqueda
+   * @returns Resultado paginado
+   */
+  async findAll(page: number = 1, limit: number = 10, search?: string): Promise<{
+    auxiliares: Auxiliar[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const queryBuilder = this.repo.createQueryBuilder('auxiliar')
+      .leftJoinAndSelect('auxiliar.usuario', 'usuario');
+
+    if (search) {
+      queryBuilder.where(
+        'auxiliar.nombre ILIKE :search OR auxiliar.apellido ILIKE :search OR auxiliar.correo_electronico ILIKE :search',
+        { search: `%${search}%` }
+      );
+    }
+
+    const [auxiliares, total] = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      auxiliares,
+      total,
+      page,
+      limit
+    };
+  }
+
+  /**
+   * Obtiene estadísticas de auxiliares
+   * @returns Estadísticas
+   */
+  async getStatistics(): Promise<{ totalAuxiliares: number }> {
+    const totalAuxiliares = await this.repo.count();
+    return { totalAuxiliares };
+  }
+
+  /**
+   * Asigna un usuario existente a un auxiliar
+   * @param id_user ID del usuario
+   * @param datos_personales Datos personales del auxiliar
+   * @returns Auxiliar creado
+   */
+  async asignarUsuario(id_user: string, datos_personales: {
+    nombres: string;
+    apellidos: string;
+    email: string;
+    telefono?: string;
+    direccion?: string;
+  }): Promise<Auxiliar> {
+    const auxiliar = this.repo.create({
+      nombre: datos_personales.nombres,
+      apellido: datos_personales.apellidos,
+      correo_electronico: datos_personales.email,
+      telefono: datos_personales.telefono || '000000000',
+      dni_auxiliar: '00000000', // DNI temporal
+      fecha_nacimiento: new Date(), // Fecha temporal
+      usuario: { id_user } as any
+    });
+    return this.repo.save(auxiliar);
+  }
+
+  /**
+   * Cambia el usuario asignado a un auxiliar
+   * @param id_auxiliar ID del auxiliar
+   * @param nuevo_id_user ID del nuevo usuario
+   * @returns Auxiliar actualizado
+   */
+  async cambiarUsuario(id_auxiliar: string, nuevo_id_user: string): Promise<Auxiliar> {
+    await this.repo.update({ id_auxiliar }, { usuario: { id_user: nuevo_id_user } as any });
+    const auxiliar = await this.findOne(id_auxiliar);
+    if (!auxiliar) {
+      throw new Error('Auxiliar no encontrado después de la actualización');
+    }
+    return auxiliar;
   }
 }

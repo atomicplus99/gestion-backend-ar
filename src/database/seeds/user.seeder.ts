@@ -40,8 +40,21 @@ export class UserSeeder {
             this.createUser('auxiliar5', 'pass456', RolUsuario.AUXILIAR, saltRounds),
         ]);
 
-        await userRepo.insert(usuarios);
-        console.log("Usuarios insertados correctamente ✅");
+        try {
+            await userRepo.save(usuarios);
+            console.log("Usuarios insertados correctamente ✅");
+        } catch (error) {
+            console.error("❌ Error insertando usuarios:", error.message);
+            // Intentar insertar uno por uno para identificar cuál falla
+            for (const usuario of usuarios) {
+                try {
+                    await userRepo.save(usuario);
+                    console.log(`✅ Usuario ${usuario.nombre_usuario} insertado`);
+                } catch (individualError) {
+                    console.error(`❌ Error insertando usuario ${usuario.nombre_usuario}:`, individualError.message);
+                }
+            }
+        }
     }
 
     private async createUser(nombre_usuario: string, password: string, rol_usuario: RolUsuario, saltRounds: number): Promise<Usuario> {
@@ -51,7 +64,8 @@ export class UserSeeder {
         usuario.nombre_usuario = nombre_usuario;
         usuario.password_user = hashedPassword;
         usuario.rol_usuario = rol_usuario;
-        usuario.profile_image = 'uploads/profiles/no-image.png';
+        usuario.profile_image = 'no-image.png';
+        usuario.activo = true;
 
         return usuario;
     }

@@ -5,6 +5,7 @@ import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity'
 import { Asistencia } from '../asistencia.entity';
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { AusenciasMasivasLog } from '../entities/ausencias-masivas-log.entity';
+import { TelegramNotificationService } from '../../telegram/services/telegram-notification.service';
 
 @Injectable()
 export class AusenciasMasivasService {
@@ -17,6 +18,7 @@ export class AusenciasMasivasService {
     private readonly asistenciaRepository: Repository<Asistencia>,
     @InjectRepository(AusenciasMasivasLog)
     private readonly ausenciasMasivasLogRepository: Repository<AusenciasMasivasLog>,
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   /**
@@ -104,6 +106,23 @@ export class AusenciasMasivasService {
           const resultado = await this.procesarAlumno(alumno, fechaProcesada);
           if (resultado.ausenciaCreada) {
             ausenciasCreadas++;
+            
+            // Enviar notificación de ausencia masiva si el alumno tiene apoderado
+            if (resultado.asistencia && resultado.apoderado) {
+              try {
+                await this.telegramNotificationService.notificarAsistenciaApoderado(
+                  resultado.asistencia,
+                  'AUSENCIA MASIVA AUTOMÁTICA',
+                  'REGISTRO'
+                );
+                this.logger.log(`📱 Notificación enviada a apoderado de ${alumno.codigo}`);
+              } catch (telegramError) {
+                this.logger.warn(`⚠️ No se pudo enviar notificación Telegram para ${alumno.codigo}: ${telegramError.message}`);
+                // Continuar sin interrumpir el proceso
+              }
+            } else {
+              this.logger.log(`⏭️ Alumno ${alumno.codigo} sin apoderado - no se envía notificación`);
+            }
           } else {
             alumnosConAsistencia++;
           }
@@ -159,6 +178,8 @@ export class AusenciasMasivasService {
   private async procesarAlumno(alumno: Alumno, fecha: Date): Promise<{
     ausenciaCreada: boolean;
     motivo: string;
+    asistencia?: any;
+    apoderado?: any;
   }> {
     try {
       // Verificar si ya tiene asistencia para esta fecha
@@ -189,15 +210,30 @@ export class AusenciasMasivasService {
         alumno,
         fecha: fechaProcesada,
         estado_asistencia: EstadoAsistencia.AUSENTE,
-        hora_de_llegada: '00:00', // Hora por defecto para ausencias
+        hora_de_llegada: null, // Para ausencias no hay hora de llegada
         hora_salida: null,
       });
 
-      await this.asistenciaRepository.save(nuevaAusencia);
+      const asistenciaGuardada = await this.asistenciaRepository.save(nuevaAusencia);
       
       this.logger.log(`✅ Ausencia creada para alumno ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
       
-      return { ausenciaCreada: true, motivo: 'Ausencia registrada automáticamente' };
+      // Obtener información del apoderado si existe
+      let apoderado: any = null;
+      try {
+        if (alumno.apoderados && alumno.apoderados.length > 0) {
+          apoderado = alumno.apoderados[0]; // Tomar el primer apoderado
+        }
+      } catch (error) {
+        this.logger.warn(`⚠️ No se pudo obtener información del apoderado para ${alumno.codigo}: ${error.message}`);
+      }
+      
+      return { 
+        ausenciaCreada: true, 
+        motivo: 'Ausencia registrada automáticamente',
+        asistencia: asistenciaGuardada,
+        apoderado: apoderado
+      };
 
     } catch (error) {
       this.logger.error(`❌ Error procesando alumno ${alumno.codigo}: ${error.message}`);

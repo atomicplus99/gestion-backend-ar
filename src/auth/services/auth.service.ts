@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { LoginDto } from '../dto/login.dto';
-import { UsuarioService } from 'src/entities/usuario/usuario.service';
+import { UsuarioService } from 'src/entities/usuario/services/usuario.service';
 import * as bcrypt from 'bcrypt';
 import { JwtDefaultService } from './jwt.service';
 import { JwtService } from '@nestjs/jwt';
@@ -103,6 +103,40 @@ export class AuthService {
                 codigo: alumno.codigo,
                 grado: alumno.grado,
                 seccion: alumno.seccion,
+              }
+            };
+          }
+          break;
+          
+        case 'DIRECTOR':
+          const director = await this.usuarioService.findDirectorByUserId(userPayload.idUser);
+          if (director) {
+            return {
+              ...response,
+              director: {
+                id_director: director.id_director,
+                nombres: director.nombres,
+                apellidos: director.apellidos,
+                email: director.email,
+                telefono: director.telefono,
+                direccion: director.direccion,
+              }
+            };
+          }
+          break;
+          
+        case 'ADMINISTRADOR':
+          const administrador = await this.usuarioService.findAdministradorByUserId(userPayload.idUser);
+          if (administrador) {
+            return {
+              ...response,
+              administrador: {
+                id_administrador: administrador.id_administrador,
+                nombres: administrador.nombres,
+                apellidos: administrador.apellidos,
+                email: administrador.email,
+                telefono: administrador.telefono,
+                direccion: administrador.direccion,
               }
             };
           }

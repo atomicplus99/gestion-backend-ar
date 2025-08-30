@@ -10,9 +10,10 @@ export class AsistenciaActualizadaDto {
 
   @ApiProperty({
     description: 'Hora de llegada actualizada',
-    example: '08:15'
+    example: '08:15',
+    nullable: true
   })
-  hora_de_llegada: string;
+  hora_de_llegada: string | null;
 
   @ApiProperty({
     description: 'Hora de salida actualizada (puede ser null)',

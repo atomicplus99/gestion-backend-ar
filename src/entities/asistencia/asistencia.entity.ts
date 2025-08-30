@@ -13,8 +13,8 @@ export class Asistencia {
   @PrimaryGeneratedColumn('uuid')
   id_asistencia: string;
 
-  @Column({ type: 'time' })
-  hora_de_llegada: string;
+  @Column({ type: 'time', nullable: true })
+  hora_de_llegada: string | null;
 
   @Column({ type: 'time', nullable: true })
   hora_salida: string | null;

@@ -4,7 +4,7 @@ import { EstadoAsistencia } from "../../enums/estado-asistencia.enum";
 export class AsistenciaModel {
     constructor(
       public readonly id_asistencia: string,
-      public horaLlegada: string,
+      public horaLlegada: string | null,
       public estado: EstadoAsistencia,
       public fecha: Date,
       public alumno: Alumno,
