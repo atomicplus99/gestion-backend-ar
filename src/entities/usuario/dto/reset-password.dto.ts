@@ -1,10 +1,22 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class ResetPasswordDto {
-  @IsString()
+  @ApiProperty({
+    description: 'Token de restablecimiento de contraseña',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  })
+  @IsString({ message: 'El token debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'El token es requerido' })
   token: string;
 
-  @IsString()
-  @MinLength(8, { message: 'La nueva contraseña debe tener al menos 8 caracteres' })
+  @ApiProperty({
+    description: 'Nueva contraseña del usuario',
+    example: 'nuevaContraseña123',
+    minLength: 6
+  })
+  @IsString({ message: 'La contraseña debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'La nueva contraseña es requerida' })
+  @MinLength(6, { message: 'La contraseña debe tener al menos 6 caracteres' })
   passwordNueva: string;
 }

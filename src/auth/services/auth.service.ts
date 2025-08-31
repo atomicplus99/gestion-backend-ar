@@ -28,23 +28,37 @@ export class AuthService {
             throw new UnauthorizedException('Contraseña incorrecta');
         }
 
-        return this.jwtService.generateToken({ 
+        const payload = { 
             idUser: userFind.id_user,
             username: userFind.nombre_usuario,
             userRole: userFind.rol_usuario,
             profile_image: userFind.profile_image,
-        });
+        };
+        
+        const access_token = this.jwtService.generateToken(payload);
+        
+        return {
+            success: true,
+            message: 'Autenticación exitosa',
+            data: {
+                access_token,
+                user: payload
+            }
+        };
     }
 
     async handleLogin(loginDto: LoginDto, res: Response) {
-      const accessToken = await this.login(loginDto);
-      const payload = this.jwtServiceCore.verify(accessToken);
+      const loginResult = await this.login(loginDto);
+      const payload = this.jwtService.verifyToken(loginResult.data.access_token);
       const userProfile = await this.getProfileDetails(payload);
     
       return {
+        success: true,
         message: 'Inicio de sesión exitoso',
-        access_token: accessToken,
-        user: userProfile,
+        data: {
+          access_token: loginResult.data.access_token,
+          user: userProfile,
+        }
       };
     }
 

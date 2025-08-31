@@ -14,8 +14,8 @@ import { AuxiliarModule } from 'src/entities/auxiliar/auxiliar.module';
 @Module({
   imports: [UsuarioModule, AlumnoModule, AuxiliarModule,
       JwtModule.register({
-        secret: process.env.JWT_SECRET || 'mi_clave_super_secreta',
-        signOptions: { expiresIn: '1h' },
+        secret: process.env.JWT_SECRET || 'mi_clave_super_secreta_2025',
+        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
       }),
   ],
   providers: [AuthService, JwtDefaultService],

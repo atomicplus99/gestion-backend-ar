@@ -38,7 +38,11 @@ export class ResponseTransformInterceptor<T>
         this.logger.log(`📊 [Interceptor] Tipo de datos: ${typeof data}`);
         
         if (data && typeof data === 'object') {
-          this.logger.log(`📊 [Interceptor] Propiedades del objeto: ${Object.keys(data).join(', ')}`);
+          try {
+            this.logger.log(`📊 [Interceptor] Propiedades del objeto: ${Object.keys(data).join(', ')}`);
+          } catch (error) {
+            this.logger.log(`📊 [Interceptor] Objeto con referencias circulares detectado`);
+          }
           
           // Si la respuesta ya está estructurada, no la transformamos
           if ('success' in data) {
@@ -57,7 +61,7 @@ export class ResponseTransformInterceptor<T>
           data: data
         };
         
-        this.logger.log(`✅ [Interceptor] Respuesta transformada: ${JSON.stringify(transformedResponse, null, 2)}`);
+        this.logger.log(`✅ [Interceptor] Respuesta transformada exitosamente`);
         
         return transformedResponse;
       }),

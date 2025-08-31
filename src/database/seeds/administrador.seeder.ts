@@ -29,15 +29,6 @@ export class AdministradorSeeder {
       // Datos de administradores de prueba
       const administradoresData = [
         {
-          nombres: 'Juan Carlos',
-          apellidos: 'Pérez García',
-          email: 'admin1@colegio.com',
-          telefono: '987654321',
-          direccion: 'Av. Principal 123, Lima',
-          nombre_usuario: 'admin1',
-          password: 'admin123'
-        },
-        {
           nombres: 'María Elena',
           apellidos: 'Rodríguez López',
           email: 'admin2@colegio.com',

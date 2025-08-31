@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Param,
   Body,
   UseInterceptors,
@@ -94,6 +95,43 @@ export class AlumnoController {
       return alumnoActualizado;
     } catch (error) {
       this.logger.error(`❌ [Controller] Error en actualización: ${error.message}`);
+      throw error;
+    }
+  }
+
+  @Patch(':id')
+  @ApiOperation({ 
+    summary: 'Actualizar alumno por ID', 
+    description: 'Actualiza los datos de un alumno específico usando su ID único'
+  })
+  @ApiParam({ name: 'id', type: 'string', description: 'ID único del alumno' })
+  @ApiBody({ type: UpdateAlumnoDto, description: 'Datos del alumno a actualizar' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Alumno actualizado correctamente', 
+    type: AlumnoUpdateResponseDto 
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Error de validación en los datos', 
+    type: ValidationErrorResponseDto 
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno no encontrado', 
+    type: ErrorResponseDto 
+  })
+  async updateAlumnoById(
+    @Param('id') id: string,
+    @Body() updateAlumnoDto: UpdateAlumnoDto
+  ): Promise<AlumnoUpdateResponseDto> {
+    this.logger.log(`🔄 [Controller] Iniciando actualización de alumno con ID: ${id}`);
+    try {
+      const alumnoActualizado = await this.updateAlumnoCase.executeById(id, updateAlumnoDto);
+      this.logger.log(`✅ [Controller] Alumno actualizado exitosamente por ID`);
+      return alumnoActualizado;
+    } catch (error) {
+      this.logger.error(`❌ [Controller] Error en actualización por ID: ${error.message}`);
       throw error;
     }
   }

@@ -10,11 +10,15 @@ import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+
 import { UsuarioFotoService } from './usuario-foto.service';
 import { RolUsuario } from '../../../common/enums/rol-usuario.enum';
 import { UsuarioResponseDto } from '../dto/usuario-response.dto';
 import { UsuarioCompletoResponseDto, UsuariosCompletosResponseDto } from '../dto/usuario-completo-response.dto';
 import { UsuariosCompletosFiltersDto } from '../dto/usuarios-completos-filters.dto';
+import { BrevoService } from '../../../common/services/brevo.service';
+import { TokenService } from '../../../common/services/token.service';
+
 
 @Injectable()
 export class UsuarioService {
@@ -24,6 +28,8 @@ export class UsuarioService {
     @InjectRepository(Usuario)
     private readonly usuarioRepository: Repository<Usuario>,
     private readonly usuarioFotoService: UsuarioFotoService,
+    private readonly brevoService: BrevoService,
+    private readonly tokenService: TokenService,
   ) {}
 
   /**
@@ -275,107 +281,13 @@ export class UsuarioService {
     }
   }
 
-  /**
-   * Solicita restablecimiento de contraseña
-   */
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
-    try {
-      // Buscar usuario por email en las entidades correspondientes según el rol
-      const usuario = await this.buscarUsuarioPorEmail(forgotPasswordDto.email);
 
-      if (!usuario) {
-        // Por seguridad, no revelar si el email existe o no
-        this.logger.log(`📧 Solicitud de restablecimiento de contraseña para: ${forgotPasswordDto.email} (no encontrado)`);
-        return;
-      }
 
-      // TODO: Implementar lógica de envío de email con token
-      // Por ahora solo log
-      this.logger.log(`📧 Token de restablecimiento generado para: ${forgotPasswordDto.email} (usuario: ${usuario.nombre_usuario})`);
 
-    } catch (error) {
-      this.logger.error(`❌ Error en solicitud de restablecimiento: ${error.message}`);
-      throw error;
-    }
-  }
 
-  /**
-   * Busca un usuario por email en las entidades correspondientes
-   */
-  private async buscarUsuarioPorEmail(email: string): Promise<Usuario | null> {
-    try {
-      // Buscar en Administrador
-      const administrador = await this.usuarioRepository
-        .createQueryBuilder('usuario')
-        .leftJoinAndSelect('usuario.administrador', 'administrador')
-        .where('administrador.email = :email', { email })
-        .getOne();
 
-      if (administrador) {
-        this.logger.log(`🔍 Usuario encontrado en Administrador: ${administrador.nombre_usuario}`);
-        return administrador;
-      }
 
-      // Buscar en Director
-      const director = await this.usuarioRepository
-        .createQueryBuilder('usuario')
-        .leftJoinAndSelect('usuario.director', 'director')
-        .where('director.email = :email', { email })
-        .getOne();
 
-      if (director) {
-        this.logger.log(`🔍 Usuario encontrado en Director: ${director.nombre_usuario}`);
-        return director;
-      }
-
-      // Buscar en Auxiliar
-      const auxiliar = await this.usuarioRepository
-        .createQueryBuilder('usuario')
-        .leftJoinAndSelect('usuario.auxiliar', 'auxiliar')
-        .where('auxiliar.email = :email', { email })
-        .getOne();
-
-      if (auxiliar) {
-        this.logger.log(`🔍 Usuario encontrado en Auxiliar: ${auxiliar.nombre_usuario}`);
-        return auxiliar;
-      }
-
-      // Buscar en Alumno (email del apoderado)
-      const alumno = await this.usuarioRepository
-        .createQueryBuilder('usuario')
-        .leftJoinAndSelect('usuario.alumno', 'alumno')
-        .leftJoinAndSelect('alumno.apoderado', 'apoderado')
-        .where('apoderado.email = :email', { email })
-        .getOne();
-
-      if (alumno) {
-        this.logger.log(`🔍 Usuario encontrado en Alumno (apoderado): ${alumno.nombre_usuario}`);
-        return alumno;
-      }
-
-      this.logger.log(`🔍 Email no encontrado en ninguna entidad: ${email}`);
-      return null;
-
-    } catch (error) {
-      this.logger.error(`❌ Error buscando usuario por email ${email}: ${error.message}`);
-      throw error;
-    }
-  }
-
-  /**
-   * Restablece la contraseña con token
-   */
-  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
-    try {
-      // TODO: Implementar validación de token
-      // Por ahora solo log
-      this.logger.log(`🔄 Restablecimiento de contraseña con token: ${resetPasswordDto.token}`);
-
-    } catch (error) {
-      this.logger.error(`❌ Error restableciendo contraseña: ${error.message}`);
-      throw error;
-    }
-  }
 
   /**
    * Sube foto de perfil
@@ -739,6 +651,192 @@ export class UsuarioService {
     } catch (error) {
       this.logger.error(`❌ Error eliminando foto de perfil del usuario ${usuario.nombre_usuario}: ${error.message}`);
       // No lanzar error para no interrumpir la eliminación del usuario
+    }
+  }
+
+  /**
+   * Solicita restablecimiento de contraseña
+   */
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
+    try {
+      // Buscar usuario por email en las entidades correspondientes según el rol
+      const usuario = await this.buscarUsuarioPorEmail(forgotPasswordDto.email);
+
+      if (!usuario) {
+        // Por seguridad, no revelar si el email existe o no
+        this.logger.log(`📧 Solicitud de restablecimiento de contraseña para: ${forgotPasswordDto.email} (no encontrado)`);
+        return;
+      }
+
+      // Generar token de restablecimiento
+      const resetToken = this.tokenService.generatePasswordResetToken(usuario.id_user, forgotPasswordDto.email);
+      
+      // Obtener nombre del usuario para el email
+      const nombreUsuario = this.obtenerNombreUsuario(usuario);
+      
+      // Enviar email de restablecimiento
+      const emailEnviado = await this.brevoService.sendPasswordResetEmail(
+        forgotPasswordDto.email, 
+        resetToken, 
+        nombreUsuario
+      );
+
+      if (emailEnviado) {
+        this.logger.log(`✅ Email de restablecimiento enviado exitosamente a: ${forgotPasswordDto.email} (usuario: ${usuario.nombre_usuario})`);
+      } else {
+        this.logger.error(`❌ Error enviando email de restablecimiento a: ${forgotPasswordDto.email}`);
+        throw new BadRequestException('Error enviando email de restablecimiento');
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error en solicitud de restablecimiento: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Restablece la contraseña con token
+   */
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
+    try {
+      this.logger.log(`🔄 [RESET-PASSWORD] Iniciando proceso de restablecimiento de contraseña`);
+      this.logger.log(`🔄 [RESET-PASSWORD] Token recibido: ${resetPasswordDto.token.substring(0, 20)}...`);
+      this.logger.log(`🔄 [RESET-PASSWORD] Nueva contraseña: ${resetPasswordDto.passwordNueva}`);
+      
+      // Verificar y decodificar el token
+      this.logger.log(`🔍 [RESET-PASSWORD] Verificando token...`);
+      const tokenData = this.tokenService.verifyPasswordResetToken(resetPasswordDto.token);
+      
+      if (!tokenData.valid) {
+        this.logger.error(`❌ [RESET-PASSWORD] Token de restablecimiento inválido o expirado`);
+        throw new BadRequestException('Token inválido o expirado');
+      }
+
+      this.logger.log(`✅ [RESET-PASSWORD] Token válido para usuario: ${tokenData.userId}`);
+
+      // Buscar el usuario por ID
+      this.logger.log(`🔍 [RESET-PASSWORD] Buscando usuario con ID: ${tokenData.userId}`);
+      const usuario = await this.usuarioRepository.findOne({
+        where: { id_user: tokenData.userId }
+      });
+
+      if (!usuario) {
+        this.logger.error(`❌ [RESET-PASSWORD] Usuario no encontrado para restablecimiento: ${tokenData.userId}`);
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      this.logger.log(`✅ [RESET-PASSWORD] Usuario encontrado: ${usuario.nombre_usuario} (${usuario.rol_usuario})`);
+      this.logger.log(`🔍 [RESET-PASSWORD] Contraseña actual (hash): ${usuario.password_user.substring(0, 20)}...`);
+
+      // Encriptar la nueva contraseña
+      this.logger.log(`🔐 [RESET-PASSWORD] Encriptando nueva contraseña...`);
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(resetPasswordDto.passwordNueva, saltRounds);
+      this.logger.log(`✅ [RESET-PASSWORD] Nueva contraseña encriptada: ${hashedPassword.substring(0, 20)}...`);
+
+      // Actualizar la contraseña
+      this.logger.log(`💾 [RESET-PASSWORD] Actualizando contraseña en base de datos...`);
+      const updateResult = await this.usuarioRepository.update(
+        { id_user: tokenData.userId },
+        { password_user: hashedPassword }
+      );
+      
+      this.logger.log(`✅ [RESET-PASSWORD] Contraseña actualizada exitosamente. Filas afectadas: ${updateResult.affected}`);
+
+      this.logger.log(`✅ [RESET-PASSWORD] Contraseña restablecida exitosamente para usuario: ${usuario.nombre_usuario}`);
+      this.logger.log(`🎉 [RESET-PASSWORD] Proceso completado exitosamente`);
+
+    } catch (error) {
+      this.logger.error(`❌ [RESET-PASSWORD] Error restableciendo contraseña: ${error.message}`);
+      this.logger.error(`❌ [RESET-PASSWORD] Stack trace:`, error.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * Busca un usuario por email en las entidades correspondientes
+   */
+  private async buscarUsuarioPorEmail(email: string): Promise<Usuario | null> {
+    try {
+      // Buscar en Administrador
+      const administrador = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.administrador', 'administrador')
+        .where('administrador.email = :email', { email })
+        .getOne();
+
+      if (administrador) {
+        this.logger.log(`🔍 Usuario encontrado en Administrador: ${administrador.nombre_usuario}`);
+        return administrador;
+      }
+
+      // Buscar en Director
+      const director = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.director', 'director')
+        .where('director.email = :email', { email })
+        .getOne();
+
+      if (director) {
+        this.logger.log(`🔍 Usuario encontrado en Director: ${director.nombre_usuario}`);
+        return director;
+      }
+
+      // Buscar en Auxiliar
+      const auxiliar = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.auxiliar', 'auxiliar')
+        .where('auxiliar.email = :email', { email })
+        .getOne();
+
+      if (auxiliar) {
+        this.logger.log(`🔍 Usuario encontrado en Auxiliar: ${auxiliar.nombre_usuario}`);
+        return auxiliar;
+      }
+
+      // Buscar en Alumno (email del apoderado)
+      const alumno = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.alumno', 'alumno')
+        .leftJoinAndSelect('alumno.apoderado', 'apoderado')
+        .where('apoderado.email = :email', { email })
+        .getOne();
+
+      if (alumno) {
+        this.logger.log(`🔍 Usuario encontrado en Alumno (apoderado): ${alumno.nombre_usuario}`);
+        return alumno;
+      }
+
+      this.logger.log(`🔍 Email no encontrado en ninguna entidad: ${email}`);
+      return null;
+
+    } catch (error) {
+      this.logger.error(`❌ Error buscando usuario por email ${email}: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene el nombre completo del usuario según su rol
+   */
+  private obtenerNombreUsuario(usuario: Usuario): string {
+    try {
+      if (usuario.administrador) {
+        return `${usuario.administrador.nombres} ${usuario.administrador.apellidos}`;
+      }
+      if (usuario.director) {
+        return `${usuario.director.nombres} ${usuario.director.apellidos}`;
+      }
+      if (usuario.auxiliar) {
+        return `${usuario.auxiliar.nombre} ${usuario.auxiliar.apellido}`;
+      }
+      if (usuario.alumno) {
+        return `${usuario.alumno.nombre} ${usuario.alumno.apellido}`;
+      }
+      return usuario.nombre_usuario;
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo nombre de usuario: ${error.message}`);
+      return usuario.nombre_usuario;
     }
   }
 }

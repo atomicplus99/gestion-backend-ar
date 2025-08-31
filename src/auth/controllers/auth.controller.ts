@@ -21,7 +21,11 @@ export class AuthController {
             const loginResult = await this.authService.handleLogin(loginDto, res);
             return res.json(loginResult);
         } catch (error) {
-            return res.status(401).json({ message: 'Credenciales incorrectas' });
+            return res.status(401).json({ 
+                success: false,
+                message: 'Credenciales incorrectas',
+                error: error.message 
+            });
         }
     }
 

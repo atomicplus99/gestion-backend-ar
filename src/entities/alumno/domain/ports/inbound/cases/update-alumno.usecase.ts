@@ -21,4 +21,15 @@ export class ActualizarAlumnoCase {
       timestamp: new Date().toISOString()
     };
   }
+
+  async executeById(id: string, updateData: UpdateAlumnoDto): Promise<AlumnoUpdateResponseDto> {
+    const alumnoActualizado = await this.alumnoRepository.updateAlumnoById(id, updateData);
+    
+    return {
+      success: true,
+      message: "Alumno actualizado exitosamente por ID",
+      alumno: alumnoActualizado,
+      timestamp: new Date().toISOString()
+    };
+  }
 }

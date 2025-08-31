@@ -21,6 +21,7 @@ import { UpdateUsuarioDto } from '../dto/update-usuario.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+
 import { RolUsuario } from '../../../common/enums/rol-usuario.enum';
 import { UsuariosCompletosResponseDto } from '../dto/usuario-completo-response.dto';
 import { UsuariosCompletosFiltersDto } from '../dto/usuarios-completos-filters.dto';
@@ -96,6 +97,94 @@ export class UsuarioController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Límite por página (default: 10, max: 100)' })
   async findAllCompletos(@Query() filters: UsuariosCompletosFiltersDto): Promise<UsuariosCompletosResponseDto> {
     return await this.usuarioService.findAllCompletos(filters);
+  }
+
+  @Get(':id/auxiliar')
+  @ApiOperation({ 
+    summary: 'Obtener datos del auxiliar desde usuario',
+    description: 'Obtiene los datos del auxiliar enlazado a un usuario específico'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Datos del auxiliar obtenidos exitosamente'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Usuario no encontrado o no tiene auxiliar enlazado'
+  })
+  async getAuxiliarByUserId(@Param('id') id: string) {
+    const auxiliar = await this.usuarioService.findAuxiliarByUserId(id);
+    return {
+      success: true,
+      message: auxiliar ? 'Auxiliar obtenido exitosamente' : 'Usuario no tiene auxiliar enlazado',
+      data: auxiliar
+    };
+  }
+
+  @Get(':id/alumno')
+  @ApiOperation({ 
+    summary: 'Obtener datos del alumno desde usuario',
+    description: 'Obtiene los datos del alumno enlazado a un usuario específico'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Datos del alumno obtenidos exitosamente'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Usuario no encontrado o no tiene alumno enlazado'
+  })
+  async getAlumnoByUserId(@Param('id') id: string) {
+    const alumno = await this.usuarioService.findAlumnoByUserId(id);
+    return {
+      success: true,
+      message: alumno ? 'Alumno obtenido exitosamente' : 'Usuario no tiene alumno enlazado',
+      data: alumno
+    };
+  }
+
+  @Get(':id/administrador')
+  @ApiOperation({ 
+    summary: 'Obtener datos del administrador desde usuario',
+    description: 'Obtiene los datos del administrador enlazado a un usuario específico'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Datos del administrador obtenidos exitosamente'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Usuario no encontrado o no tiene administrador enlazado'
+  })
+  async getAdministradorByUserId(@Param('id') id: string) {
+    const administrador = await this.usuarioService.findAdministradorByUserId(id);
+    return {
+      success: true,
+      message: administrador ? 'Administrador obtenido exitosamente' : 'Usuario no tiene administrador enlazado',
+      data: administrador
+    };
+  }
+
+  @Get(':id/director')
+  @ApiOperation({ 
+    summary: 'Obtener datos del director desde usuario',
+    description: 'Obtiene los datos del director enlazado a un usuario específico'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Datos del director obtenidos exitosamente'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Usuario no encontrado o no tiene director enlazado'
+  })
+  async getDirectorByUserId(@Param('id') id: string) {
+    const director = await this.usuarioService.findDirectorByUserId(id);
+    return {
+      success: true,
+      message: director ? 'Director obtenido exitosamente' : 'Usuario no tiene director enlazado',
+      data: director
+    };
   }
 
   @Get(':id')

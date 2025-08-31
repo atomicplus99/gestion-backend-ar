@@ -195,4 +195,40 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
       throw error;
     }
   }
+
+  async updateAlumnoById(id: string, updateData: UpdateAlumnoDto): Promise<Alumno> {
+    this.logger.log(`🔄 [Repository] Iniciando actualización de alumno con ID: ${id}`);
+    
+    // Validar que el ID no esté vacío
+    if (!id) {
+      this.logger.error(`❌ [Repository] ID inválido para actualización: ${id}`);
+      throw new BadRequestException('El ID del alumno es requerido');
+    }
+
+    try {
+      const alumno = await this.repositoryAlumno.findOne({ 
+        where: { id_alumno: id },
+        relations: ['turno', 'usuario']
+      });
+
+      if (!alumno) {
+        this.logger.error(`❌ [Repository] Alumno no encontrado con ID: ${id}`);
+        throw new NotFoundException(`Alumno con ID ${id} no encontrado`);
+      }
+
+      this.logger.log(`✅ [Repository] Alumno encontrado: ${alumno.codigo}`);
+      
+      // Mapear los datos de actualización
+      const alumnoActualizado = AlumnoMapper.updateAlumnoMapper(alumno, updateData);
+      
+      // Guardar el alumno actualizado
+      const resultado = await this.repositoryAlumno.save(alumnoActualizado);
+      
+      this.logger.log(`✅ [Repository] Alumno actualizado exitosamente por ID: ${resultado.codigo}`);
+      return resultado;
+    } catch (error) {
+      this.logger.error(`❌ [Repository] Error en actualización de alumno por ID: ${error.message}`);
+      throw error;
+    }
+  }
 }
