@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity';
 import { Asistencia } from '../asistencia.entity';
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
@@ -20,6 +20,73 @@ export class AusenciasMasivasService {
     private readonly ausenciasMasivasLogRepository: Repository<AusenciasMasivasLog>,
     private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
+
+  /**
+   * Verifica si ya existen ausencias registradas para los alumnos en la fecha y turnos especificados
+   */
+  async verificarAusenciasExistentes(fecha: Date, turnos: string[]): Promise<{
+    existenAusencias: boolean;
+    alumnosConAusencias: number;
+    detalles: string[];
+  }> {
+    try {
+      this.logger.log(`🔍 Verificando ausencias existentes para ${fecha.toDateString()} en turnos: ${turnos.join(', ')}`);
+
+      // Obtener alumnos de los turnos especificados
+      const alumnos = await this.alumnoRepository
+        .createQueryBuilder('alumno')
+        .leftJoinAndSelect('alumno.turno', 'turno')
+        .where('turno.turno IN (:...turnos)', { turnos })
+        .getMany();
+
+      if (alumnos.length === 0) {
+        return {
+          existenAusencias: false,
+          alumnosConAusencias: 0,
+          detalles: ['No hay alumnos en los turnos especificados']
+        };
+      }
+
+      const codigosAlumnos = alumnos.map(alumno => alumno.codigo);
+
+      // Verificar si ya existen ausencias para estos alumnos en la fecha (rango del día)
+      const fechaInicioDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0, 0);
+      const fechaFinDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59, 999);
+
+      const ausenciasExistentes = await this.asistenciaRepository
+        .createQueryBuilder('asistencia')
+        .leftJoinAndSelect('asistencia.alumno', 'alumno')
+        .where('alumno.codigo IN (:...codigos)', { codigos: codigosAlumnos })
+        .andWhere('asistencia.fecha BETWEEN :inicio AND :fin', { inicio: fechaInicioDia, fin: fechaFinDia })
+        .andWhere('asistencia.estado_asistencia = :estado', { estado: EstadoAsistencia.AUSENTE })
+        .getMany();
+
+      const alumnosConAusencias = new Set(ausenciasExistentes.map(a => a.alumno.codigo)).size;
+      const existenAusencias = ausenciasExistentes.length > 0;
+
+      const detalles: string[] = [];
+      if (existenAusencias) {
+        detalles.push(`${ausenciasExistentes.length} ausencias ya registradas`);
+        detalles.push(`${alumnosConAusencias} alumnos ya tienen ausencias`);
+        detalles.push(`Turnos afectados: ${turnos.join(', ')}`);
+        detalles.push(`Fecha: ${fecha.toDateString()}`);
+      }
+
+      this.logger.log(`🔍 Verificación completada: ${existenAusencias ? 'EXISTEN' : 'NO EXISTEN'} ausencias`);
+      this.logger.log(`   - Alumnos con ausencias: ${alumnosConAusencias}`);
+      this.logger.log(`   - Total ausencias: ${ausenciasExistentes.length}`);
+
+      return {
+        existenAusencias,
+        alumnosConAusencias,
+        detalles
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error verificando ausencias existentes: ${error.message}`);
+      throw error;
+    }
+  }
 
   /**
    * Ejecuta el programa de ausencias masivas para la fecha, hora y turnos especificados
@@ -456,6 +523,38 @@ export class AusenciasMasivasService {
 
     } catch (error) {
       this.logger.error(`❌ Error obteniendo ausencias programadas: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina todo el historial de ejecuciones del programa de ausencias
+   */
+  async eliminarHistorial(): Promise<{
+    registrosEliminados: number;
+    fechaEliminacion: string;
+  }> {
+    try {
+      this.logger.log(`🗑️ Eliminando historial de ausencias masivas`);
+
+      // Contar registros antes de eliminar
+      const totalRegistros = await this.ausenciasMasivasLogRepository.count();
+      
+      // Eliminar todos los registros del historial
+      const resultado = await this.ausenciasMasivasLogRepository.delete({});
+      
+      const registrosEliminados = resultado.affected || 0;
+      const fechaEliminacion = new Date().toISOString();
+
+      this.logger.log(`✅ Historial eliminado: ${registrosEliminados} registros eliminados`);
+      
+      return {
+        registrosEliminados,
+        fechaEliminacion
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error eliminando historial: ${error.message}`);
       throw error;
     }
   }

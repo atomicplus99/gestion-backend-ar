@@ -15,6 +15,8 @@ import { TelegramUser } from '../entities/telegram/telegram-user.entity';
 import { TelegramChat } from '../entities/telegram/telegram-chat.entity';
 import { Administrador } from '../entities/administrador/administrador.entity';
 import { Director } from '../entities/director/director.entity';
+import { Notificacion } from '../entities/notificacion/notificacion.entity';
+import { AusenciasMasivasProgramadas } from '../entities/asistencia/entities/ausencias-masivas-programadas.entity';
 
 
 dotenv.config();
@@ -26,7 +28,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion, AusenciasMasivasLog, TelegramUser, TelegramChat, Administrador, Director],
+  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion, AusenciasMasivasLog, TelegramUser, TelegramChat, Administrador, Director, Notificacion, AusenciasMasivasProgramadas],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: true,
 });

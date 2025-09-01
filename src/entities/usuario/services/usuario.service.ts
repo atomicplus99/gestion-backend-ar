@@ -839,4 +839,74 @@ export class UsuarioService {
       return usuario.nombre_usuario;
     }
   }
+
+  /**
+   * Obtiene usuarios disponibles por rol, excluyendo los que ya están asignados
+   */
+  async findUsuariosDisponibles(rol: string) {
+    try {
+      this.logger.log(`🔍 Buscando usuarios disponibles para rol: ${rol}`);
+
+      // Validar que el rol sea válido
+      const rolesValidos = ['DIRECTOR', 'ADMINISTRADOR', 'AUXILIAR', 'ALUMNO'];
+      if (!rolesValidos.includes(rol)) {
+        throw new BadRequestException(`Rol inválido. Roles válidos: ${rolesValidos.join(', ')}`);
+      }
+
+      // Obtener usuarios con el rol especificado
+      const usuarios = await this.usuarioRepository.find({
+        where: { 
+          rol_usuario: rol as any,
+          activo: true 
+        },
+        relations: {
+          director: true,
+          administrador: true,
+          auxiliar: true,
+          alumno: true
+        }
+      });
+
+      // Filtrar usuarios que ya están asignados
+      const usuariosDisponibles = usuarios.filter(usuario => {
+        switch (rol) {
+          case 'DIRECTOR':
+            return !usuario.director;
+          case 'ADMINISTRADOR':
+            return !usuario.administrador;
+          case 'AUXILIAR':
+            return !usuario.auxiliar;
+          case 'ALUMNO':
+            return !usuario.alumno;
+          default:
+            return true;
+        }
+      });
+
+      // Formatear respuesta
+      const usuariosFormateados = usuariosDisponibles.map(usuario => ({
+        id_user: usuario.id_user,
+        nombre_usuario: usuario.nombre_usuario,
+        rol_usuario: usuario.rol_usuario,
+        profile_image: usuario.profile_image,
+        activo: usuario.activo,
+        fecha_creacion: usuario.fecha_creacion
+      }));
+
+      this.logger.log(`✅ Encontrados ${usuariosDisponibles.length} usuarios disponibles para rol ${rol}`);
+
+      return {
+        success: true,
+        message: `Usuarios disponibles para rol ${rol} obtenidos exitosamente`,
+        data: {
+          usuarios: usuariosFormateados,
+          total: usuariosDisponibles.length
+        }
+      };
+
+    } catch (error) {
+      this.logger.error(`❌ Error obteniendo usuarios disponibles para rol ${rol}: ${error.message}`);
+      throw error;
+    }
+  }
 }

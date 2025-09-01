@@ -99,6 +99,20 @@ export class UsuarioController {
     return await this.usuarioService.findAllCompletos(filters);
   }
 
+  @Get('disponibles')
+  @ApiOperation({ 
+    summary: 'Obtener usuarios disponibles por rol',
+    description: 'Obtiene usuarios disponibles para asignar a entidades específicas, excluyendo los que ya están asignados'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Usuarios disponibles obtenidos exitosamente'
+  })
+  @ApiQuery({ name: 'rol', required: true, enum: RolUsuario, description: 'Rol de usuario a filtrar' })
+  async findUsuariosDisponibles(@Query('rol') rol: string) {
+    return await this.usuarioService.findUsuariosDisponibles(rol);
+  }
+
   @Get(':id/auxiliar')
   @ApiOperation({ 
     summary: 'Obtener datos del auxiliar desde usuario',

@@ -27,16 +27,22 @@ import { AusenciasMasivasController } from './ausencias-masivas.controller';
 import { AusenciasMasivasSchedulerService } from './services/ausencias-masivas-scheduler.service';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AusenciasMasivasLog } from './entities/ausencias-masivas-log.entity';
+import { AusenciasMasivasProgramadas } from './entities/ausencias-masivas-programadas.entity';
+import { Usuario } from '../usuario/usuario.entity';
+import { Administrador } from '../administrador/administrador.entity';
+import { Director } from '../director/director.entity';
+import { NotificacionModule } from '../notificacion/notificacion.module';
 
 
 
 @Module({
   imports: [
     AlumnoModule,
-    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog]),
+    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog, AusenciasMasivasProgramadas, Usuario, Administrador, Director]),
     AuxiliarModule,
     ActualizacionesAsistenciaModule,
-    TelegramModule
+    TelegramModule,
+    NotificacionModule
   ],
   controllers: [AsistenciaController, AusenciasMasivasController],
   providers: [AsistenciaService,

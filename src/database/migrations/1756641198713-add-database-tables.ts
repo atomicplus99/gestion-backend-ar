@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddDatabaseTables1756384175983 implements MigrationInterface {
-    name = 'AddDatabaseTables1756384175983'
+export class AddDatabaseTables1756641198713 implements MigrationInterface {
+    name = 'AddDatabaseTables1756641198713'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE \`TURNOS\` (\`id_turno\` varchar(36) NOT NULL, \`hora_inicio\` time NOT NULL, \`hora_fin\` time NOT NULL, \`hora_limite\` time NOT NULL, \`turno\` varchar(20) NOT NULL, PRIMARY KEY (\`id_turno\`)) ENGINE=InnoDB`);
@@ -18,6 +18,8 @@ export class AddDatabaseTables1756384175983 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE \`ausencias_masivas_log\` (\`id_log\` varchar(36) NOT NULL, \`fecha_ejecucion\` date NOT NULL, \`hora_inicio\` time NOT NULL, \`hora_programada\` time NULL, \`hora_fin\` time NULL, \`total_alumnos\` int NOT NULL, \`ausencias_creadas\` int NOT NULL, \`alumnos_con_asistencia\` int NOT NULL, \`turnos_procesados\` varchar(100) NOT NULL, \`estado\` varchar(20) NOT NULL DEFAULT 'COMPLETADO', \`observaciones\` text NULL, \`duracion_segundos\` int NULL, \`fecha_creacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), \`fecha_actualizacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), PRIMARY KEY (\`id_log\`)) ENGINE=InnoDB`);
         await queryRunner.query(`CREATE TABLE \`telegram_chats\` (\`id_chat\` varchar(36) NOT NULL, \`chat_id\` bigint NOT NULL, \`chat_type\` varchar(100) NULL, \`chat_title\` varchar(100) NULL, \`activo\` tinyint NOT NULL DEFAULT 1, \`estado\` varchar(20) NOT NULL DEFAULT 'ACTIVO', \`fecha_registro\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), \`fecha_actualizacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), \`id_telegram_user\` varchar(255) NOT NULL, UNIQUE INDEX \`IDX_1224afe6c7f3e0cd919332cdb4\` (\`chat_id\`), PRIMARY KEY (\`id_chat\`)) ENGINE=InnoDB`);
         await queryRunner.query(`CREATE TABLE \`telegram_users\` (\`id_telegram_user\` varchar(36) NOT NULL, \`telegram_id\` bigint NOT NULL, \`username\` varchar(100) NULL, \`first_name\` varchar(100) NOT NULL, \`last_name\` varchar(100) NULL, \`estado\` varchar(20) NOT NULL DEFAULT 'ACTIVO', \`activo\` tinyint NOT NULL DEFAULT 1, \`tipo_usuario\` varchar(50) NOT NULL DEFAULT 'APODERADO', \`fecha_registro\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), \`fecha_actualizacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), UNIQUE INDEX \`IDX_88256a651008c00c1eea23e0b6\` (\`telegram_id\`), PRIMARY KEY (\`id_telegram_user\`)) ENGINE=InnoDB`);
+        await queryRunner.query(`CREATE TABLE \`notificaciones\` (\`id\` varchar(36) NOT NULL, \`tipo\` enum ('scheduler', 'justificacion', 'usuario', 'asistencia', 'alumno') NOT NULL DEFAULT 'scheduler', \`prioridad\` enum ('baja', 'media', 'alta', 'critica') NOT NULL DEFAULT 'media', \`estado\` enum ('no_leida', 'leida', 'archivada') NOT NULL DEFAULT 'no_leida', \`titulo\` varchar(255) NOT NULL, \`mensaje\` text NOT NULL, \`icono\` varchar(50) NULL, \`detalles\` json NULL, \`fecha_creacion\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, \`fecha_lectura\` timestamp NULL, \`fecha_archivado\` timestamp NULL, \`usuario_id\` varchar(255) NULL, \`created_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), \`updated_at\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), PRIMARY KEY (\`id\`)) ENGINE=InnoDB`);
+        await queryRunner.query(`CREATE TABLE \`ausencias_masivas_programadas\` (\`id\` varchar(36) NOT NULL, \`fecha_ejecucion\` date NOT NULL, \`hora_programada\` time NOT NULL, \`turnos_procesar\` varchar(100) NOT NULL, \`estado\` varchar(20) NOT NULL DEFAULT 'PROGRAMADA', \`observaciones\` text NULL, \`usuario_id\` varchar(255) NOT NULL, \`fecha_creacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), \`fecha_actualizacion\` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), PRIMARY KEY (\`id\`)) ENGINE=InnoDB`);
         await queryRunner.query(`CREATE TABLE \`APODERADO_ALUMNO\` (\`id_apoderado\` varchar(36) NOT NULL, \`id_alumno\` varchar(36) NOT NULL, INDEX \`IDX_f216af213e2b9854f62c2008b1\` (\`id_apoderado\`), INDEX \`IDX_4502f74931d4bfc94c272a02cd\` (\`id_alumno\`), PRIMARY KEY (\`id_apoderado\`, \`id_alumno\`)) ENGINE=InnoDB`);
         await queryRunner.query(`ALTER TABLE \`AUXILIAR\` ADD CONSTRAINT \`FK_55c3be167bf65c8cfd08a96bfd5\` FOREIGN KEY (\`id_user\`) REFERENCES \`USUARIO\`(\`id_user\`) ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`ADMINISTRADOR\` ADD CONSTRAINT \`FK_bb2f7ac1373f2db87a1750bb643\` FOREIGN KEY (\`id_user\`) REFERENCES \`USUARIO\`(\`id_user\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -31,6 +33,8 @@ export class AddDatabaseTables1756384175983 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` ADD CONSTRAINT \`FK_dc9611276be3f9dc4830660fbfb\` FOREIGN KEY (\`id_alumno\`) REFERENCES \`ALUMNO\`(\`id_alumno\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` ADD CONSTRAINT \`FK_724e3ae5655202b446648dfbd61\` FOREIGN KEY (\`id_auxiliar\`) REFERENCES \`AUXILIAR\`(\`id_auxiliar\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`telegram_chats\` ADD CONSTRAINT \`FK_271d739cf69f60c5dff58d0d24b\` FOREIGN KEY (\`id_telegram_user\`) REFERENCES \`telegram_users\`(\`id_telegram_user\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE \`notificaciones\` ADD CONSTRAINT \`FK_2c6341d5bd206ff522b35aa6b69\` FOREIGN KEY (\`usuario_id\`) REFERENCES \`USUARIO\`(\`id_user\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE \`ausencias_masivas_programadas\` ADD CONSTRAINT \`FK_0a1a97ff6bd686cdc49290e2e78\` FOREIGN KEY (\`usuario_id\`) REFERENCES \`USUARIO\`(\`id_user\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` ADD CONSTRAINT \`FK_f216af213e2b9854f62c2008b1f\` FOREIGN KEY (\`id_apoderado\`) REFERENCES \`APODERADO\`(\`id_apoderado\`) ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` ADD CONSTRAINT \`FK_4502f74931d4bfc94c272a02cde\` FOREIGN KEY (\`id_alumno\`) REFERENCES \`ALUMNO\`(\`id_alumno\`) ON DELETE NO ACTION ON UPDATE NO ACTION`);
     }
@@ -38,6 +42,8 @@ export class AddDatabaseTables1756384175983 implements MigrationInterface {
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` DROP FOREIGN KEY \`FK_4502f74931d4bfc94c272a02cde\``);
         await queryRunner.query(`ALTER TABLE \`APODERADO_ALUMNO\` DROP FOREIGN KEY \`FK_f216af213e2b9854f62c2008b1f\``);
+        await queryRunner.query(`ALTER TABLE \`ausencias_masivas_programadas\` DROP FOREIGN KEY \`FK_0a1a97ff6bd686cdc49290e2e78\``);
+        await queryRunner.query(`ALTER TABLE \`notificaciones\` DROP FOREIGN KEY \`FK_2c6341d5bd206ff522b35aa6b69\``);
         await queryRunner.query(`ALTER TABLE \`telegram_chats\` DROP FOREIGN KEY \`FK_271d739cf69f60c5dff58d0d24b\``);
         await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` DROP FOREIGN KEY \`FK_724e3ae5655202b446648dfbd61\``);
         await queryRunner.query(`ALTER TABLE \`JUSTIFICACIONES\` DROP FOREIGN KEY \`FK_dc9611276be3f9dc4830660fbfb\``);
@@ -53,6 +59,8 @@ export class AddDatabaseTables1756384175983 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX \`IDX_4502f74931d4bfc94c272a02cd\` ON \`APODERADO_ALUMNO\``);
         await queryRunner.query(`DROP INDEX \`IDX_f216af213e2b9854f62c2008b1\` ON \`APODERADO_ALUMNO\``);
         await queryRunner.query(`DROP TABLE \`APODERADO_ALUMNO\``);
+        await queryRunner.query(`DROP TABLE \`ausencias_masivas_programadas\``);
+        await queryRunner.query(`DROP TABLE \`notificaciones\``);
         await queryRunner.query(`DROP INDEX \`IDX_88256a651008c00c1eea23e0b6\` ON \`telegram_users\``);
         await queryRunner.query(`DROP TABLE \`telegram_users\``);
         await queryRunner.query(`DROP INDEX \`IDX_1224afe6c7f3e0cd919332cdb4\` ON \`telegram_chats\``);

@@ -1,13 +1,22 @@
-import { Controller, Post, Get, Body, Query, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { Controller, Post, Get, Delete, Body, Query, HttpCode, HttpStatus, BadRequestException, Headers, Param, Logger } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody, ApiHeader } from '@nestjs/swagger';
 import { AusenciasMasivasService } from './services/ausencias-masivas.service';
+import { AusenciasMasivasSchedulerService } from './services/ausencias-masivas-scheduler.service';
 import { EjecutarAusenciasMasivasDto, TurnosAusenciasMasivas } from './dto/ejecutar-ausencias-masivas.dto';
+import { NotificacionService } from '../notificacion/services/notificacion.service';
+import { NotificacionGateway } from '../notificacion/gateways/notificacion.gateway';
+import { TipoNotificacion, PrioridadNotificacion } from '../notificacion/notificacion.entity';
 
 @ApiTags('Programa de Ausencias Masivas')
 @Controller('asistencia/ausencias-masivas')
 export class AusenciasMasivasController {
+  private readonly logger = new Logger(AusenciasMasivasController.name);
+
   constructor(
     private readonly ausenciasMasivasService: AusenciasMasivasService,
+    private readonly ausenciasMasivasSchedulerService: AusenciasMasivasSchedulerService,
+    private readonly notificacionService: NotificacionService,
+    private readonly notificacionGateway: NotificacionGateway,
   ) {}
 
   @Post('ejecutar')
@@ -73,6 +82,17 @@ export class AusenciasMasivasController {
 
     // Validar y procesar el parámetro de turnos
     const turnosProcesar = this.validarTurnos(ejecutarDto.turnos);
+    
+    // Si se especifica una fecha, verificar si ya existen ausencias
+    if (fechaProcesada) {
+      const verificacion = await this.ausenciasMasivasService.verificarAusenciasExistentes(fechaProcesada, turnosProcesar);
+      
+      if (verificacion.existenAusencias) {
+        throw new BadRequestException(
+          `Ya existen ausencias registradas para la fecha ${fechaProcesada.toDateString()} en los turnos ${turnosProcesar.join(', ')}. ${verificacion.detalles.join(', ')}`
+        );
+      }
+    }
     
     const resultado = await this.ausenciasMasivasService.ejecutarProgramaAusencias(
       fechaProcesada, 
@@ -169,6 +189,11 @@ export class AusenciasMasivasController {
     summary: 'Programar ausencias masivas para ejecución futura',
     description: 'Programa el programa de ausencias masivas para ejecutarse automáticamente en una fecha y hora específica'
   })
+  @ApiHeader({
+    name: 'user-id',
+    description: 'ID del usuario que programa la ausencia',
+    required: true
+  })
   @ApiBody({
     type: EjecutarAusenciasMasivasDto,
     description: 'Parámetros para programar el programa de ausencias masivas'
@@ -204,7 +229,8 @@ export class AusenciasMasivasController {
     description: 'Error interno del servidor'
   })
   async programarAusencias(
-    @Body() programarDto: EjecutarAusenciasMasivasDto
+    @Body() programarDto: EjecutarAusenciasMasivasDto,
+    @Headers('user-id') usuario_id: string
   ) {
     console.log('🔍 [CONTROLLER] ==========================================');
     console.log('🔍 [CONTROLLER] PETICIÓN RECIBIDA EN programarAusencias');
@@ -222,6 +248,10 @@ export class AusenciasMasivasController {
       throw new BadRequestException('La fecha y hora son obligatorias para programar ausencias');
     }
 
+    if (!usuario_id) {
+      throw new BadRequestException('El ID del usuario es obligatorio para programar ausencias');
+    }
+
     // Convertir string YYYY-MM-DD a Date
     const [anio, mes, dia] = programarDto.fecha.split('-').map(Number);
     const fechaProgramada = new Date(anio, mes - 1, dia, 0, 0, 0, 0);
@@ -229,11 +259,61 @@ export class AusenciasMasivasController {
     // Validar y procesar el parámetro de turnos
     const turnosProcesar = this.validarTurnos(programarDto.turnos);
     
-    const resultado = await this.ausenciasMasivasService.programarAusencia(
+    const resultado = await this.ausenciasMasivasSchedulerService.programarAusencia(
       fechaProgramada, 
       programarDto.hora, 
-      turnosProcesar
+      turnosProcesar,
+      usuario_id
     );
+
+    // Obtener información personal del usuario que programó
+    const infoPersonal = await this.ausenciasMasivasSchedulerService.obtenerInformacionPersonalUsuario(usuario_id);
+    
+    // Crear notificación de programación
+    try {
+      const notificacion = await this.notificacionService.create({
+        tipo: TipoNotificacion.SCHEDULER,
+        titulo: `Ausencia masiva programada por ${infoPersonal ? `${infoPersonal.nombre} ${infoPersonal.apellido}` : 'Usuario'}`,
+        mensaje: `Se programó una ausencia masiva para el ${fechaProgramada.toLocaleDateString()} a las ${programarDto.hora} en los turnos: ${turnosProcesar.join(', ')}`,
+        prioridad: PrioridadNotificacion.MEDIA,
+        icono: 'schedule',
+        detalles: {
+          tipo_evento: 'programacion_ausencia',
+          fecha_programada: fechaProgramada.toISOString(),
+          hora_programada: programarDto.hora,
+          turnos: turnosProcesar,
+          programacion_id: resultado,
+          usuario_programador: infoPersonal,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      // Enviar notificación en tiempo real
+      await this.notificacionGateway.broadcastNotification(notificacion);
+
+      // Emitir eventos WebSocket para actualización en tiempo real
+      try {
+        // Obtener datos actualizados
+        const programadasActualizadas = await this.ausenciasMasivasSchedulerService.obtenerAusenciasProgramadas();
+        const historialActualizado = await this.ausenciasMasivasService.obtenerHistorial(50);
+
+        // Emitir evento de programación creada con datos actualizados
+        this.notificacionGateway.server.emit('programacion_creada', {
+          programacion: resultado,
+          historial: historialActualizado,
+          programadas: programadasActualizadas,
+          timestamp: new Date().toISOString()
+        });
+
+        this.logger.log(`📡 Eventos WebSocket emitidos para actualización en tiempo real`);
+      } catch (wsError) {
+        console.error('Error emitiendo eventos WebSocket:', wsError);
+        // No fallar la operación principal si falla WebSocket
+      }
+    } catch (error) {
+      console.error('Error creando notificación de programación:', error);
+      // No fallar la operación principal si falla la notificación
+    }
     
     return {
       success: true,
@@ -352,12 +432,76 @@ export class AusenciasMasivasController {
     description: 'Error interno del servidor'
   })
   async obtenerAusenciasProgramadas() {
-    const programadas = await this.ausenciasMasivasService.obtenerAusenciasProgramadas();
+    const programadas = await this.ausenciasMasivasSchedulerService.obtenerAusenciasProgramadas();
     
     return {
       success: true,
       message: 'Ausencias programadas obtenidas exitosamente',
       data: programadas,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Post('cancelar/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cancelar ausencia programada',
+    description: 'Cancela una ausencia masiva programada (solo el usuario que la programó puede cancelarla)'
+  })
+  @ApiHeader({
+    name: 'user-id',
+    description: 'ID del usuario que cancela la ausencia',
+    required: true
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Ausencia cancelada exitosamente'
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'No se puede cancelar la ausencia'
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Ausencia programada no encontrada'
+  })
+  async cancelarAusenciaProgramada(
+    @Param('id') ausencia_id: string,
+    @Headers('user-id') usuario_id: string
+  ) {
+    if (!usuario_id) {
+      throw new BadRequestException('El ID del usuario es obligatorio para cancelar ausencias');
+    }
+
+    const resultado = await this.ausenciasMasivasSchedulerService.cancelarAusenciaProgramada(
+      ausencia_id,
+      usuario_id
+    );
+
+    // Emitir eventos WebSocket para actualización en tiempo real
+    try {
+      // Obtener datos actualizados
+      const programadasActualizadas = await this.ausenciasMasivasSchedulerService.obtenerAusenciasProgramadas();
+      const historialActualizado = await this.ausenciasMasivasService.obtenerHistorial(50);
+
+      // Emitir evento de cancelación con datos actualizados
+      this.notificacionGateway.server.emit('programacion_cancelada', {
+        programacion_id: ausencia_id,
+        historial: historialActualizado,
+        programadas: programadasActualizadas,
+        timestamp: new Date().toISOString()
+      });
+
+      this.logger.log(`📡 Eventos WebSocket emitidos para cancelación en tiempo real`);
+    } catch (wsError) {
+      console.error('Error emitiendo eventos WebSocket de cancelación:', wsError);
+      // No fallar la operación principal si falla WebSocket
+    }
+    
+    return {
+      success: true,
+      message: 'Ausencia programada cancelada exitosamente',
+      data: { cancelada: resultado },
       timestamp: new Date().toISOString()
     };
   }
@@ -416,6 +560,63 @@ export class AusenciasMasivasController {
       success: true,
       message: 'Historial obtenido exitosamente',
       data: historial,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  @Delete('historial')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Eliminar historial de ejecuciones del programa de ausencias',
+    description: 'Elimina todo el historial de ejecuciones del programa de ausencias masivas'
+  })
+  @ApiQuery({
+    name: 'confirmar',
+    description: 'Debe ser "true" para confirmar la eliminación',
+    required: true,
+    type: String,
+    example: 'true'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Historial eliminado exitosamente',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Historial eliminado exitosamente' },
+        data: {
+          type: 'object',
+          properties: {
+            registrosEliminados: { type: 'number', example: 25 },
+            fechaEliminacion: { type: 'string', example: '2025-09-01T07:55:00.000Z' }
+          }
+        },
+        timestamp: { type: 'string', example: '2025-09-01T07:55:00.000Z' }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Parámetro de confirmación requerido'
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor'
+  })
+  async eliminarHistorial(
+    @Query('confirmar') confirmar: string
+  ) {
+    if (confirmar !== 'true') {
+      throw new BadRequestException('Debe confirmar la eliminación con confirmar=true');
+    }
+
+    const resultado = await this.ausenciasMasivasService.eliminarHistorial();
+    
+    return {
+      success: true,
+      message: 'Historial eliminado exitosamente',
+      data: resultado,
       timestamp: new Date().toISOString()
     };
   }
