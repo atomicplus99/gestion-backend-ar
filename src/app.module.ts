@@ -24,6 +24,8 @@ import { TelegramModule } from './entities/telegram/telegram.module';
 import { AdministradorModule } from './entities/administrador/administrador.module';
 import { DirectorModule } from './entities/director/director.module';
 import { NotificacionModule } from './entities/notificacion/notificacion.module';
+import { TurnoExtraModule } from './entities/turno-extra/turno-extra.module';
+import { AsistenciaExtraModule } from './entities/asistencia-extra/asistencia-extra.module';
 
 
 
@@ -57,7 +59,9 @@ dotenv.config();
     TelegramModule,
     AdministradorModule,
     DirectorModule,
-    NotificacionModule
+    NotificacionModule,
+          TurnoExtraModule,
+      AsistenciaExtraModule
   ],
   controllers: [AppController], 
   providers: [AppService],       

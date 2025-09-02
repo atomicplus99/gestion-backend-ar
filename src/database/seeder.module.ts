@@ -19,6 +19,7 @@ import { Administrador } from 'src/entities/administrador/administrador.entity';
 import { Director } from 'src/entities/director/director.entity';
 
 
+
 @Module({
   imports: [TypeOrmModule.forFeature([Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Administrador, Director])],
   providers: [SeederService, UserSeeder, TurnoSeeder, AlumnoSeeder, AuxiliarSeeder, EstadoAlumnoSeeder, AdministradorSeeder, DirectorSeeder],

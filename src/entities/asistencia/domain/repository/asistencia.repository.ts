@@ -46,6 +46,23 @@ export class AsistenciaTypeOrmRepository {
       .getOne();
   }
 
+  async findByAlumnoAndDateAndEstado(
+    id_alumno: string,
+    fecha: Date,
+    estado: string,
+  ): Promise<Asistencia | null> {
+    // Usar la misma lógica que en CreateAsistenciaManual para evitar problemas de zona horaria
+    const fechaFormato = fecha.toISOString().split('T')[0]; // "2025-08-22"
+    
+    return this.repo
+      .createQueryBuilder('asistencia')
+      .leftJoinAndSelect('asistencia.alumno', 'alumno')
+      .where('alumno.id_alumno = :alumnoId', { alumnoId: id_alumno })
+      .andWhere('DATE(asistencia.fecha) = :fecha', { fecha: fechaFormato })
+      .andWhere('asistencia.estado_asistencia = :estado', { estado })
+      .getOne();
+  }
+
   async existeAsistenciaDelDia(
     idAlumno: string,
     fecha: Date,

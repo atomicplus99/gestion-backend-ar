@@ -7,6 +7,7 @@ import { EstadoAlumnoSeeder } from './seeds/estado-alumnos.seeder';
 import { AdministradorSeeder } from './seeds/administrador.seeder';
 import { DirectorSeeder } from './seeds/director.seeder';
 
+
 @Injectable()
 export class SeederService implements OnModuleInit{
 
@@ -17,6 +18,7 @@ export class SeederService implements OnModuleInit{
                 private readonly estadoAlumnoSeeder: EstadoAlumnoSeeder,
                 private readonly administradorSeeder: AdministradorSeeder,
                 private readonly directorSeeder: DirectorSeeder,
+
     ){}
 
     async onModuleInit() {

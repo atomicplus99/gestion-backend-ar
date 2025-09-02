@@ -32,6 +32,8 @@ import { Usuario } from '../usuario/usuario.entity';
 import { Administrador } from '../administrador/administrador.entity';
 import { Director } from '../director/director.entity';
 import { NotificacionModule } from '../notificacion/notificacion.module';
+import { TurnoExtraModule } from '../turno-extra/turno-extra.module';
+import { AsistenciaExtraModule } from '../asistencia-extra/asistencia-extra.module';
 
 
 
@@ -42,7 +44,9 @@ import { NotificacionModule } from '../notificacion/notificacion.module';
     AuxiliarModule,
     ActualizacionesAsistenciaModule,
     TelegramModule,
-    NotificacionModule
+    NotificacionModule,
+    TurnoExtraModule,
+    AsistenciaExtraModule
   ],
   controllers: [AsistenciaController, AusenciasMasivasController],
   providers: [AsistenciaService,

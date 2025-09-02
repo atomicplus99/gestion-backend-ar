@@ -1,8 +1,9 @@
 
-  export enum EstadoAsistencia {
+export enum EstadoAsistencia {
   PUNTUAL = 'PUNTUAL',
   TARDANZA = 'TARDANZA',
   AUSENTE = 'AUSENTE',
   ANULADO = 'ANULADO',
   JUSTIFICADO = 'JUSTIFICADO',
+  EXTRA = 'EXTRA',
 }

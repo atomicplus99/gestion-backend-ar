@@ -151,7 +151,7 @@ export class TelegramNotificationService {
    * Envía notificación de asistencia al apoderado del alumno
    */
   async notificarAsistenciaApoderado(
-    asistencia: Asistencia, 
+    asistencia: Asistencia | any, 
     motivo?: string, 
     tipoOperacion?: 'REGISTRO' | 'ACTUALIZACION' | 'ANULACION' | 'JUSTIFICACION'
   ): Promise<void> {
