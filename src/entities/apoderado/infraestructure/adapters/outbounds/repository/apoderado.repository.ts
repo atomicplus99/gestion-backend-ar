@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { ConflictException, BadRequestException } from '@nestjs/common';
 import { Apoderado as ApoderadoORM } from '../../../orm/entities/apoderado.entity';
 import { ApoderadoRepositoryPort } from '../../../../domain/ports/outbound/ApoderadoRepository.interface';
 import { Apoderado } from '../../../../domain/entities/Apoderado';
@@ -20,6 +21,18 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
     try {
       console.log('💾 [ApoderadoRepository] Iniciando creación de apoderado');
       console.log('💾 [ApoderadoRepository] Entidad de dominio recibida:', JSON.stringify(apoderado, null, 2));
+      
+      // Validación: DNI obligatorio (opcional según modelo) y único
+      const dni = (apoderado.dni || '').toString().trim();
+      if (dni) {
+        if (dni.length !== 8 || !/^\d{8}$/.test(dni)) {
+          throw new BadRequestException('El DNI debe tener exactamente 8 dígitos');
+        }
+        const existente = await this.apoderadoRepository.findOne({ where: { dni } });
+        if (existente) {
+          throw new ConflictException(`El DNI '${dni}' ya está registrado para otro apoderado`);
+        }
+      }
       
       const orm = ApoderadoMapper.toORM(apoderado);
       console.log('💾 [ApoderadoRepository] Entidad ORM mapeada:', JSON.stringify(orm, null, 2));
@@ -85,6 +98,18 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
     });
     
     if (!existing) return null;
+
+    // Validación DNI en actualización: formato y unicidad
+    if (apoderado.dni !== undefined && apoderado.dni !== null && apoderado.dni !== '') {
+      const dni = apoderado.dni.toString().trim();
+      if (dni.length !== 8 || !/^\d{8}$/.test(dni)) {
+        throw new BadRequestException('El DNI debe tener exactamente 8 dígitos');
+      }
+      const conflict = await this.apoderadoRepository.findOne({ where: { dni } });
+      if (conflict && conflict.id_apoderado !== id) {
+        throw new ConflictException(`El DNI '${dni}' ya está registrado para otro apoderado`);
+      }
+    }
 
     // Actualizar usando el método update de TypeORM
     await this.apoderadoRepository.update(id, {
@@ -197,7 +222,10 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
       }
 
       // Si no hay conflictos, proceder con la asignación
-      const alumnos = await this.alumnoRepository.findBy({ id_alumno: studentIds as any });
+      // Usar IN(...) para múltiples IDs y evitar pasar un array a una igualdad
+      const alumnos = await this.alumnoRepository.find({
+        where: { id_alumno: In(studentIds) }
+      });
       
       // Filtrar solo los alumnos que no están ya asignados a este apoderado
       const alumnosNuevos = alumnos.filter(alumno => 
