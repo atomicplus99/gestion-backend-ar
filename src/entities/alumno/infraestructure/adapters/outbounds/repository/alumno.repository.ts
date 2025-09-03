@@ -93,6 +93,44 @@ export class AlumnoTypeOrmRepository implements AlumnoRepositoryInterface {
     }
   }
 
+  async findByDNIAlumno(dni: string): Promise<Alumno | null> {
+    this.logger.log(`🔍 [Repository] Iniciando búsqueda de alumno con DNI: ${dni}`);
+    
+    // Validar que el DNI tenga exactamente 8 dígitos
+    if (!dni || dni.length !== 8) {
+      this.logger.error(`❌ [Repository] DNI inválido: ${dni} (longitud: ${dni?.length || 0})`);
+      throw new BadRequestException('El DNI del alumno debe tener exactamente 8 dígitos');
+    }
+
+    this.logger.log(`✅ [Repository] DNI válido, procediendo con búsqueda en BD`);
+    
+    try {
+      const alumno = await this.repositoryAlumno.findOne({ 
+        where: { dni_alumno: dni }, 
+        relations: ['turno','usuario'] 
+      });
+      
+      this.logger.log(`📊 [Repository] Resultado de búsqueda en BD: ${alumno ? 'Encontrado' : 'No encontrado'}`);
+      
+      if (alumno) {
+        this.logger.log(`✅ [Repository] Alumno encontrado:`);
+        this.logger.log(`   - ID: ${alumno.id_alumno}`);
+        this.logger.log(`   - DNI: ${alumno.dni_alumno}`);
+        this.logger.log(`   - Nombre: ${alumno.nombre} ${alumno.apellido}`);
+        this.logger.log(`   - Turno: ${alumno.turno ? `ID: ${alumno.turno.id_turno}` : 'No asignado'}`);
+        this.logger.log(`   - Usuario: ${alumno.usuario ? `ID: ${alumno.usuario.id_user}` : 'No asignado'}`);
+      } else {
+        this.logger.warn(`⚠️ [Repository] No se encontró alumno con DNI: ${dni}`);
+      }
+      
+      return alumno;
+    } catch (error) {
+      this.logger.error(`❌ [Repository] Error en búsqueda de alumno por DNI: ${error.message}`);
+      this.logger.error(`Stack trace: ${error.stack}`);
+      throw error;
+    }
+  }
+
   
   async findAll(): Promise<Alumno[]> {
     this.logger.log(`🔍 [Repository] Buscando todos los alumnos`);

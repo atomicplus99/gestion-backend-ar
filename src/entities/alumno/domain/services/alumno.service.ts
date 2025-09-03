@@ -10,6 +10,10 @@ import { CreateAlumnoDto } from 'src/auth/dto/users/create-alumno.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { AlumnoDto } from 'src/auth/dto/alumno/alumno.dto';
 import { RolUsuario } from 'src/common/enums/rol-usuario.enum';
+import * as bcrypt from 'bcrypt';
+import { EstadoAlumno } from '../../../estado-alumnos/entities/estado-alumno.entity';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class AlumnoService {
@@ -22,6 +26,9 @@ export class AlumnoService {
 
     @InjectRepository(Usuario)
     private readonly usuarioRepo: Repository<Usuario>,
+
+    @InjectRepository(EstadoAlumno)
+    private readonly estadoAlumnoRepo: Repository<EstadoAlumno>,
   ) {}
 
   async create(alumnoDtaRequest: AlumnoDto): Promise<Alumno> {
@@ -149,9 +156,13 @@ export class AlumnoService {
       throw new NotFoundException(`Turno con ID ${turnoId} no encontrado`);
     }
     
-    // Extraer los códigos para verificar duplicados
+    // Extraer los códigos y DNIs para verificar duplicados
     const codigos = data
       .map(d => d.codigo || d.numeroDocumento)
+      .filter(Boolean);
+    
+    const dnis = data
+      .map(d => d.dni || d.numeroDocumento)
       .filter(Boolean);
     
     // Verificar códigos duplicados en la base de datos
@@ -164,6 +175,19 @@ export class AlumnoService {
       if (dupes.length) {
         const list = dupes.map(a => a.codigo).join(', ');
         throw new BadRequestException(`Códigos duplicados: ${list}`);
+      }
+    }
+    
+    // Verificar DNIs duplicados en la base de datos
+    if (dnis.length > 0) {
+      const dupesDNI = await this.alumnoRepo
+        .createQueryBuilder('alumno')
+        .where('alumno.dni_alumno IN (:...dnis)', { dnis })
+        .getMany();
+        
+      if (dupesDNI.length) {
+        const list = dupesDNI.map(a => a.dni_alumno).join(', ');
+        throw new BadRequestException(`DNIs duplicados: ${list}`);
       }
     }
 
@@ -303,7 +327,11 @@ export class AlumnoService {
       
       // Generar una contraseña predeterminada
       const year = new Date().getFullYear();
-      usuario.password_user = `${firstName.toLowerCase()}${firstLast.toLowerCase()}${year}`;
+      const plainPassword = `${firstName.toLowerCase()}${firstLast.toLowerCase()}${year}`;
+      
+      // Hashear la contraseña
+      const saltRounds = 10;
+      usuario.password_user = await bcrypt.hash(plainPassword, saltRounds);
       
       // Establecer rol y imagen de perfil predeterminada
       usuario.rol_usuario = RolUsuario.ALUMNO;
@@ -315,6 +343,19 @@ export class AlumnoService {
 
     // Guardar todos los alumnos primero
     const savedAlumnos = await this.alumnoRepo.save(toSave);
+    
+    // Crear estados activos para todos los alumnos
+    const estadosToCreate = savedAlumnos.map(alumno => {
+      const estado = new EstadoAlumno();
+      estado.estado = 'activo';
+      estado.observacion = 'Alumno importado desde Excel';
+      estado.id_alumno = alumno.id_alumno;
+      estado.fecha_actualizacion = new Date();
+      return estado;
+    });
+    
+    await this.estadoAlumnoRepo.save(estadosToCreate);
+    console.log(`✅ Estados activos creados para ${estadosToCreate.length} alumnos`);
     
     let usuariosCreados = 0;
     
@@ -338,6 +379,9 @@ export class AlumnoService {
           // Guardar el usuario
           const savedUser = await this.usuarioRepo.save(usuario);
           usuariosCreados++;
+          
+          // Guardar credenciales en archivo
+          this.guardarCredencialesEnArchivo(savedAlumnos[i].codigo, savedUser.nombre_usuario, savedAlumnos[i].nombre, savedAlumnos[i].apellido);
           
           // Asociar el usuario con el alumno
           savedAlumnos[i].usuario = savedUser;
@@ -411,5 +455,35 @@ export class AlumnoService {
     }
 
     return usuario;
+  }
+
+  private guardarCredencialesEnArchivo(codigo: string, username: string, nombre: string, apellido: string): void {
+    try {
+      const archivoPath = path.join(process.cwd(), 'password-alumnos.txt');
+      
+      // Generar contraseña por defecto
+      const firstName = nombre.trim().split(' ')[0];
+      const firstLast = apellido.trim().split(' ')[0];
+      const year = new Date().getFullYear();
+      const password = `${firstName.toLowerCase()}${firstLast.toLowerCase()}${year}`;
+      
+      // Crear línea de credenciales
+      const lineaCredenciales = `${codigo}|${username}|${password}|${nombre} ${apellido}\n`;
+      
+      // Verificar si el archivo existe
+      if (!fs.existsSync(archivoPath)) {
+        // Si no existe, crear con encabezado
+        const encabezado = '# Archivo para almacenar contraseñas de alumnos por defecto\n# Formato: codigo_alumno|username|contraseña_por_defecto|nombre_completo\n# Ejemplo: 1234567890|JUAN.PEREZ|juanperez2025|Juan Pérez\n\n';
+        fs.writeFileSync(archivoPath, encabezado);
+      }
+      
+      // Agregar las credenciales al final del archivo
+      fs.appendFileSync(archivoPath, lineaCredenciales);
+      
+      console.log(`✅ Credenciales guardadas en password-alumnos.txt para alumno: ${codigo}`);
+    } catch (error) {
+      console.error(`❌ Error al guardar credenciales en archivo: ${error.message}`);
+      // No lanzar error para no detener el proceso de creación del alumno
+    }
   }
 }

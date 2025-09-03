@@ -5,7 +5,7 @@ import { UsuarioService } from 'src/entities/usuario/services/usuario.service';
 import * as bcrypt from 'bcrypt';
 import { JwtDefaultService } from './jwt.service';
 import { JwtService } from '@nestjs/jwt';
-import { Response as ExpressResponse, Response } from 'express'; 
+import { Response as ExpressResponse, Response } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -16,17 +16,23 @@ export class AuthService {
                 private readonly jwtServiceCore: JwtService
             ){}
 
-    async login(user: LoginDto){
+        async login(user: LoginDto){
        const userFind = await this.usuarioService.findOneByUsername(user.username);
        if(!userFind){
             throw new UnauthorizedException('Usuario no encontrado');
        }
 
-        const isPasswordValid = await bcrypt.compare(user.password, userFind?.password_user);
+       // Intentar primero con bcrypt (para contraseñas hasheadas)
+       let isPasswordValid = await bcrypt.compare(user.password, userFind?.password_user);
+       
+       // Si bcrypt falla, verificar si es texto plano
+       if (!isPasswordValid && userFind?.password_user && !userFind.password_user.startsWith('$2b$')) {
+           isPasswordValid = user.password === userFind.password_user;
+       }
 
-        if(!isPasswordValid){
+       if(!isPasswordValid){
             throw new UnauthorizedException('Contraseña incorrecta');
-        }
+       }
 
         const payload = { 
             idUser: userFind.id_user,
@@ -47,6 +53,8 @@ export class AuthService {
         };
     }
 
+
+
     async handleLogin(loginDto: LoginDto, res: Response) {
       const loginResult = await this.login(loginDto);
       const payload = this.jwtService.verifyToken(loginResult.data.access_token);
@@ -61,6 +69,8 @@ export class AuthService {
         }
       };
     }
+
+
 
 
 

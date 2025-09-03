@@ -4,6 +4,7 @@ import { Alumno } from './infraestructure/orm/entities/alumno.entity';
 import { AlumnoService } from './domain/services/alumno.service';
 import { Turno } from '../turno/turno.entity';
 import { Usuario } from '../usuario/usuario.entity';
+import { EstadoAlumno } from '../estado-alumnos/entities/estado-alumno.entity';
 import { AlumnoController } from './infraestructure/adapters/inbound/controllers/alumno.controller';
 import { UniqueCodigoConstraint } from 'src/common/validations/unique-code-alumno.validator';
 import { CreateAlumnoUseCase } from './domain/ports/inbound/cases/create-alumno.usecase';
@@ -22,7 +23,7 @@ import { UsuarioMapper } from './infraestructure/mappers/UsuarioMapper.mapper';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Alumno, Turno, Usuario]),
+    TypeOrmModule.forFeature([Alumno, Turno, Usuario, EstadoAlumno]),
   ],
   controllers: [AlumnoController],
   providers: [

@@ -8,6 +8,8 @@ import { AlumnoTypeOrmRepository } from '../adapters/outbounds/repository/alumno
 import { UsuarioTypeOrmRepository } from '../../../usuario/repository/usuario.repository';
 import { DataSource } from 'typeorm';
 import { EstadoAlumno } from '../../../estado-alumnos/entities/estado-alumno.entity';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
@@ -39,6 +41,26 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
           startTime,
           alumnosExcel.length
         );
+      }
+
+      // Verificar duplicados de DNI en la base de datos
+      const dnis = alumnosValidos.map(alumno => this.importMapper.mapDNI(alumno)).filter(Boolean);
+      if (dnis.length > 0) {
+        const dupesDNI = await this.dataSource
+          .getRepository('ALUMNO')
+          .createQueryBuilder('alumno')
+          .where('alumno.dni_alumno IN (:...dnis)', { dnis })
+          .getMany();
+          
+        if (dupesDNI.length) {
+          const list = dupesDNI.map(a => a.dni_alumno).join(', ');
+          return this.generarRespuestaError(
+            `DNIs duplicados en la base de datos: ${list}`,
+            [],
+            startTime,
+            alumnosExcel.length
+          );
+        }
       }
 
       // Mapear a entidades Alumno
@@ -121,12 +143,22 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
               console.log(`✅ Nombre de usuario final confirmado: ${nombreUsuarioUnico}`);
               
             usuario.nombre_usuario = nombreUsuarioUnico;
-              usuario.password_user = await this.hashPassword(nombreUsuario);
-              usuario.rol_usuario = 'ALUMNO' as any;
-              usuario.profile_image = 'uploads/profiles/no-image.png';
+            // Generar contraseña por defecto: primerNombre + primerApellido + año (minúsculas)
+            const firstName = (alumnoGuardado.nombre || '').trim().split(' ')[0] || '';
+            const firstLast = (alumnoGuardado.apellido || '').trim().split(' ')[0] || '';
+            const year = new Date().getFullYear();
+            const defaultPlainPassword = `${firstName.toLowerCase()}${firstLast.toLowerCase()}${year}`;
+            usuario.password_user = await this.hashPassword(defaultPlainPassword);
+            usuario.rol_usuario = 'ALUMNO' as any;
+            usuario.profile_image = 'uploads/profiles/no-image.png';
             
-              const usuarioGuardado = await manager.save('USUARIO', usuario);
+            const usuarioGuardado = await manager.save('USUARIO', usuario);
             console.log(`✅ Usuario creado: ${nombreUsuarioUnico} para alumno ${alumnoGuardado.nombre}`);
+            
+            // Guardar credenciales en archivo
+            if (alumnoGuardado.codigo && alumnoGuardado.nombre && alumnoGuardado.apellido) {
+              this.guardarCredencialesEnArchivo(alumnoGuardado.codigo, nombreUsuarioUnico, alumnoGuardado.nombre, alumnoGuardado.apellido);
+            }
             
             // Asociar usuario con alumno
             alumnoGuardado.usuario = usuarioGuardado;
@@ -527,5 +559,35 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     partes.push(`Procesado en ${estadisticas.tiempo_procesamiento}s`);
     
     return partes.join(' | ');
+  }
+
+  private guardarCredencialesEnArchivo(codigo: string, username: string, nombre: string, apellido: string): void {
+    try {
+      const archivoPath = path.join(process.cwd(), 'password-alumnos.txt');
+      
+      // Generar contraseña por defecto
+      const firstName = nombre.trim().split(' ')[0];
+      const firstLast = apellido.trim().split(' ')[0];
+      const year = new Date().getFullYear();
+      const password = `${firstName.toLowerCase()}${firstLast.toLowerCase()}${year}`;
+      
+      // Crear línea de credenciales
+      const lineaCredenciales = `${codigo}|${username}|${password}|${nombre} ${apellido}\n`;
+      
+      // Verificar si el archivo existe
+      if (!fs.existsSync(archivoPath)) {
+        // Si no existe, crear con encabezado
+        const encabezado = '# Archivo para almacenar contraseñas de alumnos por defecto\n# Formato: codigo_alumno|username|contraseña_por_defecto|nombre_completo\n# Ejemplo: 1234567890|JUAN.PEREZ|juanperez2025|Juan Pérez\n\n';
+        fs.writeFileSync(archivoPath, encabezado);
+      }
+      
+      // Agregar las credenciales al final del archivo
+      fs.appendFileSync(archivoPath, lineaCredenciales);
+      
+      console.log(`✅ Credenciales guardadas en password-alumnos.txt para alumno: ${codigo}`);
+    } catch (error) {
+      console.error(`❌ Error al guardar credenciales en archivo: ${error.message}`);
+      // No lanzar error para no detener el proceso de creación del alumno
+    }
   }
 }

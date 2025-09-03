@@ -42,6 +42,42 @@ export class EstadoAlumnoController {
     }
   }
 
+  @Get(':codigo')
+  @ApiOperation({ 
+    summary: 'Obtener estado de un alumno específico',
+    description: 'Retorna el estado actual de un alumno específico por su código de estudiante'
+  })
+  @ApiParam({ 
+    name: 'codigo', 
+    type: 'string', 
+    description: 'Código de 14 dígitos del estudiante',
+    example: '12076598200730'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Estado del alumno obtenido exitosamente',
+    type: AlumnoEstadoResponseDto
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno no encontrado'
+  })
+  @ApiResponse({ 
+    status: 500, 
+    description: 'Error interno del servidor'
+  })
+  async obtenerEstadoPorAlumno(@Param('codigo') codigo: string): Promise<AlumnoEstadoResponseDto> {
+    this.logger.log(`🔍 [Controller] Obteniendo estado del alumno con código: ${codigo}`);
+    try {
+      const resultado = await this.getAlumnosEstadoCase.executeByCodigo(codigo);
+      this.logger.log(`✅ [Controller] Estado del alumno ${codigo} obtenido exitosamente`);
+      return resultado;
+    } catch (error) {
+      this.logger.error(`❌ [Controller] Error al obtener estado del alumno: ${error.message}`);
+      throw error;
+    }
+  }
+
   @Put(':codigo')
   @ApiOperation({ 
     summary: 'Actualizar estado de un alumno',

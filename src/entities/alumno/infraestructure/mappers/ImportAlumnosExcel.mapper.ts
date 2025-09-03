@@ -34,7 +34,7 @@ export class ImportAlumnosExcelMapper {
     return `A${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
-  private mapDNI(data: AlumnoExcelData): string {
+  mapDNI(data: AlumnoExcelData): string {
     const dni = data.numeroDocumento || data.dni || '00000000';
     return dni.toString().substring(0, 8);
   }
