@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum, IsNotEmpty } from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsNotEmpty, IsDateString } from 'class-validator';
 import { EstadoAsistencia } from '../../enums/estado-asistencia.enum';
 
 export class UpdateAsistenciaRequestDto {
@@ -41,11 +41,29 @@ export class UpdateAsistenciaRequestDto {
   motivo: string;
 
   @ApiProperty({
-    description: 'ID del auxiliar que realiza el cambio',
+    description: 'ID del auxiliar que realiza el cambio (opcional si se envía id_usuario)',
     example: 'uuid-del-auxiliar',
-    required: true
+    required: false
   })
-  @IsNotEmpty({ message: 'El ID del auxiliar es obligatorio' })
+  @IsOptional()
   @IsString({ message: 'El ID del auxiliar debe ser una cadena de texto' })
-  id_auxiliar: string;
+  id_auxiliar?: string;
+
+  @ApiProperty({
+    description: 'ID del usuario actor (ADMINISTRADOR o DIRECTOR). Opcional si se envía id_auxiliar',
+    example: 'uuid-del-administrador-o-director',
+    required: false
+  })
+  @IsOptional()
+  @IsString({ message: 'El ID de usuario debe ser una cadena de texto' })
+  id_usuario?: string;
+
+  @ApiProperty({
+    description: 'Fecha de la asistencia a actualizar (YYYY-MM-DD, opcional). Si no se envía, se usa la fecha actual Perú.',
+    example: '2025-08-30',
+    required: false
+  })
+  @IsOptional()
+  @IsDateString({}, { message: 'La fecha debe tener formato YYYY-MM-DD' })
+  fecha?: string;
 }

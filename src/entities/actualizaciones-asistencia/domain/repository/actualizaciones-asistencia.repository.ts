@@ -20,7 +20,7 @@ export class ActualizacionesAsistenciaRepository {
    */
   async findAll(): Promise<ActualizacionesAsistencia[]> {
     return this.repo.find({
-      relations: ['asistencia', 'alumno', 'auxiliar'],
+      relations: ['asistencia', 'alumno', 'auxiliar', 'administrador', 'director'],
     });
   }
 
@@ -42,7 +42,9 @@ export class ActualizacionesAsistenciaRepository {
     return this.repo.createQueryBuilder('actualizacion')
       .innerJoinAndSelect('actualizacion.asistencia', 'asistencia')
       .innerJoinAndSelect('actualizacion.alumno', 'alumno')
-      .innerJoinAndSelect('actualizacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('actualizacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('actualizacion.administrador', 'administrador')
+      .leftJoinAndSelect('actualizacion.director', 'director')
       .where('asistencia.id_asistencia = :id_asistencia', { id_asistencia })
       .orderBy('actualizacion.fechaActualizacion', 'DESC')
       .getMany();
@@ -57,7 +59,9 @@ export class ActualizacionesAsistenciaRepository {
     return this.repo.createQueryBuilder('actualizacion')
       .innerJoinAndSelect('actualizacion.asistencia', 'asistencia')
       .innerJoinAndSelect('actualizacion.alumno', 'alumno')
-      .innerJoinAndSelect('actualizacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('actualizacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('actualizacion.administrador', 'administrador')
+      .leftJoinAndSelect('actualizacion.director', 'director')
       .where('auxiliar.id_auxiliar = :id_auxiliar', { id_auxiliar })
       .orderBy('actualizacion.fechaActualizacion', 'DESC')
       .getMany();
@@ -72,7 +76,9 @@ export class ActualizacionesAsistenciaRepository {
     return this.repo.createQueryBuilder('actualizacion')
       .innerJoinAndSelect('actualizacion.asistencia', 'asistencia')
       .innerJoinAndSelect('actualizacion.alumno', 'alumno')
-      .innerJoinAndSelect('actualizacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('actualizacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('actualizacion.administrador', 'administrador')
+      .leftJoinAndSelect('actualizacion.director', 'director')
       .where('alumno.id_alumno = :id_alumno', { id_alumno })
       .orderBy('actualizacion.fechaActualizacion', 'DESC')
       .getMany();
@@ -115,13 +121,17 @@ export class ActualizacionesAsistenciaRepository {
   async createActualizacion(
     asistencia: Asistencia,
     alumno: Alumno,
-    auxiliar: Auxiliar,
-    motivo: string
+    auxiliar: Auxiliar | null,
+    motivo: string,
+    administrador?: any,
+    director?: any,
   ): Promise<ActualizacionesAsistencia> {
     const actualizacion = new ActualizacionesAsistencia();
     actualizacion.asistencia = asistencia;
     actualizacion.alumno = alumno;
-    actualizacion.auxiliar = auxiliar;
+    if (auxiliar) actualizacion.auxiliar = auxiliar;
+    if (administrador) actualizacion.administrador = administrador;
+    if (director) actualizacion.director = director;
     actualizacion.motivo = motivo;
     // La fecha se asigna automáticamente por ser un CreateDateColumn
     

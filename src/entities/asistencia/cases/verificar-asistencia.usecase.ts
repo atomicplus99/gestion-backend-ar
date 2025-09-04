@@ -18,8 +18,8 @@ export class VerificarAsistenciaUseCase implements VerificarAsistenciaPort {
     try {
       console.log('🔍 [VerificarAsistenciaUseCase] Verificando asistencia para código:', codigo, 'fecha:', fecha);
 
-      // 1. Buscar el alumno por código
-      const alumno = await this.alumnoRepository.findOne(codigo);
+      // 1. Buscar el alumno por código, incluyendo el turno asignado
+      const alumno = await this.alumnoRepository.findByCodigoAlumno(codigo);
       
       if (!alumno) {
         console.log('❌ [VerificarAsistenciaUseCase] Alumno no encontrado con código:', codigo);

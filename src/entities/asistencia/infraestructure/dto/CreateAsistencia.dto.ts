@@ -26,9 +26,13 @@ export class CreateAsistenciaManualDto {
   @MaxLength(500, { message: 'El motivo no puede exceder 500 caracteres' })
   motivo: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  id_auxiliar: string;
+  id_auxiliar?: string;
+
+  @IsOptional()
+  @IsString()
+  id_usuario?: string;
 
   @IsOptional()
   @IsString()

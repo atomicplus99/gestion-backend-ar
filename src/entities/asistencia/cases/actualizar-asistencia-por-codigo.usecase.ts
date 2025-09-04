@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Asistencia } from '../asistencia.entity';
 import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from 'src/entities/auxiliar/auxiliar.entity';
+import { Administrador } from 'src/entities/administrador/administrador.entity';
+import { Director } from 'src/entities/director/director.entity';
 import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { UpdateAsistenciaRequestDto } from '../infraestructure/dto/UpdateAsistenciaRequest.dto';
@@ -21,6 +23,10 @@ export class ActualizarAsistenciaPorCodigoUseCase {
 
     @InjectRepository(Auxiliar)
     private readonly auxiliarRepository: Repository<Auxiliar>,
+    @InjectRepository(Administrador)
+    private readonly adminRepository: Repository<Administrador>,
+    @InjectRepository(Director)
+    private readonly directorRepository: Repository<Director>,
 
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
@@ -39,15 +45,24 @@ export class ActualizarAsistenciaPorCodigoUseCase {
       throw new NotFoundException(`No se encontró ningún alumno con el código: ${codigo}`);
     }
 
-    // 2. Buscar la asistencia más reciente del alumno (hoy o la última)
-    // Obtener fecha actual en zona horaria de Perú (UTC-5)
-    const ahora = new Date();
-    const offsetPeru = -5 * 60; // UTC-5 en minutos
-    const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
-    
-    // Construir fecha a las 00:00:00 en hora local de Perú
-    const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
-    const fechaFormato = fechaHoy.toISOString().split('T')[0];
+    // 2. Determinar la fecha objetivo (YYYY-MM-DD) Perú: si viene en el DTO, usarla; si no, hoy Perú
+    let fechaFormato: string;
+    if (updateDto.fecha) {
+      // Validar y normalizar a YYYY-MM-DD
+      const d = new Date(updateDto.fecha);
+      if (isNaN(d.getTime())) {
+        throw new BadRequestException('La fecha no es válida. Use formato YYYY-MM-DD');
+      }
+      fechaFormato = updateDto.fecha;
+    } else {
+      // Obtener fecha actual en zona horaria de Perú (UTC-5)
+      const ahora = new Date();
+      const offsetPeru = -5 * 60; // UTC-5 en minutos
+      const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+      // Construir fecha a las 00:00:00 en hora local de Perú
+      const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
+      fechaFormato = fechaHoy.toISOString().split('T')[0];
+    }
 
     const asistencia = await this.asistenciaRepository
       .createQueryBuilder('asistencia')
@@ -61,13 +76,26 @@ export class ActualizarAsistenciaPorCodigoUseCase {
       throw new NotFoundException(`No se encontró asistencia registrada para el alumno ${codigo} en la fecha ${fechaFormato}`);
     }
 
-    // 3. Buscar el auxiliar por ID
-    const auxiliar = await this.auxiliarRepository.findOne({
-      where: { id_auxiliar: updateDto.id_auxiliar }
-    });
+    // 3. Identificar actor: auxiliar o, si no, administrador/director por id_usuario
+    let actorAuxiliar: Auxiliar | null = null;
+    let actorAdmin: Administrador | null = null;
+    let actorDirector: Director | null = null;
 
-    if (!auxiliar) {
-      throw new NotFoundException(`No se encontró ningún auxiliar con el ID: ${updateDto.id_auxiliar}`);
+    if (updateDto.id_auxiliar) {
+      actorAuxiliar = await this.auxiliarRepository.findOne({ where: { id_auxiliar: updateDto.id_auxiliar } });
+      if (!actorAuxiliar) {
+        throw new NotFoundException(`No se encontró ningún auxiliar con el ID: ${updateDto.id_auxiliar}`);
+      }
+    } else if (updateDto.id_usuario) {
+      actorAdmin = await this.adminRepository.findOne({ where: { id_administrador: updateDto.id_usuario as any } });
+      if (!actorAdmin) {
+        actorDirector = await this.directorRepository.findOne({ where: { id_director: updateDto.id_usuario as any } });
+        if (!actorDirector) {
+          throw new NotFoundException('No se encontró administrador o director con ese ID');
+        }
+      }
+    } else {
+      throw new BadRequestException('Debe enviar id_auxiliar o id_usuario');
     }
 
     // 4. Validar la actualización de hora_salida
@@ -110,7 +138,9 @@ export class ActualizarAsistenciaPorCodigoUseCase {
     const actualizacion = new ActualizacionesAsistencia();
     actualizacion.asistencia = asistenciaActualizada;
     actualizacion.alumno = alumno;
-    actualizacion.auxiliar = auxiliar;
+    if (actorAuxiliar) actualizacion.auxiliar = actorAuxiliar as any;
+    if (actorAdmin) (actualizacion as any).administrador = actorAdmin as any;
+    if (actorDirector) (actualizacion as any).director = actorDirector as any;
     actualizacion.motivo = updateDto.motivo;
 
     await this.actualizacionesRepository.save(actualizacion);

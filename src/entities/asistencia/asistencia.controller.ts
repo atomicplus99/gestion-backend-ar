@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, Put, Param, ValidationPipe, NotFoundException, HttpException, HttpStatus, Patch, BadRequestException, Query, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, Get, Put, Param, ValidationPipe, NotFoundException, HttpException, HttpStatus, Patch, BadRequestException, Query, HttpCode, Logger, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RegistrarAsistenciaDesdeQRUseCase } from './cases/registrar-asistencia.usecase';
 import { GetAsistenciasUseCase } from './cases/GetAsistencia.usecase';
@@ -70,6 +71,7 @@ export class UpdateAsistenciaAlumnoDto {
 @ApiTags('Asistencia')
 @Controller('asistencia')
 export class AsistenciaController {
+  private readonly logger = new Logger(AsistenciaController.name);
   constructor(
     private readonly registrarAsistencia: RegistrarAsistenciaDesdeQRUseCase,
     private readonly listAsistencia: GetAsistenciasUseCase,
@@ -147,7 +149,32 @@ export class AsistenciaController {
     status: 500, 
     description: 'Error interno del servidor'
   })
-  async crearAsistenciaManualEndpoint(@Body() body: CreateAsistenciaManualDto): Promise<RegistroAsistenciaResponseManual> {
+  async crearAsistenciaManualEndpoint(@Body() body: CreateAsistenciaManualDto, @Req() req: Request): Promise<RegistroAsistenciaResponseManual> {
+    // Logs para depurar qué envía el frontend
+    this.logger.log('🟧 [POST /asistencia/manual] Body recibido (DTO): ' + JSON.stringify(body));
+    console.log('[POST /asistencia/manual] body (raw obj):', body);
+    this.logger.log(
+      `🟧 Campos -> id_alumno=${(body as any)?.id_alumno} | id_auxiliar=${(body as any)?.id_auxiliar} | id_usuario=${(body as any)?.id_usuario} | estado_asistencia=${(body as any)?.estado_asistencia} | hora_de_llegada=${(body as any)?.hora_de_llegada} | hora_salida=${(body as any)?.hora_salida} | fecha=${(body as any)?.fecha} | motivo_len=${(body as any)?.motivo ? String((body as any).motivo).length : 0}`
+    );
+
+    // Logs de request: método, ruta, IP y headers
+    try {
+      const forwarded = (req.headers['x-forwarded-for'] as string) || '';
+      const ip = forwarded.split(',')[0] || req.ip;
+      this.logger.log(`🟦 Request: method=${req.method} url=${req.originalUrl || req.url} ip=${ip}`);
+      this.logger.log(`🟦 Headers: ${JSON.stringify({
+        authorization: req.headers['authorization'] || null,
+        'content-type': req.headers['content-type'] || null,
+        'user-agent': req.headers['user-agent'] || null,
+        origin: req.headers['origin'] || null,
+        referer: req.headers['referer'] || null,
+        host: req.headers['host'] || null,
+        'x-forwarded-for': req.headers['x-forwarded-for'] || null,
+      })}`);
+    } catch (e) {
+      console.log('Error registrando headers de la solicitud:', e);
+    }
+
     const asistencia = await this.crearAsistenciaManual.execute(body);
 
     // Construir respuesta estructurada

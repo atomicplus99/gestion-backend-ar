@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Asistencia } from '../asistencia.entity';
 import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from 'src/entities/auxiliar/auxiliar.entity';
+import { Administrador } from 'src/entities/administrador/administrador.entity';
+import { Director } from 'src/entities/director/director.entity';
 import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { AnularAsistenciaRequestDto } from '../infraestructure/dto/AnularAsistenciaRequest.dto';
@@ -22,6 +24,12 @@ export class AnularAsistenciaUseCase {
     @InjectRepository(Auxiliar)
     private readonly auxiliarRepository: Repository<Auxiliar>,
 
+    @InjectRepository(Administrador)
+    private readonly administradorRepository: Repository<Administrador>,
+
+    @InjectRepository(Director)
+    private readonly directorRepository: Repository<Director>,
+
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
     
@@ -38,24 +46,56 @@ export class AnularAsistenciaUseCase {
       throw new NotFoundException(`No se encontró ningún alumno con el código: ${dto.codigo_estudiante}`);
     }
 
-    // 2. Buscar el auxiliar por ID
-    const auxiliar = await this.auxiliarRepository.findOne({
-      where: { id_auxiliar: dto.id_auxiliar }
-    });
+    // 2. Buscar el actor (auxiliar, administrador o director) según el campo enviado
+    let actor: any = null;
+    let tipoActor: string = '';
 
-    if (!auxiliar) {
-      throw new NotFoundException(`No se encontró ningún auxiliar con el ID: ${dto.id_auxiliar}`);
+    if (dto.id_auxiliar) {
+      actor = await this.auxiliarRepository.findOne({
+        where: { id_auxiliar: dto.id_auxiliar }
+      });
+      tipoActor = 'auxiliar';
+    } else if (dto.id_usuario) {
+      // Buscar primero en administradores
+      actor = await this.administradorRepository.findOne({
+        where: { id_administrador: dto.id_usuario }
+      });
+      
+      if (actor) {
+        tipoActor = 'administrador';
+      } else {
+        // Si no es administrador, buscar en directores
+        actor = await this.directorRepository.findOne({
+          where: { id_director: dto.id_usuario }
+        });
+        
+        if (actor) {
+          tipoActor = 'director';
+        }
+      }
     }
 
-    // 3. Buscar la asistencia del día actual del alumno
-    // Obtener fecha actual en zona horaria de Perú (UTC-5)
-    const ahora = new Date();
-    const offsetPeru = -5 * 60; // UTC-5 en minutos
-    const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
-    
-    // Construir fecha a las 00:00:00 en hora local de Perú
-    const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
-    const fechaFormato = fechaHoy.toISOString().split('T')[0];
+    if (!actor) {
+      throw new NotFoundException(`No se encontró ningún ${tipoActor || 'usuario'} con el ID proporcionado`);
+    }
+
+    // 3. Determinar fecha objetivo (YYYY-MM-DD). Si no se envía, usar fecha actual Perú
+    let fechaFormato: string;
+    if (dto.fecha) {
+      const d = new Date(dto.fecha);
+      if (isNaN(d.getTime())) {
+        throw new BadRequestException('La fecha no es válida. Use formato YYYY-MM-DD');
+      }
+      fechaFormato = dto.fecha;
+    } else {
+      // Obtener fecha actual en zona horaria de Perú (UTC-5)
+      const ahora = new Date();
+      const offsetPeru = -5 * 60; // UTC-5 en minutos
+      const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
+      // Construir fecha a las 00:00:00 en hora local de Perú
+      const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
+      fechaFormato = fechaHoy.toISOString().split('T')[0];
+    }
 
     const asistencia = await this.asistenciaRepository
       .createQueryBuilder('asistencia')
@@ -111,7 +151,16 @@ export class AnularAsistenciaUseCase {
     const actualizacion = new ActualizacionesAsistencia();
     actualizacion.asistencia = asistenciaAnulada;
     actualizacion.alumno = alumno;
-    actualizacion.auxiliar = auxiliar;
+    
+    // Asignar el actor correspondiente según el tipo
+    if (tipoActor === 'auxiliar') {
+      actualizacion.auxiliar = actor;
+    } else if (tipoActor === 'administrador') {
+      actualizacion.administrador = actor;
+    } else if (tipoActor === 'director') {
+      actualizacion.director = actor;
+    }
+    
     actualizacion.motivo = `ANULACIÓN: ${dto.motivo}`;
 
     await this.actualizacionesRepository.save(actualizacion);

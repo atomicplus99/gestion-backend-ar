@@ -34,6 +34,8 @@ import { Director } from '../director/director.entity';
 import { NotificacionModule } from '../notificacion/notificacion.module';
 import { TurnoExtraModule } from '../turno-extra/turno-extra.module';
 import { AsistenciaExtraModule } from '../asistencia-extra/asistencia-extra.module';
+import { AdministradorModule } from '../administrador/administrador.module';
+import { DirectorModule } from '../director/director.module';
 
 
 
@@ -46,7 +48,9 @@ import { AsistenciaExtraModule } from '../asistencia-extra/asistencia-extra.modu
     TelegramModule,
     NotificacionModule,
     TurnoExtraModule,
-    AsistenciaExtraModule
+    AsistenciaExtraModule,
+    AdministradorModule,
+    DirectorModule
   ],
   controllers: [AsistenciaController, AusenciasMasivasController],
   providers: [AsistenciaService,

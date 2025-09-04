@@ -1,12 +1,14 @@
 // src/entities/asistencia/domain/cases/crear-asistencia-manual.usecase.ts
 
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Asistencia } from '../asistencia.entity';
 import { Alumno } from 'src/entities/alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from 'src/entities/auxiliar/auxiliar.entity';
 import { ActualizacionesAsistencia } from 'src/entities/actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
+import { Administrador } from 'src/entities/administrador/administrador.entity';
+import { Director } from 'src/entities/director/director.entity';
 import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 import { CreateAsistenciaManualDto } from '../infraestructure/dto/CreateAsistencia.dto';
 
@@ -22,6 +24,10 @@ export class CrearAsistenciaManualUseCase {
 
     @InjectRepository(Auxiliar)
     private readonly auxiliarRepository: Repository<Auxiliar>,
+    @InjectRepository(Administrador)
+    private readonly adminRepository: Repository<Administrador>,
+    @InjectRepository(Director)
+    private readonly directorRepository: Repository<Director>,
 
     @InjectRepository(ActualizacionesAsistencia)
     private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
@@ -40,19 +46,45 @@ export class CrearAsistenciaManualUseCase {
         throw new NotFoundException('Alumno no encontrado.');
       }
 
-      // 2. Buscar al auxiliar
-      const auxiliar = await this.auxiliarRepository.findOne({
-        where: { id_auxiliar: createDto.id_auxiliar },
-      });
+      // 2. Identificar actor (auxiliar/administrador/director) por id_auxiliar o id_usuario
+      let actorAuxiliar: Auxiliar | null = null;
+      let actorAdmin: Administrador | null = null;
+      let actorDirector: Director | null = null;
 
-      if (!auxiliar) {
-        throw new NotFoundException('Auxiliar no encontrado.');
+      if (createDto.id_auxiliar) {
+        actorAuxiliar = await this.auxiliarRepository.findOne({ where: { id_auxiliar: createDto.id_auxiliar } });
+        if (!actorAuxiliar) {
+          throw new NotFoundException('Auxiliar no encontrado.');
+        }
+      } else if (createDto.id_usuario) {
+        actorAdmin = await this.adminRepository.findOne({ where: { id_administrador: createDto.id_usuario as any } });
+        if (!actorAdmin) {
+          actorDirector = await this.directorRepository.findOne({ where: { id_director: createDto.id_usuario as any } });
+          if (!actorDirector) {
+            throw new NotFoundException('No se encontró un administrador o director con ese id.');
+          }
+        }
+      } else {
+        throw new BadRequestException('Debe enviarse id_auxiliar o id_usuario.');
       }
 
       // 3. Validar que no exista asistencia duplicada para el mismo alumno y fecha
       let fechaAsistencia: Date;
       if (createDto.fecha) {
-        fechaAsistencia = new Date(createDto.fecha);
+        // Interpretar la fecha recibida (YYYY-MM-DD) como medianoche en zona horaria de Perú (UTC-5)
+        const parts = String(createDto.fecha).split('-');
+        if (parts.length !== 3) {
+          throw new BadRequestException('El formato de fecha no es válido. Use YYYY-MM-DD');
+        }
+        const year = Number(parts[0]);
+        const month = Number(parts[1]);
+        const day = Number(parts[2]);
+        if (!year || !month || !day) {
+          throw new BadRequestException('El formato de fecha no es válido. Use YYYY-MM-DD');
+        }
+        // Medianoche Perú equivale a 05:00:00Z
+        const utcMillis = Date.UTC(year, month - 1, day, 5, 0, 0, 0);
+        fechaAsistencia = new Date(utcMillis);
       } else {
         // Crear fecha actual en zona horaria de Perú (UTC-5)
         const ahora = new Date();
@@ -101,12 +133,13 @@ export class CrearAsistenciaManualUseCase {
       }
 
       // 6. Registrar historial de creación
-      const historial = this.actualizacionesRepository.create({
-        asistencia: nuevaAsistencia,
-        alumno: alumno,
-        auxiliar: auxiliar,
-        motivo: createDto.motivo,
-      });
+      const historial = new ActualizacionesAsistencia();
+      historial.asistencia = nuevaAsistencia;
+      historial.alumno = alumno;
+      if (actorAuxiliar) historial.auxiliar = actorAuxiliar as any;
+      if (actorAdmin) historial.administrador = actorAdmin as any;
+      if (actorDirector) historial.director = actorDirector as any;
+      historial.motivo = createDto.motivo;
 
       await this.actualizacionesRepository.save(historial);
 

@@ -3,6 +3,8 @@
 import { Alumno } from '../../../alumno/infraestructure/orm/entities/alumno.entity';
 import { Asistencia } from '../../../asistencia/asistencia.entity';
 import { Auxiliar } from '../../../auxiliar/auxiliar.entity';
+import { Administrador } from '../../../administrador/administrador.entity';
+import { Director } from '../../../director/director.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -25,9 +27,17 @@ export class ActualizacionesAsistencia {
   @JoinColumn({ name: 'id_alumno' })
   alumno: Alumno;
 
-  @ManyToOne(() => Auxiliar, { eager: true })
+  @ManyToOne(() => Auxiliar, { eager: true, nullable: true })
   @JoinColumn({ name: 'id_auxiliar' })
   auxiliar: Auxiliar;
+
+  @ManyToOne(() => Administrador, { eager: true, nullable: true })
+  @JoinColumn({ name: 'id_administrador' })
+  administrador?: Administrador | null;
+
+  @ManyToOne(() => Director, { eager: true, nullable: true })
+  @JoinColumn({ name: 'id_director' })
+  director?: Director | null;
 
   @Column({ type: 'text' })
   motivo: string;
