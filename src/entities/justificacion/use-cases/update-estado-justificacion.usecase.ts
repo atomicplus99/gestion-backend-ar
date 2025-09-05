@@ -29,7 +29,7 @@ export class UpdateEstadoJustificacionUseCase {
     // 1. Buscar la justificación
     const justificacion = await this.justificacionRepository.findOne({
       where: { id_justificacion: idJustificacion },
-      relations: ['alumno', 'auxiliar', 'alumno.turno'],
+      relations: ['alumno', 'auxiliar', 'administrador', 'director', 'alumno.turno'],
     });
 
     if (!justificacion) {
@@ -119,12 +119,7 @@ export class UpdateEstadoJustificacionUseCase {
         grado: justificacion.alumno.grado || 0,
         seccion: justificacion.alumno.seccion || 'NO ESPECIFICADO',
       },
-      auxiliar_encargado: {
-        id_auxiliar: justificacion.auxiliar.id_auxiliar,
-        nombre: justificacion.auxiliar.nombre || 'Auxiliar',
-        apellido: justificacion.auxiliar.apellido || 'Sistema',
-        correo_electronico: justificacion.auxiliar.correo_electronico || 'no-disponible@colegio.edu.pe',
-      },
+      responsable: this.mapearResponsable(justificacion),
       asistencias_creadas: justificacion.fecha_de_justificacion?.length || 0,
     };
   }
@@ -169,5 +164,41 @@ export class UpdateEstadoJustificacionUseCase {
       .andWhere('asistencia.fecha >= :fechaInicio', { fechaInicio })
       .andWhere('asistencia.fecha <= :fechaFin', { fechaFin })
       .getOne();
+  }
+
+  private mapearResponsable(justificacion: Justificacion): any {
+    if (justificacion.auxiliar) {
+      return {
+        tipo: 'auxiliar',
+        id: justificacion.auxiliar.id_auxiliar,
+        nombre: justificacion.auxiliar.nombre || 'Auxiliar',
+        apellido: justificacion.auxiliar.apellido || 'Sistema',
+        correo_electronico: justificacion.auxiliar.correo_electronico || 'no-disponible@colegio.edu.pe',
+      };
+    } else if (justificacion.administrador) {
+      return {
+        tipo: 'administrador',
+        id: justificacion.administrador.id_administrador,
+        nombre: justificacion.administrador.nombres || 'Administrador',
+        apellido: justificacion.administrador.apellidos || 'Sistema',
+        correo_electronico: 'no-disponible@colegio.edu.pe',
+      };
+    } else if (justificacion.director) {
+      return {
+        tipo: 'director',
+        id: justificacion.director.id_director,
+        nombre: justificacion.director.nombres || 'Director',
+        apellido: justificacion.director.apellidos || 'Sistema',
+        correo_electronico: 'no-disponible@colegio.edu.pe',
+      };
+    } else {
+      return {
+        tipo: 'desconocido',
+        id: 'no-disponible',
+        nombre: 'Usuario',
+        apellido: 'Sistema',
+        correo_electronico: 'no-disponible@colegio.edu.pe',
+      };
+    }
   }
 }

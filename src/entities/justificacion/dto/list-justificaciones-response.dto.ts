@@ -45,6 +45,40 @@ export class AlumnoSolicitanteDto {
   seccion: string;
 }
 
+export class ResponsableDto {
+  @ApiProperty({
+    description: 'Tipo de responsable',
+    enum: ['auxiliar', 'administrador', 'director', 'desconocido'],
+    example: 'auxiliar'
+  })
+  tipo: string;
+
+  @ApiProperty({
+    description: 'ID del responsable',
+    example: '37419ff9-9ce8-4b1a-bdc6-2ed28ae8cc0b'
+  })
+  id: string;
+
+  @ApiProperty({
+    description: 'Nombre del responsable',
+    example: 'Juan'
+  })
+  nombre: string;
+
+  @ApiProperty({
+    description: 'Apellido del responsable',
+    example: 'Pérez'
+  })
+  apellido: string;
+
+  @ApiProperty({
+    description: 'Correo electrónico del responsable',
+    example: 'juan.perez@colegio.edu.pe'
+  })
+  correo_electronico: string;
+}
+
+// Mantener el DTO anterior para compatibilidad
 export class AuxiliarEncargadoDto {
   @ApiProperty({
     description: 'ID único del auxiliar',
@@ -133,10 +167,10 @@ export class JustificacionListResponseDto {
   alumno_solicitante: AlumnoSolicitanteDto;
 
   @ApiProperty({
-    description: 'Información del auxiliar encargado',
-    type: AuxiliarEncargadoDto
+    description: 'Información del responsable (auxiliar, administrador o director)',
+    type: ResponsableDto
   })
-  auxiliar_encargado: AuxiliarEncargadoDto;
+  responsable: ResponsableDto;
 
   @ApiPropertyOptional({
     description: 'Número de asistencias creadas a partir de esta justificación',

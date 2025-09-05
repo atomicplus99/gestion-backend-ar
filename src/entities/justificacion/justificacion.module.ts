@@ -10,13 +10,19 @@ import { JustificacionRepository } from './justificacion.repository';
 import { JustificacionAsistenciaService } from './services/justificacion-asistencia.service';
 import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from '../auxiliar/auxiliar.entity';
+import { Administrador } from '../administrador/administrador.entity';
+import { Director } from '../director/director.entity';
 import { Asistencia } from '../asistencia/asistencia.entity';
 import { TelegramModule } from '../telegram/telegram.module';
+import { AdministradorModule } from '../administrador/administrador.module';
+import { DirectorModule } from '../director/director.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar, Asistencia]),
+    TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar, Administrador, Director, Asistencia]),
     TelegramModule,
+    AdministradorModule,
+    DirectorModule,
   ],
   controllers: [JustificacionController],
   providers: [

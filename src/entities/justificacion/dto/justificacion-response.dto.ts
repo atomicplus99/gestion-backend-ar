@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { TipoJustificacion, EstadoJustificacion } from '../justificacion.entity';
 
 export class JustificacionResponseDto {
@@ -24,16 +24,44 @@ export class JustificacionResponseDto {
     codigo: string;
   };
 
-  @ApiProperty({
-    description: 'Información del auxiliar',
+  @ApiPropertyOptional({
+    description: 'Información del auxiliar (si aplica)',
     example: {
       id_auxiliar: '37419ff9-9ce8-4b1a-bdc6-2ed28ae8cc0b',
       nombre: 'Auxiliar',
       apellido: 'Sistema'
     }
   })
-  auxiliar: {
+  auxiliar?: {
     id_auxiliar: string;
+    nombre: string;
+    apellido: string;
+  };
+
+  @ApiPropertyOptional({
+    description: 'Información del administrador (si aplica)',
+    example: {
+      id_administrador: '08cf401f-c19d-4906-840a-fb774e078eab',
+      nombre: 'Administrador',
+      apellido: 'Sistema'
+    }
+  })
+  administrador?: {
+    id_administrador: string;
+    nombre: string;
+    apellido: string;
+  };
+
+  @ApiPropertyOptional({
+    description: 'Información del director (si aplica)',
+    example: {
+      id_director: 'f5ad31cd-b75a-4163-a38e-74ed1a01fa32',
+      nombre: 'Director',
+      apellido: 'Sistema'
+    }
+  })
+  director?: {
+    id_director: string;
     nombre: string;
     apellido: string;
   };

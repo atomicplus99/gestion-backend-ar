@@ -24,6 +24,7 @@ export class AsistenciaTypeOrmRepository {
   async findAlumnoById(alumno: Alumno){
     return this.repo.find({
       where: { alumno: { id_alumno: alumno.id_alumno } },
+      relations: ['alumno', 'alumno.turno'],
       order: {
         fecha: 'DESC',
         hora_de_llegada: 'DESC',

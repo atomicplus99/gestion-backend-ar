@@ -10,6 +10,9 @@ import {
 import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from '../auxiliar/auxiliar.entity';
 
+import { Administrador } from '../administrador/administrador.entity';
+import { Director } from '../director/director.entity';
+
 export enum TipoJustificacion {
   MEDICA = 'MEDICA',
   FAMILIAR = 'FAMILIAR',
@@ -34,9 +37,17 @@ export class Justificacion {
   @JoinColumn({ name: 'id_alumno' })
   alumno: Alumno;
 
-  @ManyToOne(() => Auxiliar, { nullable: false })
+  @ManyToOne(() => Auxiliar, { nullable: true })
   @JoinColumn({ name: 'id_auxiliar' })
-  auxiliar: Auxiliar;
+  auxiliar?: Auxiliar;
+
+  @ManyToOne(() => Administrador, { nullable: true })
+  @JoinColumn({ name: 'id_administrador' })
+  administrador?: Administrador;
+
+  @ManyToOne(() => Director, { nullable: true })
+  @JoinColumn({ name: 'id_director' })
+  director?: Director;
 
   @Column({
     type: 'enum',

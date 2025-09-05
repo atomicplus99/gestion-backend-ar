@@ -57,6 +57,8 @@ export class ListJustificacionesUseCase {
       .createQueryBuilder('justificacion')
       .leftJoinAndSelect('justificacion.alumno', 'alumno')
       .leftJoinAndSelect('justificacion.auxiliar', 'auxiliar')
+      .leftJoinAndSelect('justificacion.administrador', 'administrador')
+      .leftJoinAndSelect('justificacion.director', 'director')
       .leftJoinAndSelect('alumno.turno', 'turno');
 
     // Filtro por código de alumno
@@ -110,14 +112,45 @@ export class ListJustificacionesUseCase {
         grado: justificacion.alumno.grado || 0,
         seccion: justificacion.alumno.seccion || 'NO ESPECIFICADO',
       },
-      auxiliar_encargado: {
-        id_auxiliar: justificacion.auxiliar.id_auxiliar,
+      responsable: this.mapearResponsable(justificacion),
+      asistencias_creadas: 0, // Por ahora hardcodeado, se puede implementar lógica para contar asistencias
+    }));
+  }
+
+  private mapearResponsable(justificacion: Justificacion): any {
+    if (justificacion.auxiliar) {
+      return {
+        tipo: 'auxiliar',
+        id: justificacion.auxiliar.id_auxiliar,
         nombre: justificacion.auxiliar.nombre || 'Auxiliar',
         apellido: justificacion.auxiliar.apellido || 'Sistema',
         correo_electronico: justificacion.auxiliar.correo_electronico || 'no-disponible@colegio.edu.pe',
-      },
-      asistencias_creadas: 0, // Por ahora hardcodeado, se puede implementar lógica para contar asistencias
-    }));
+      };
+    } else if (justificacion.administrador) {
+      return {
+        tipo: 'administrador',
+        id: justificacion.administrador.id_administrador,
+        nombre: justificacion.administrador.nombres || 'Administrador',
+        apellido: justificacion.administrador.apellidos || 'Sistema',
+        correo_electronico: 'no-disponible@colegio.edu.pe',
+      };
+    } else if (justificacion.director) {
+      return {
+        tipo: 'director',
+        id: justificacion.director.id_director,
+        nombre: justificacion.director.nombres || 'Director',
+        apellido: justificacion.director.apellidos || 'Sistema',
+        correo_electronico: 'no-disponible@colegio.edu.pe',
+      };
+    } else {
+      return {
+        tipo: 'desconocido',
+        id: 'no-disponible',
+        nombre: 'Usuario',
+        apellido: 'Sistema',
+        correo_electronico: 'no-disponible@colegio.edu.pe',
+      };
+    }
   }
 
   private calcularPaginacion(total: number, pagina: number, elementosPorPagina: number): PaginacionResponseDto {

@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Justificacion } from '../justificacion.entity';
 import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity';
 import { Auxiliar } from '../../auxiliar/auxiliar.entity';
+import { Administrador } from '../../administrador/administrador.entity';
+import { Director } from '../../director/director.entity';
 import { CreateJustificacionDto } from '../dto/create-justificacion.dto';
 import { JustificacionResponseDto } from '../dto/justificacion-response.dto';
 
@@ -18,6 +20,12 @@ export class CreateJustificacionUseCase {
     
     @InjectRepository(Auxiliar)
     private readonly auxiliarRepository: Repository<Auxiliar>,
+
+    @InjectRepository(Administrador)
+    private readonly administradorRepository: Repository<Administrador>,
+
+    @InjectRepository(Director)
+    private readonly directorRepository: Repository<Director>,
   ) {}
 
   async execute(dto: CreateJustificacionDto): Promise<JustificacionResponseDto> {
@@ -31,28 +39,85 @@ export class CreateJustificacionUseCase {
       throw new NotFoundException(`No se encontró ningún alumno con el ID: ${dto.id_alumno}`);
     }
 
-    // 2. Validar que el auxiliar existe
-    const auxiliar = await this.auxiliarRepository.findOne({
-      where: { id_auxiliar: dto.id_auxiliar },
-    });
+    // 2. Validar que se proporcione al menos un actor y buscar cuál es
+    let auxiliar: Auxiliar | null = null;
+    let administrador: Administrador | null = null;
+    let director: Director | null = null;
 
-    if (!auxiliar) {
-      throw new NotFoundException(`No se encontró ningún auxiliar con el ID: ${dto.id_auxiliar}`);
+    if (dto.id_auxiliar) {
+      auxiliar = await this.auxiliarRepository.findOne({
+        where: { id_auxiliar: dto.id_auxiliar },
+      });
+      if (!auxiliar) {
+        throw new NotFoundException(`No se encontró ningún auxiliar con el ID: ${dto.id_auxiliar}`);
+      }
+    } else if (dto.id_administrador) {
+      administrador = await this.administradorRepository.findOne({
+        where: { id_administrador: dto.id_administrador },
+      });
+      if (!administrador) {
+        throw new NotFoundException(`No se encontró ningún administrador con el ID: ${dto.id_administrador}`);
+      }
+    } else if (dto.id_director) {
+      director = await this.directorRepository.findOne({
+        where: { id_director: dto.id_director },
+      });
+      if (!director) {
+        throw new NotFoundException(`No se encontró ningún director con el ID: ${dto.id_director}`);
+      }
+    } else if (dto.id_usuario) {
+      // Buscar en auxiliares primero
+      auxiliar = await this.auxiliarRepository.findOne({
+        where: { id_auxiliar: dto.id_usuario },
+      });
+      if (auxiliar) {
+        // Es un auxiliar
+      } else {
+        // Buscar en administradores
+        administrador = await this.administradorRepository.findOne({
+          where: { id_administrador: dto.id_usuario },
+        });
+        if (administrador) {
+          // Es un administrador
+        } else {
+          // Buscar en directores
+          director = await this.directorRepository.findOne({
+            where: { id_director: dto.id_usuario },
+          });
+          if (!director) {
+            throw new NotFoundException(`No se encontró ningún usuario con el ID: ${dto.id_usuario}`);
+          }
+        }
+      }
+    } else {
+      throw new BadRequestException('Debe proporcionar al menos un ID de auxiliar, administrador, director o usuario');
     }
 
     // 3. Validar formato de fechas (DD-MM-YYYY)
     this.validarFormatoFechas(dto.fecha_de_justificacion);
 
     // 4. Crear la justificación
-    const justificacion = this.justificacionRepository.create({
+    const justificacionData: Partial<Justificacion> = {
       alumno,
-      auxiliar,
       tipo_justificacion: dto.tipo_justificacion,
       motivo: dto.motivo,
       fecha_de_justificacion: dto.fecha_de_justificacion,
       documentos_adjuntos: dto.documentos_adjuntos || [],
       estado: 'PENDIENTE' as any, // Estado inicial
-    });
+    };
+
+    // Agregar el actor correspondiente
+    if (auxiliar) {
+      justificacionData.auxiliar = auxiliar;
+    }
+    if (administrador) {
+      justificacionData.administrador = administrador;
+    }
+    if (director) {
+      justificacionData.director = director;
+    }
+
+    const justificacion = this.justificacionRepository.create(justificacionData);
 
     // 5. Guardar la justificación
     const justificacionGuardada = await this.justificacionRepository.save(justificacion);
@@ -66,11 +131,21 @@ export class CreateJustificacionUseCase {
         apellido: alumno.apellido,
         codigo: alumno.codigo,
       },
-      auxiliar: {
+      auxiliar: auxiliar ? {
         id_auxiliar: auxiliar.id_auxiliar,
         nombre: auxiliar.nombre || 'Auxiliar',
         apellido: auxiliar.apellido || 'Sistema',
-      },
+      } : undefined,
+      administrador: administrador ? {
+        id_administrador: administrador.id_administrador,
+        nombre: administrador.nombres || 'Administrador',
+        apellido: administrador.apellidos || 'Sistema',
+      } : undefined,
+      director: director ? {
+        id_director: director.id_director,
+        nombre: director.nombres || 'Director',
+        apellido: director.apellidos || 'Sistema',
+      } : undefined,
       tipo_justificacion: justificacionGuardada.tipo_justificacion,
       motivo: justificacionGuardada.motivo,
       fecha_de_justificacion: justificacionGuardada.fecha_de_justificacion,
