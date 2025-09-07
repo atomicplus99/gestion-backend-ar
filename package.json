@@ -6,10 +6,10 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "typeorm": "ts-node --esm ./node_modules/typeorm/cli.js -d dist/database/data-source.js",
+    "typeorm": "ts-node ./node_modules/typeorm/cli.js -d dist/database/data-source.js",
     "migration:generate": "npm run typeorm migration:generate src/database/migrations/add-database-tables",
     "migration:run": "npm run typeorm migration:run",
-    "seed:run": "ts-node src/database/seeder.service.ts",
+    "seed:run": "ts-node dist/database/seeder.service.js",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
