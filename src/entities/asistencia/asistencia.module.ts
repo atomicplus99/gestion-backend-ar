@@ -36,13 +36,14 @@ import { TurnoExtraModule } from '../turno-extra/turno-extra.module';
 import { AsistenciaExtraModule } from '../asistencia-extra/asistencia-extra.module';
 import { AdministradorModule } from '../administrador/administrador.module';
 import { DirectorModule } from '../director/director.module';
+import { EstadoAlumno } from '../estado-alumnos/entities/estado-alumno.entity';
 
 
 
 @Module({
   imports: [
     AlumnoModule,
-    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog, AusenciasMasivasProgramadas, Usuario, Administrador, Director]),
+    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog, AusenciasMasivasProgramadas, Usuario, Administrador, Director, EstadoAlumno]),
     AuxiliarModule,
     ActualizacionesAsistenciaModule,
     TelegramModule,

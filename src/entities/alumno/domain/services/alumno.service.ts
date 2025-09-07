@@ -114,6 +114,27 @@ export class AlumnoService {
     return alumno;
   }
 
+  async remove(id: string): Promise<void> {
+    const alumno = await this.findOne(id);
+    
+    // Eliminar estados del alumno primero
+    const estados = await this.estadoAlumnoRepo.find({
+      where: { id_alumno: id }
+    });
+    
+    if (estados.length > 0) {
+      await this.estadoAlumnoRepo.remove(estados);
+    }
+    
+    // Si tiene usuario asociado, también eliminarlo
+    if (alumno.usuario) {
+      await this.usuarioRepo.remove(alumno.usuario);
+    }
+    
+    // Eliminar el alumno
+    await this.alumnoRepo.remove(alumno);
+  }
+
   async update(id: string, dto: CreateAlumnoDto): Promise<Alumno> {
     const alumno = await this.findOne(id);
 

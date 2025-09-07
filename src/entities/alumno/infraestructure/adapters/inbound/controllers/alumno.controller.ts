@@ -4,6 +4,7 @@ import {
   Post,
   Put,
   Patch,
+  Delete,
   Param,
   Body,
   UseInterceptors,
@@ -11,6 +12,7 @@ import {
   UseGuards,
   Query,
   BadRequestException,
+  NotFoundException,
   Logger
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -273,6 +275,189 @@ export class AlumnoController {
     } catch (error) {
       this.logger.error(`❌ [Controller] Error al registrar alumno: ${error.message}`);
       throw error; // Re-lanzar el error para que se maneje en el nivel superior
+    }
+  }
+
+  /**
+   * Obtiene todos los alumnos con paginación y filtros
+   */
+  @Get('list')
+  @ApiOperation({ 
+    summary: 'Obtener todos los alumnos con paginación',
+    description: 'Obtiene todos los alumnos con paginación, filtros de búsqueda y opción de incluir información de apoderados'
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Número de página (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Límite por página (default: 10, max: 100)' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Buscar por código, nombre, apellido o DNI' })
+  @ApiQuery({ name: 'includeApoderado', required: false, type: Boolean, description: 'Incluir información de apoderados' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Alumnos obtenidos exitosamente',
+    type: AlumnoSearchResponseDto
+  })
+  async findAllWithPagination(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
+    @Query('includeApoderado') includeApoderado?: boolean
+  ) {
+    this.logger.log(`🔍 [Controller] Obteniendo alumnos con paginación - página: ${page}, límite: ${limit}, búsqueda: ${search}`);
+    
+    try {
+      const alumnos = await this.getAlumnosUseCase.execute();
+      
+      // Aplicar filtros básicos
+      let filteredAlumnos = alumnos;
+      
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredAlumnos = alumnos.filter(alumno => 
+          alumno.codigo?.toLowerCase().includes(searchLower) ||
+          alumno.nombre?.toLowerCase().includes(searchLower) ||
+          alumno.apellido?.toLowerCase().includes(searchLower) ||
+          alumno.dni_alumno?.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Aplicar paginación
+      const total = filteredAlumnos.length;
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedAlumnos = filteredAlumnos.slice(startIndex, endIndex);
+      
+      this.logger.log(`✅ [Controller] Alumnos obtenidos exitosamente: ${paginatedAlumnos.length} de ${total}`);
+      
+      return {
+        success: true,
+        message: 'Alumnos obtenidos exitosamente',
+        data: paginatedAlumnos,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      this.logger.error(`❌ [Controller] Error al obtener alumnos: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene un alumno por ID
+   * IMPORTANTE: Esta ruta debe ir DESPUÉS de las rutas específicas para evitar conflictos
+   */
+  @Get('id/:id')
+  @ApiOperation({ 
+    summary: 'Obtener alumno por ID',
+    description: 'Obtiene un alumno específico por su ID con todas sus relaciones'
+  })
+  @ApiParam({ name: 'id', description: 'ID único del alumno' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Alumno obtenido exitosamente',
+    type: AlumnoResponseDto
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno no encontrado',
+    type: ErrorResponseDto
+  })
+  async findOne(@Param('id') id: string) {
+    this.logger.log(`🔍 [Controller] Obteniendo alumno por ID: ${id}`);
+    
+    try {
+      const alumno = await this.alumnoService.findOne(id);
+      
+      if (!alumno) {
+        throw new NotFoundException(`Alumno con ID ${id} no encontrado`);
+      }
+      
+      this.logger.log(`✅ [Controller] Alumno encontrado: ${alumno.nombre} ${alumno.apellido}`);
+      return {
+        success: true,
+        message: 'Alumno obtenido exitosamente',
+        data: alumno
+      };
+    } catch (error) {
+      this.logger.error(`❌ [Controller] Error al obtener alumno: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un alumno por ID
+   */
+  @Delete('id/:id')
+  @ApiOperation({ 
+    summary: 'Eliminar alumno',
+    description: 'Elimina un alumno del sistema por su ID'
+  })
+  @ApiParam({ name: 'id', description: 'ID único del alumno' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Alumno eliminado exitosamente'
+  })
+  @ApiResponse({ 
+    status: 404, 
+    description: 'Alumno no encontrado',
+    type: ErrorResponseDto
+  })
+  async remove(@Param('id') id: string) {
+    this.logger.log(`🗑️ [Controller] Eliminando alumno por ID: ${id}`);
+    
+    try {
+      const alumno = await this.alumnoService.findOne(id);
+      
+      if (!alumno) {
+        throw new NotFoundException(`Alumno con ID ${id} no encontrado`);
+      }
+      
+      await this.alumnoService.remove(id);
+      
+      this.logger.log(`✅ [Controller] Alumno eliminado exitosamente: ${alumno.nombre} ${alumno.apellido}`);
+      return {
+        success: true,
+        message: 'Alumno eliminado exitosamente'
+      };
+    } catch (error) {
+      this.logger.error(`❌ [Controller] Error al eliminar alumno: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifica si un alumno tiene usuarios asignados
+   */
+  @Get('id/:id/usuarios')
+  @ApiOperation({ 
+    summary: 'Verificar usuarios asignados a alumno',
+    description: 'Verifica si un alumno tiene usuarios asignados para autenticación'
+  })
+  @ApiParam({ name: 'id', description: 'ID único del alumno' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Verificación completada exitosamente'
+  })
+  async verificarUsuariosAsignados(@Param('id') id: string) {
+    this.logger.log(`🔍 [Controller] Verificando usuarios asignados para alumno ID: ${id}`);
+    
+    try {
+      const alumno = await this.alumnoService.findOne(id);
+      
+      if (!alumno) {
+        throw new NotFoundException(`Alumno con ID ${id} no encontrado`);
+      }
+      
+      return {
+        success: true,
+        data: {
+          tieneUsuarios: !!alumno.usuario,
+          usuarios: alumno.usuario ? [alumno.usuario] : []
+        }
+      };
+    } catch (error) {
+      this.logger.error(`❌ [Controller] Error al verificar usuarios: ${error.message}`);
+      throw error;
     }
   }
 

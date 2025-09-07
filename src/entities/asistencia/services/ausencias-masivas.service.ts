@@ -5,6 +5,7 @@ import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity'
 import { Asistencia } from '../asistencia.entity';
 import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 import { AusenciasMasivasLog } from '../entities/ausencias-masivas-log.entity';
+import { EstadoAlumno } from '../../estado-alumnos/entities/estado-alumno.entity';
 import { TelegramNotificationService } from '../../telegram/services/telegram-notification.service';
 
 @Injectable()
@@ -18,6 +19,8 @@ export class AusenciasMasivasService {
     private readonly asistenciaRepository: Repository<Asistencia>,
     @InjectRepository(AusenciasMasivasLog)
     private readonly ausenciasMasivasLogRepository: Repository<AusenciasMasivasLog>,
+    @InjectRepository(EstadoAlumno)
+    private readonly estadoAlumnoRepository: Repository<EstadoAlumno>,
     private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
@@ -166,6 +169,10 @@ export class AusenciasMasivasService {
 
       let ausenciasCreadas = 0;
       let alumnosConAsistencia = 0;
+      let alumnosOmitidos = 0;
+      let alumnosInactivos = 0;
+
+      this.logger.log(`🔄 Procesando ${alumnosFiltrados.length} alumnos del turno(s) ${turnosProcesar.join(', ')}...`);
 
       // 3. Procesar cada alumno del turno especificado
       for (const alumno of alumnosFiltrados) {
@@ -173,6 +180,7 @@ export class AusenciasMasivasService {
           const resultado = await this.procesarAlumno(alumno, fechaProcesada);
           if (resultado.ausenciaCreada) {
             ausenciasCreadas++;
+            this.logger.log(`✅ Ausencia creada para ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
             
             // Enviar notificación de ausencia masiva si el alumno tiene apoderado
             if (resultado.asistencia && resultado.apoderado) {
@@ -192,6 +200,14 @@ export class AusenciasMasivasService {
             }
           } else {
             alumnosConAsistencia++;
+            alumnosOmitidos++;
+            
+            // Contar específicamente alumnos inactivos
+            if (resultado.motivo.includes('inactivo')) {
+              alumnosInactivos++;
+            }
+            
+            this.logger.log(`⏭️ Alumno ${alumno.codigo} omitido: ${resultado.motivo}`);
           }
         } catch (error) {
           this.logger.error(`❌ Error procesando alumno ${alumno.codigo}: ${error.message}`);
@@ -199,10 +215,19 @@ export class AusenciasMasivasService {
         }
       }
 
+      this.logger.log(`📊 Resumen del procesamiento:`);
+      this.logger.log(`   - Total alumnos procesados: ${alumnosFiltrados.length}`);
+      this.logger.log(`   - Ausencias creadas: ${ausenciasCreadas}`);
+      this.logger.log(`   - Alumnos omitidos (total): ${alumnosOmitidos}`);
+      this.logger.log(`   - Alumnos inactivos omitidos: ${alumnosInactivos}`);
+      this.logger.log(`   - Alumnos con asistencia previa: ${alumnosConAsistencia - alumnosInactivos}`);
+
       const resultado = {
         totalAlumnos: alumnosFiltrados.length,
         ausenciasCreadas,
         alumnosConAsistencia,
+        alumnosOmitidos,
+        alumnosInactivos,
         fechaProcesada: fechaProcesada.toDateString(),
         horaEjecucion,
         horaProgramada: hora || horaInicio.toTimeString().split(' ')[0],
@@ -241,6 +266,7 @@ export class AusenciasMasivasService {
 
   /**
    * Procesa un alumno específico para determinar si necesita ausencia
+   * Valida si ya tiene cualquier tipo de asistencia registrada y si está activo
    */
   private async procesarAlumno(alumno: Alumno, fecha: Date): Promise<{
     ausenciaCreada: boolean;
@@ -249,15 +275,31 @@ export class AusenciasMasivasService {
     apoderado?: any;
   }> {
     try {
-      // Verificar si ya tiene asistencia para esta fecha
+      // 1. Verificar el estado del alumno (activo/inactivo)
+      const estadoAlumno = await this.verificarEstadoAlumno(alumno.id_alumno);
+      
+      if (estadoAlumno && estadoAlumno.estado === 'inactivo') {
+        this.logger.log(`⏭️ Alumno ${alumno.codigo} está INACTIVO - omitiendo`);
+        return { 
+          ausenciaCreada: false, 
+          motivo: 'Alumno inactivo - no se registra ausencia' 
+        };
+      }
+
+      // 2. Verificar si ya tiene asistencia para esta fecha (cualquier estado)
       const asistenciaExistente = await this.buscarAsistenciaExistente(alumno.id_alumno, fecha);
 
       if (asistenciaExistente) {
-        // Ya tiene asistencia (PUNTUAL, TARDANZA, etc.)
-        return { ausenciaCreada: false, motivo: 'Ya tiene asistencia registrada' };
+        // Ya tiene asistencia registrada (PUNTUAL, AUSENTE, ANULADO, JUSTIFICADO, TARDANZA)
+        const estadoActual = asistenciaExistente.estado_asistencia;
+        this.logger.log(`⏭️ Alumno ${alumno.codigo} ya tiene asistencia registrada con estado: ${estadoActual} - omitiendo`);
+        return { 
+          ausenciaCreada: false, 
+          motivo: `Ya tiene asistencia registrada con estado: ${estadoActual}` 
+        };
       }
 
-      // Verificar si el alumno tiene turno asignado
+      // 3. Verificar si el alumno tiene turno asignado
       if (!alumno.turno) {
         this.logger.warn(`⚠️ Alumno ${alumno.codigo} sin turno asignado - omitiendo`);
         return { ausenciaCreada: false, motivo: 'Sin turno asignado' };
@@ -272,7 +314,7 @@ export class AusenciasMasivasService {
       //   return { ausenciaCreada: false, motivo: 'Fecha futura - no se procesa' };
       // }
 
-      // Crear ausencia
+      // Crear ausencia solo si no tiene ninguna asistencia registrada
       const nuevaAusencia = this.asistenciaRepository.create({
         alumno,
         fecha: fechaProcesada,
@@ -283,7 +325,8 @@ export class AusenciasMasivasService {
 
       const asistenciaGuardada = await this.asistenciaRepository.save(nuevaAusencia);
       
-      this.logger.log(`✅ Ausencia creada para alumno ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
+      const estadoTexto = estadoAlumno ? estadoAlumno.estado : 'activo (por defecto)';
+      this.logger.log(`✅ Ausencia creada para alumno ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido} (estado: ${estadoTexto}, sin asistencia previa)`);
       
       // Obtener información del apoderado si existe
       let apoderado: any = null;
@@ -297,7 +340,7 @@ export class AusenciasMasivasService {
       
       return { 
         ausenciaCreada: true, 
-        motivo: 'Ausencia registrada automáticamente',
+        motivo: `Ausencia registrada automáticamente (alumno activo, sin asistencia previa)`,
         asistencia: asistenciaGuardada,
         apoderado: apoderado
       };
@@ -309,19 +352,52 @@ export class AusenciasMasivasService {
   }
 
   /**
+   * Verifica el estado actual del alumno (activo/inactivo)
+   * Retorna el estado más reciente del alumno
+   */
+  private async verificarEstadoAlumno(idAlumno: string): Promise<EstadoAlumno | null> {
+    try {
+      const estadoAlumno = await this.estadoAlumnoRepository.findOne({
+        where: { id_alumno: idAlumno },
+        order: { fecha_actualizacion: 'DESC' }
+      });
+
+      if (estadoAlumno) {
+        this.logger.log(`🔍 Estado encontrado para alumno ${idAlumno}: ${estadoAlumno.estado}`);
+      } else {
+        this.logger.log(`🔍 No se encontró estado para alumno ${idAlumno} - se considera activo por defecto`);
+      }
+
+      return estadoAlumno;
+    } catch (error) {
+      this.logger.error(`❌ Error verificando estado del alumno ${idAlumno}: ${error.message}`);
+      return null; // En caso de error, considerar activo por defecto
+    }
+  }
+
+  /**
    * Busca si existe una asistencia para el alumno en la fecha específica
+   * Retorna la asistencia si existe (cualquier estado: PUNTUAL, AUSENTE, ANULADO, JUSTIFICADO, TARDANZA)
    */
   private async buscarAsistenciaExistente(idAlumno: string, fecha: Date): Promise<Asistencia | null> {
     const fechaInicio = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0, 0);
     const fechaFin = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59, 999);
 
-    return await this.asistenciaRepository
+    const asistencia = await this.asistenciaRepository
       .createQueryBuilder('asistencia')
       .leftJoinAndSelect('asistencia.alumno', 'alumno')
       .where('alumno.id_alumno = :idAlumno', { idAlumno })
       .andWhere('asistencia.fecha >= :fechaInicio', { fechaInicio })
       .andWhere('asistencia.fecha <= :fechaFin', { fechaFin })
       .getOne();
+
+    if (asistencia) {
+      this.logger.log(`🔍 Asistencia encontrada para alumno ${idAlumno} en ${fecha.toDateString()}: estado ${asistencia.estado_asistencia}`);
+    } else {
+      this.logger.log(`🔍 No se encontró asistencia para alumno ${idAlumno} en ${fecha.toDateString()}`);
+    }
+
+    return asistencia;
   }
 
   /**

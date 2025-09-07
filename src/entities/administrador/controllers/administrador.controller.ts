@@ -210,4 +210,30 @@ export class AdministradorController {
       throw error;
     }
   }
+
+  /**
+   * Verifica si un administrador tiene usuarios asignados
+   */
+  @Get(':id/usuarios')
+  async verificarUsuariosAsignados(@Param('id') id: string): Promise<{
+    success: boolean;
+    data: {
+      tieneUsuarios: boolean;
+      usuarios?: any[];
+    };
+  }> {
+    try {
+      const administrador = await this.administradorService.findOne(id);
+      
+      return {
+        success: true,
+        data: {
+          tieneUsuarios: !!administrador.usuario,
+          usuarios: administrador.usuario ? [administrador.usuario] : []
+        }
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

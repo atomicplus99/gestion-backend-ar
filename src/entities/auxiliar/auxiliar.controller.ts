@@ -253,4 +253,34 @@ export class AuxiliarController {
       throw error;
     }
   }
+
+  /**
+   * Verifica si un auxiliar tiene usuarios asignados
+   */
+  @Get(':id/usuarios')
+  async verificarUsuariosAsignados(@Param('id') id: string): Promise<{
+    success: boolean;
+    data: {
+      tieneUsuarios: boolean;
+      usuarios?: any[];
+    };
+  }> {
+    try {
+      const auxiliar = await this.auxiliarRepository.findOne(id);
+      
+      if (!auxiliar) {
+        throw new NotFoundException('Auxiliar no encontrado');
+      }
+      
+      return {
+        success: true,
+        data: {
+          tieneUsuarios: !!auxiliar.usuario,
+          usuarios: auxiliar.usuario ? [auxiliar.usuario] : []
+        }
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
