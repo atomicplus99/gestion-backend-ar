@@ -48,8 +48,8 @@ docker compose up -d app
 echo "=========================================="
 echo "✅ CONFIGURACIÓN COMPLETADA EXITOSAMENTE"
 echo "=========================================="
-echo "🌐 URL: http://localhost:3000"
-echo "📊 API Docs: http://localhost:3000/api"
+echo "🌐 URL: https://localhost:443"
+echo "📊 API Docs: https://localhost:443/api"
 echo "🗄️ MySQL: localhost:3306"
 echo "=========================================="
 

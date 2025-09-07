@@ -9,6 +9,7 @@
     "typeorm": "ts-node ./node_modules/typeorm/cli.js -d dist/database/data-source.js",
     "migration:generate": "npm run typeorm migration:generate dist/database/migrations/add-database-tables",
     "migration:run": "npm run typeorm migration:run",
+    "migration:show": "npm run typeorm migration:show",
     "seed:run": "ts-node dist/database/seeder.service.js",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

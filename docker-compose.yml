@@ -26,7 +26,7 @@ services:
     container_name: colegio_app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "443:443"
     environment:
       - NODE_ENV=production
       - DB_HOST=mysql
@@ -58,6 +58,8 @@ services:
         npm run migration:generate &&
         echo 'Ejecutando migraciones...' &&
         npm run migration:run &&
+        echo 'Verificando migraciones ejecutadas...' &&
+        npm run typeorm migration:show &&
         echo 'Ejecutando seeders...' &&
         npm run seed:run &&
         echo 'Iniciando aplicación...' &&
