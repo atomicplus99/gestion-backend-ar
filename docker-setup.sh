@@ -19,11 +19,11 @@ cp env.docker .env
 
 # PASO 1: Construir la imagen
 echo "🔨 PASO 1: Construyendo imagen Docker..."
-docker-compose build
+docker compose build
 
 # PASO 2: Iniciar solo MySQL
 echo "🗄️ PASO 2: Iniciando MySQL..."
-docker-compose up -d mysql
+docker compose up -d mysql
 
 # Esperar a que MySQL esté listo
 echo "⏳ Esperando a que MySQL esté listo..."
@@ -31,19 +31,19 @@ sleep 30
 
 # PASO 3: Generar migraciones
 echo "📝 PASO 3: Generando migraciones..."
-docker-compose run --rm app npm run migration:generate
+docker compose run --rm app npm run migration:generate
 
 # PASO 4: Ejecutar migraciones
 echo "🚀 PASO 4: Ejecutando migraciones..."
-docker-compose run --rm app npm run migration:run
+docker compose run --rm app npm run migration:run
 
 # PASO 5: Ejecutar seeders
 echo "🌱 PASO 5: Ejecutando seeders..."
-docker-compose run --rm app npm run seed:run
+docker compose run --rm app npm run seed:run
 
 # PASO 6: Iniciar la aplicación
 echo "🚀 PASO 6: Iniciando aplicación..."
-docker-compose up -d app
+docker compose up -d app
 
 echo "=========================================="
 echo "✅ CONFIGURACIÓN COMPLETADA EXITOSAMENTE"
@@ -55,8 +55,8 @@ echo "=========================================="
 
 # Mostrar estado de contenedores
 echo "📋 Estado de contenedores:"
-docker-compose ps
+docker compose ps
 
 # Mostrar logs
 echo "📋 Mostrando logs..."
-docker-compose logs -f
+docker compose logs -f

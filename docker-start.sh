@@ -18,7 +18,7 @@ cp env.docker .env
 
 # Iniciar servicios
 echo "🚀 Iniciando servicios..."
-docker-compose up -d
+docker compose up -d
 
 echo "=========================================="
 echo "✅ SERVICIOS INICIADOS"
@@ -30,4 +30,4 @@ echo "=========================================="
 
 # Mostrar estado de contenedores
 echo "📋 Estado de contenedores:"
-docker-compose ps
+docker compose ps

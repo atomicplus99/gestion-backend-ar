@@ -11,4 +11,4 @@ echo "📋 Mostrando logs en tiempo real..."
 echo "Presiona Ctrl+C para salir"
 echo "=========================================="
 
-docker-compose logs -f
+docker compose logs -f

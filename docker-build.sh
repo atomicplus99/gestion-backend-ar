@@ -19,18 +19,18 @@ cp env.docker .env
 
 # Construir la imagen
 echo "🔨 Construyendo imagen Docker..."
-docker-compose build
+docker compose build
 
 # Ejecutar migraciones y seeders
 echo "🗄️ Ejecutando migraciones..."
-docker-compose run --rm app npm run migration:run
+docker compose run --rm app npm run migration:run
 
 echo "🌱 Ejecutando seeders..."
-docker-compose run --rm app npm run seed:run
+docker compose run --rm app npm run seed:run
 
 # Iniciar servicios
 echo "🚀 Iniciando servicios..."
-docker-compose up -d
+docker compose up -d
 
 echo "=========================================="
 echo "✅ APLICACIÓN INICIADA EXITOSAMENTE"
@@ -42,4 +42,4 @@ echo "=========================================="
 
 # Mostrar logs
 echo "📋 Mostrando logs..."
-docker-compose logs -f
+docker compose logs -f
