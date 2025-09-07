@@ -58,6 +58,7 @@ RUN adduser -S nestjs -u 1001
 
 # Cambiar ownership de archivos
 RUN chown -R nestjs:nodejs /app
+RUN chmod 644 /app/ssl/* 2>/dev/null || true
 USER nestjs
 
 # Exponer puerto
