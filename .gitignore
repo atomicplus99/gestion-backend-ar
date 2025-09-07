@@ -52,6 +52,12 @@ password-alumnos.txt
 # Fotos de usuarios
 public/profiles/usuarios/*
 
+# Logs de errores
+logs/
+
+# Certificados SSL
+ssl/
+
 # Runtime data
 pids
 *.pid

@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # Base de datos MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: colegio_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - colegio_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Aplicación NestJS
+  app:
+    build: .
+    container_name: colegio_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+      - JWT_RESET_EXPIRES_IN=${JWT_RESET_EXPIRES_IN}
+      - BREVO_API_KEY=${BREVO_API_KEY}
+      - BREVO_FROM_EMAIL=${BREVO_FROM_EMAIL}
+      - BREVO_FROM_NAME=${BREVO_FROM_NAME}
+      - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD}
+      - HTTPS_ENABLED=${HTTPS_ENABLED}
+    volumes:
+      - ./logs:/app/logs
+      - ./ssl:/app/ssl
+      - ./public:/app/public
+    depends_on:
+      - mysql
+    networks:
+      - colegio_network
+    command: >
+      sh -c "
+        echo 'Esperando a que MySQL esté listo...' &&
+        sleep 30 &&
+        echo 'Generando migraciones...' &&
+        npm run migration:generate &&
+        echo 'Ejecutando migraciones...' &&
+        npm run migration:run &&
+        echo 'Ejecutando seeders...' &&
+        npm run seed:run &&
+        echo 'Iniciando aplicación...' &&
+        npm run start:prod
+      "
+
+  # Nginx (opcional para producción)
+  nginx:
+    image: nginx:alpine
+    container_name: colegio_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - app
+    networks:
+      - colegio_network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  colegio_network:
+    driver: bridge

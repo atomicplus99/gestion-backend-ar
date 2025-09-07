@@ -7,12 +7,31 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
+import * as fs from 'fs';
+import * as https from 'https';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
   try {
-    const app = await NestFactory.create(AppModule);
+    let app;
+    
+    // Configuración HTTPS si está habilitado
+    if (process.env.HTTPS_ENABLED === 'true') {
+      const httpsOptions = {
+        key: fs.readFileSync('./ssl/server.key'),
+        cert: fs.readFileSync('./ssl/server.crt'),
+      };
+      
+      app = await NestFactory.create(AppModule, {
+        httpsOptions,
+      });
+      
+      logger.log('🔒 HTTPS habilitado con certificado autofirmado');
+    } else {
+      app = await NestFactory.create(AppModule);
+      logger.log('🔓 HTTP habilitado (sin HTTPS)');
+    }
     useContainer(app.select(AppModule), { fallbackOnErrors: true });
     
     const config = new DocumentBuilder()
@@ -60,8 +79,9 @@ async function bootstrap() {
     // Aplicar interceptor global de transformación de respuestas
     app.useGlobalInterceptors(new ResponseTransformInterceptor());
     
-    const port = 3000;
+    const port = process.env.HTTPS_ENABLED === 'true' ? 443 : 3000;
     const host = 'localhost';
+    const protocol = process.env.HTTPS_ENABLED === 'true' ? 'https' : 'http';
     
     await app.listen(port, host);
     
@@ -71,9 +91,10 @@ async function bootstrap() {
     logger.log('==========================================');
     logger.log(`Puerto: ${port}`);
     logger.log(`Host: ${host}`);
-    logger.log(`URL Local: http://${host}:${port}`);
-    logger.log(`URL Externa: http://localhost:${port}`);
-    logger.log(`Documentación API: http://${host}:${port}/api`);
+    logger.log(`Protocolo: ${protocol.toUpperCase()}`);
+    logger.log(`URL Local: ${protocol}://${host}:${port}`);
+    logger.log(`URL Externa: ${protocol}://localhost:${port}`);
+    logger.log(`Documentación API: ${protocol}://${host}:${port}/api`);
     logger.log(`Base de datos: Conectada (TypeORM)`);
     logger.log(`CORS: Habilitado para todos los orígenes`);
     logger.log(`Validación: Habilitada (class-validator)`);

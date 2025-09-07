@@ -7,10 +7,66 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
+
+  private logErrorToFile(error: any, request: Request, status: number): void {
+    try {
+      const timestamp = new Date();
+      const dateStr = timestamp.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = timestamp.toTimeString().split(' ')[0]; // HH:MM:SS
+      
+      const logDir = path.join(process.cwd(), 'logs');
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+      
+      const logFile = path.join(logDir, `errors-${dateStr}.txt`);
+      
+      const errorInfo = {
+        timestamp: `${dateStr} ${timeStr}`,
+        method: request.method,
+        url: request.url,
+        statusCode: status,
+        userAgent: request.get('User-Agent') || 'Unknown',
+        ip: request.ip || request.connection.remoteAddress || 'Unknown',
+        error: {
+          name: error?.name || 'Unknown Error',
+          message: error?.message || 'No message available',
+          stack: error?.stack || 'No stack trace available'
+        }
+      };
+      
+      const logEntry = `
+==========================================
+ERROR DEL SERVIDOR
+==========================================
+Fecha y Hora: ${errorInfo.timestamp}
+Método: ${errorInfo.method}
+URL: ${errorInfo.url}
+Código de Estado: ${errorInfo.statusCode}
+IP del Cliente: ${errorInfo.ip}
+User Agent: ${errorInfo.userAgent}
+------------------------------------------
+Error:
+Nombre: ${errorInfo.error.name}
+Mensaje: ${errorInfo.error.message}
+Stack Trace:
+${errorInfo.error.stack}
+==========================================
+
+`;
+      
+      fs.appendFileSync(logFile, logEntry, 'utf8');
+      
+    } catch (logError) {
+      this.logger.error('Error al escribir en el archivo de log:', logError);
+    }
+  }
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -28,6 +84,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       `Error en ${request.method} ${request.url}`,
       exception instanceof Error ? exception.stack : 'Unknown error',
     );
+
+    // Log del error a archivo
+    this.logErrorToFile(exception, request, status);
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();

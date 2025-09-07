@@ -32,7 +32,7 @@ export class AdministradorSeeder {
         telefono: '987654321',
         direccion: 'Av. Principal 123, Lima',
         nombre_usuario: 'admin',
-        password: 'admin123'
+        password: process.env.ADMIN_DEFAULT_PASSWORD || 'admin123'
       };
 
       // Verificar si ya existe un usuario con este nombre
