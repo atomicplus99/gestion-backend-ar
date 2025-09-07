@@ -7,15 +7,13 @@ echo "CONFIGURACIÓN DOCKER - FLUJO COMPLETO"
 echo "=========================================="
 
 # Verificar si existe el archivo de variables de entorno
-if [ ! -f "env.docker" ]; then
-    echo "❌ Error: No se encontró el archivo env.docker"
-    echo "Por favor, crea el archivo env.docker con las variables de entorno"
+if [ ! -f ".env" ]; then
+    echo "❌ Error: No se encontró el archivo .env"
+    echo "Por favor, crea el archivo .env con las variables de entorno"
     exit 1
 fi
 
-# Copiar variables de entorno
-echo "📋 Copiando variables de entorno..."
-cp env.docker .env
+echo "📋 Usando archivo .env existente..."
 
 # PASO 1: Construir la imagen
 echo "🔨 PASO 1: Construyendo imagen Docker..."
