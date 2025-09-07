@@ -42,7 +42,6 @@ export class AusenciasMasivasSchedulerService {
   @Cron(CronExpression.EVERY_MINUTE)
   async verificarAusenciasProgramadas() {
     try {
-      this.logger.log('🔍 Verificando ausencias programadas...');
       
       const ahora = new Date();
 
@@ -84,30 +83,18 @@ export class AusenciasMasivasSchedulerService {
           0
         );
         
-        this.logger.log(`🔍 [DEBUG] Ausencia ${log.id}:`);
-        this.logger.log(`   - Fecha base: ${log.fecha_ejecucion}`);
-        this.logger.log(`   - Hora programada: ${log.hora_programada}`);
-        this.logger.log(`   - Fecha+Hora construida: ${fechaProgramada.toLocaleString('es-PE')}`);
-        this.logger.log(`   - Fecha+Hora ISO: ${fechaProgramada.toISOString()}`);
-        this.logger.log(`   - Hora+Minuto programado: ${fechaProgramadaHoraMinuto.toLocaleString('es-PE')}`);
-        this.logger.log(`   - Ahora: ${ahora.toLocaleString('es-PE')}`);
-        this.logger.log(`   - Hora+Minuto actual: ${ahoraHoraMinuto.toLocaleString('es-PE')}`);
-        this.logger.log(`   - ¿Coinciden hora+minuto?: ${fechaProgramadaHoraMinuto.getTime() === ahoraHoraMinuto.getTime()}`);
         
         // Ejecutar si estamos en la hora y minuto programados (ignorar segundos)
         const debeEjecutar = fechaProgramadaHoraMinuto.getTime() === ahoraHoraMinuto.getTime();
         
-        this.logger.log(`   - ¿Debe ejecutar?: ${debeEjecutar}`);
         
         return debeEjecutar;
       });
 
       if (ausenciasParaEjecutar.length === 0) {
-        this.logger.log('✅ No hay ausencias programadas para ejecutar en este minuto exacto');
         return;
       }
 
-      this.logger.log(`🚀 Ejecutando ${ausenciasParaEjecutar.length} ausencias programadas...`);
 
       for (const ausenciaProgramada of ausenciasParaEjecutar) {
         try {
@@ -121,8 +108,6 @@ export class AusenciasMasivasSchedulerService {
           const verificacion = await this.ausenciasMasivasService.verificarAusenciasExistentes(fechaActual, turnos);
           
           if (verificacion.existenAusencias) {
-            this.logger.warn(`⚠️ Ya existen ausencias registradas para esta fecha y turnos`);
-            this.logger.warn(`   - ${verificacion.detalles.join(', ')}`);
             
             // Actualizar estado a CANCELADA por ausencias existentes
             await this.ausenciasMasivasProgramadasRepository.update(
@@ -148,9 +133,7 @@ export class AusenciasMasivasSchedulerService {
               // Enviar notificación por WebSocket
               await this.notificacionGateway.broadcastNotification(notificacion);
               
-              this.logger.log(`📢 Notificación de cancelación enviada: ${notificacion.id}`);
             } catch (notifError) {
-              this.logger.error(`❌ Error enviando notificación de cancelación: ${notifError.message}`);
             }
 
             continue; // Saltar a la siguiente ausencia programada
@@ -172,7 +155,6 @@ export class AusenciasMasivasSchedulerService {
             }
           );
 
-          this.logger.log(`✅ Ausencia programada ejecutada: ${ausenciaProgramada.id}`);
 
           // Crear notificación de scheduler exitoso
           try {
@@ -189,13 +171,10 @@ export class AusenciasMasivasSchedulerService {
             // Enviar notificación por WebSocket
             await this.notificacionGateway.broadcastNotification(notificacion);
             
-            this.logger.log(`📢 Notificación de scheduler enviada: ${notificacion.id}`);
           } catch (notificationError) {
-            this.logger.error(`❌ Error creando notificación de scheduler: ${notificationError.message}`);
           }
 
         } catch (error) {
-          this.logger.error(`❌ Error ejecutando ausencia programada ${ausenciaProgramada.id}: ${error.message}`);
           
           // Marcar como ERROR
           await this.ausenciasMasivasProgramadasRepository.update(
@@ -221,15 +200,12 @@ export class AusenciasMasivasSchedulerService {
             // Enviar notificación por WebSocket
             await this.notificacionGateway.broadcastNotification(notificacion);
             
-            this.logger.log(`📢 Notificación de error de scheduler enviada: ${notificacion.id}`);
           } catch (notificationError) {
-            this.logger.error(`❌ Error creando notificación de error de scheduler: ${notificationError.message}`);
           }
         }
       }
 
     } catch (error) {
-      this.logger.error(`❌ Error en verificación de ausencias programadas: ${error.message}`);
     }
   }
 
@@ -243,7 +219,6 @@ export class AusenciasMasivasSchedulerService {
     usuario_id: string
   ): Promise<string> {
     try {
-      this.logger.log(`📅 Programando ausencia para ${fecha.toDateString()} a las ${hora}`);
 
       // Verificar si ya hay una ausencia programada
       const ausenciaExistente = await this.ausenciasMasivasProgramadasRepository.findOne({
@@ -267,11 +242,9 @@ export class AusenciasMasivasSchedulerService {
 
       const resultado = await this.ausenciasMasivasProgramadasRepository.save(programada);
       
-      this.logger.log(`✅ Ausencia programada exitosamente: ${resultado.id}`);
       return resultado.id;
 
     } catch (error) {
-      this.logger.error(`❌ Error programando ausencia: ${error.message}`);
       throw error;
     }
   }
@@ -306,7 +279,6 @@ export class AusenciasMasivasSchedulerService {
       return programadasConInfo;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo ausencias programadas: ${error.message}`);
       throw error;
     }
   }
@@ -385,7 +357,6 @@ export class AusenciasMasivasSchedulerService {
       return informacionPersonal;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo información personal del usuario: ${error.message}`);
       return null;
     }
   }
@@ -412,11 +383,9 @@ export class AusenciasMasivasSchedulerService {
         { estado: 'CANCELADA' }
       );
 
-      this.logger.log(`✅ Ausencia programada cancelada: ${ausencia_id}`);
       return true;
 
     } catch (error) {
-      this.logger.error(`❌ Error cancelando ausencia programada: ${error.message}`);
       throw error;
     }
   }

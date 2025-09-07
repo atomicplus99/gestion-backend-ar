@@ -90,13 +90,10 @@ export class AlumnoController {
     @Param('codigo') codigo: string,
     @Body() updateAlumnoDto: UpdateAlumnoDto
   ): Promise<AlumnoUpdateResponseDto>  {
-    this.logger.log(`🔄 [Controller] Iniciando actualización de alumno con código: ${codigo}`);
     try {
       const alumnoActualizado = await this.updateAlumnoCase.execute(codigo, updateAlumnoDto);
-      this.logger.log(`✅ [Controller] Alumno actualizado exitosamente`);
       return alumnoActualizado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error en actualización: ${error.message}`);
       throw error;
     }
   }
@@ -127,13 +124,10 @@ export class AlumnoController {
     @Param('id') id: string,
     @Body() updateAlumnoDto: UpdateAlumnoDto
   ): Promise<AlumnoUpdateResponseDto> {
-    this.logger.log(`🔄 [Controller] Iniciando actualización de alumno con ID: ${id}`);
     try {
       const alumnoActualizado = await this.updateAlumnoCase.executeById(id, updateAlumnoDto);
-      this.logger.log(`✅ [Controller] Alumno actualizado exitosamente por ID`);
       return alumnoActualizado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error en actualización por ID: ${error.message}`);
       throw error;
     }
   }
@@ -168,29 +162,16 @@ export class AlumnoController {
   async findAlumnoByCode(
     @Param('codigo') codigo: string
   ): Promise<AlumnoSearchResponseDto> {
-    this.logger.log(`🔍 [Controller] Iniciando búsqueda de alumno con código: ${codigo}`);
-    this.logger.log(`📊 [Controller] Tipo de código recibido: ${typeof codigo}, Longitud: ${codigo?.length || 0}`);
     
     try {
-      this.logger.log(`📞 [Controller] Llamando al caso de uso para buscar alumno`);
       const resultado = await this.getPersonalAlumno.execute(codigo);
       
-      this.logger.log(`📊 [Controller] Resultado del caso de uso: ${resultado ? 'Encontrado' : 'No encontrado'}`);
       
       if (resultado) {
-        this.logger.log(`✅ [Controller] Alumno encontrado exitosamente:`);
-        this.logger.log(`   - ID: ${resultado.id_alumno}`);
-        this.logger.log(`   - Código: ${resultado.codigo}`);
-        this.logger.log(`   - Nombre: ${resultado.nombre} ${resultado.apellido}`);
-        this.logger.log(`   - Turno: ${resultado.turno ? `ID: ${resultado.turno.id_turno}` : 'No asignado'}`);
-        this.logger.log(`   - Usuario: ${resultado.usuario ? `ID: ${resultado.usuario.id_user}` : 'No asignado'}`);
-        this.logger.log(`   - Estado: ${resultado.estado_actual ? resultado.estado_actual.estado : 'No asignado'}`);
       }
       
       return resultado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error en búsqueda de alumno: ${error.message}`);
-      this.logger.error(`Stack trace: ${error.stack}`);
       throw error;
     }
   }
@@ -222,14 +203,10 @@ export class AlumnoController {
   async getAllAlumnos(
     @Query('includeApoderado') includeApoderado?: boolean
   ) {
-    console.log('🔍 [AlumnoController] Obteniendo todos los alumnos');
-    console.log('🔍 [AlumnoController] Include apoderado:', includeApoderado);
     
     const alumnos = await this.alumnoService.getAllAlumnos(includeApoderado);
     
-    console.log('✅ [AlumnoController] Alumnos obtenidos:', alumnos.length);
     if (includeApoderado) {
-      console.log('🔍 [AlumnoController] Información de apoderado incluida');
     }
     
     return {
@@ -242,13 +219,10 @@ export class AlumnoController {
 
   @Get('validate/:codigoQR')
   async validateAlumnoQr(@Param('codigoQR') codigoQr: string) {
-    this.logger.log(`🔍 [Controller] Validando código QR: ${codigoQr}`);
     try {
       const resultado = await this.useCaseValidateAlumno.execute(codigoQr);
-      this.logger.log(`✅ [Controller] Validación QR completada`);
       return resultado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error en validación QR: ${error.message}`);
       throw error;
     }
   }
@@ -267,13 +241,10 @@ export class AlumnoController {
   @ApiResponse({ status: 404, description: 'Turno no encontrado' })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   async create(@Body() createAlumnoDto: RegisterAlumnoDto) {
-    this.logger.log(`🚀 [Controller] Iniciando registro de nuevo alumno`);
     try {
       const resultado = await this.useCaseAlumno.execute(createAlumnoDto);
-      this.logger.log(`✅ [Controller] Alumno registrado exitosamente`);
       return resultado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al registrar alumno: ${error.message}`);
       throw error; // Re-lanzar el error para que se maneje en el nivel superior
     }
   }
@@ -301,7 +272,6 @@ export class AlumnoController {
     @Query('search') search?: string,
     @Query('includeApoderado') includeApoderado?: boolean
   ) {
-    this.logger.log(`🔍 [Controller] Obteniendo alumnos con paginación - página: ${page}, límite: ${limit}, búsqueda: ${search}`);
     
     try {
       const alumnos = await this.getAlumnosUseCase.execute();
@@ -325,7 +295,6 @@ export class AlumnoController {
       const endIndex = startIndex + limit;
       const paginatedAlumnos = filteredAlumnos.slice(startIndex, endIndex);
       
-      this.logger.log(`✅ [Controller] Alumnos obtenidos exitosamente: ${paginatedAlumnos.length} de ${total}`);
       
       return {
         success: true,
@@ -337,7 +306,6 @@ export class AlumnoController {
         totalPages: Math.ceil(total / limit)
       };
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al obtener alumnos: ${error.message}`);
       throw error;
     }
   }
@@ -363,7 +331,6 @@ export class AlumnoController {
     type: ErrorResponseDto
   })
   async findOne(@Param('id') id: string) {
-    this.logger.log(`🔍 [Controller] Obteniendo alumno por ID: ${id}`);
     
     try {
       const alumno = await this.alumnoService.findOne(id);
@@ -372,14 +339,12 @@ export class AlumnoController {
         throw new NotFoundException(`Alumno con ID ${id} no encontrado`);
       }
       
-      this.logger.log(`✅ [Controller] Alumno encontrado: ${alumno.nombre} ${alumno.apellido}`);
       return {
         success: true,
         message: 'Alumno obtenido exitosamente',
         data: alumno
       };
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al obtener alumno: ${error.message}`);
       throw error;
     }
   }
@@ -403,7 +368,6 @@ export class AlumnoController {
     type: ErrorResponseDto
   })
   async remove(@Param('id') id: string) {
-    this.logger.log(`🗑️ [Controller] Eliminando alumno por ID: ${id}`);
     
     try {
       const alumno = await this.alumnoService.findOne(id);
@@ -414,13 +378,11 @@ export class AlumnoController {
       
       await this.alumnoService.remove(id);
       
-      this.logger.log(`✅ [Controller] Alumno eliminado exitosamente: ${alumno.nombre} ${alumno.apellido}`);
       return {
         success: true,
         message: 'Alumno eliminado exitosamente'
       };
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al eliminar alumno: ${error.message}`);
       throw error;
     }
   }
@@ -439,7 +401,6 @@ export class AlumnoController {
     description: 'Verificación completada exitosamente'
   })
   async verificarUsuariosAsignados(@Param('id') id: string) {
-    this.logger.log(`🔍 [Controller] Verificando usuarios asignados para alumno ID: ${id}`);
     
     try {
       const alumno = await this.alumnoService.findOne(id);
@@ -456,7 +417,6 @@ export class AlumnoController {
         }
       };
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al verificar usuarios: ${error.message}`);
       throw error;
     }
   }
@@ -474,11 +434,9 @@ export class AlumnoController {
     @Query('turnoId') turnoId: string,
     @Query('crear_usuarios') crear_usuarios?: string // Hacer opcional
   ) {
-    this.logger.log(`📁 [Controller] Iniciando importación de Excel`);
     
     // Validar que se recibió un archivo
     if (!file) {
-      this.logger.error(`❌ [Controller] No se recibió ningún archivo`);
       throw new BadRequestException('No se recibió ningún archivo');
     }
 
@@ -492,7 +450,6 @@ export class AlumnoController {
     const fileExtension = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf('.'));
     
     if (!allowedMimeTypes.includes(file.mimetype) || !allowedExtensions.includes(fileExtension)) {
-      this.logger.error(`❌ [Controller] Formato de archivo no válido: ${file.originalname} (${file.mimetype})`);
       throw new BadRequestException(
         `Formato de archivo no válido. Solo se permiten archivos .xlsx. ` +
         `Recibido: ${file.originalname} (${file.mimetype})`
@@ -501,7 +458,6 @@ export class AlumnoController {
 
     // Validar que se proporcionó un ID de turno
     if (!turnoId) {
-      this.logger.error(`❌ [Controller] No se proporcionó ID de turno`);
       throw new BadRequestException('Se requiere el ID del turno para la importación');
     }
 
@@ -517,36 +473,30 @@ export class AlumnoController {
       }
     } else {
       // Si no se proporciona, usar valor por defecto y loguear
-      this.logger.log(`ℹ️ [Controller] Parámetro crear_usuarios no especificado, usando valor por defecto: ${crearUsuarios}`);
     }
 
     try {
       const startTime = Date.now();
       
       // Procesar archivo Excel usando el servicio especializado
-      this.logger.log(`📊 [Controller] Procesando archivo Excel`);
       const alumnos = this.excelProcessorService.processExcelFile(file);
       
       const endTime = Date.now();
       const tiempoProceso = Math.round((endTime - startTime) / 1000);
-      this.logger.log(`⏱️ [Controller] Tiempo de procesamiento Excel: ${tiempoProceso}s`);
       
       // Ejecutar servicio de importación
-      this.logger.log(`📥 [Controller] Importando ${alumnos.length} alumnos`);
       const resultado = await this.importAlumnosExcelService.importarAlumnos(
         alumnos,
         turnoId,
         crearUsuarios
       );
       
-      this.logger.log(`✅ [Controller] Importación completada exitosamente`);
       return resultado;
       
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      this.logger.error(`❌ [Controller] Error al procesar el archivo: ${error.message}`);
       throw new BadRequestException(`Error al procesar el archivo: ${error.message}`);
     }
   }

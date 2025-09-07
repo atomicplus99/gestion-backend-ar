@@ -9,7 +9,6 @@ export class TelegramController {
 
   @Get('test')
   async testBot() {
-    console.log('🧪🧪🧪 ENDPOINT DE PRUEBA DEL BOT LLAMADO 🧪🧪🧪');
     const result = await this.telegramService.testBot();
     return {
       ...result,
@@ -20,9 +19,6 @@ export class TelegramController {
 
   @Post('send-test-message')
   async sendTestMessage(@Body() body: { chatId: number; message: string }) {
-    console.log('📤📤📤 ENVIANDO MENSAJE DE PRUEBA 📤📤📤');
-    console.log('📤📤📤 CHAT ID:', body.chatId);
-    console.log('📤📤📤 MENSAJE:', body.message);
     
     try {
       // Aquí podrías enviar un mensaje de prueba
@@ -33,7 +29,6 @@ export class TelegramController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      console.log('❌❌❌ ERROR ENVIANDO MENSAJE:', error.message);
       return {
         success: false,
         error: error.message,
@@ -44,7 +39,6 @@ export class TelegramController {
 
   @Get('status')
   async getBotStatus() {
-    console.log('📊📊📊 CONSULTANDO ESTADO DEL BOT 📊📊📊');
     return {
       status: 'Bot de Telegram activo',
       timestamp: new Date().toISOString(),

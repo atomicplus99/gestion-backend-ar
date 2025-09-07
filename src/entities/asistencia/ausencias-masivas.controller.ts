@@ -64,13 +64,6 @@ export class AusenciasMasivasController {
   async ejecutarProgramaAusencias(
     @Body() ejecutarDto: EjecutarAusenciasMasivasDto
   ) {
-    console.log('🔍 [DEBUG] ==========================================');
-    console.log('🔍 [DEBUG] PETICIÓN RECIBIDA EN ejecutarProgramaAusencias');
-    console.log('🔍 [DEBUG] ==========================================');
-    console.log('🔍 [DEBUG] DTO completo recibido:', JSON.stringify(ejecutarDto, null, 2));
-    console.log('🔍 [DEBUG] turnos recibido:', ejecutarDto.turnos);
-    console.log('🔍 [DEBUG] tipo de turnos:', typeof ejecutarDto.turnos);
-    console.log('🔍 [DEBUG] ==========================================');
 
     let fechaProcesada: Date | undefined;
     
@@ -112,38 +105,20 @@ export class AusenciasMasivasController {
    * Valida y procesa el parámetro de turnos del DTO (enum)
    */
   private validarTurnos(turnos?: TurnosAusenciasMasivas): string[] {
-    console.log('🔍 [VALIDAR_TURNOS] ==========================================');
-    console.log('🔍 [VALIDAR_TURNOS] ENTRANDO A validarTurnos (DTO)');
-    console.log('🔍 [VALIDAR_TURNOS] ==========================================');
-    console.log('🔍 [VALIDAR_TURNOS] turnos recibido en validarTurnos:', turnos);
-    console.log('🔍 [VALIDAR_TURNOS] tipo de turnos en validarTurnos:', typeof turnos);
-    console.log('🔍 [VALIDAR_TURNOS] turnos === TurnosAusenciasMasivas.MAÑANA:', turnos === TurnosAusenciasMasivas.MAÑANA);
-    console.log('🔍 [VALIDAR_TURNOS] turnos === TurnosAusenciasMasivas.TARDE:', turnos === TurnosAusenciasMasivas.TARDE);
-    console.log('🔍 [VALIDAR_TURNOS] turnos === TurnosAusenciasMasivas.AMBOS:', turnos === TurnosAusenciasMasivas.AMBOS);
-    console.log('🔍 [VALIDAR_TURNOS] turnos === undefined:', turnos === undefined);
-    console.log('🔍 [VALIDAR_TURNOS] turnos === null:', turnos === null);
-    console.log('🔍 [VALIDAR_TURNOS] TurnosAusenciasMasivas.MAÑANA:', TurnosAusenciasMasivas.MAÑANA);
-    console.log('🔍 [VALIDAR_TURNOS] TurnosAusenciasMasivas.TARDE:', TurnosAusenciasMasivas.TARDE);
-    console.log('🔍 [VALIDAR_TURNOS] TurnosAusenciasMasivas.AMBOS:', TurnosAusenciasMasivas.AMBOS);
-    console.log('🔍 [VALIDAR_TURNOS] ==========================================');
 
          if (!turnos || turnos === TurnosAusenciasMasivas.AMBOS) {
-       console.log('🔍 [DEBUG] Retornando ambos turnos');
        return ['MAÑANA', 'TARDE'];
      }
      
      if (turnos === TurnosAusenciasMasivas.MAÑANA) {
-       console.log('🔍 [DEBUG] Retornando solo mañana');
        return ['MAÑANA'];
      }
      
      if (turnos === TurnosAusenciasMasivas.TARDE) {
-       console.log('🔍 [DEBUG] Retornando solo tarde');
        return ['TARDE'];
      }
     
     // Si no es válido, por defecto procesa ambos
-    console.log('🔍 [DEBUG] Retornando ambos turnos (caso por defecto)');
     return ['mañana', 'tarde'];
   }
 
@@ -151,35 +126,20 @@ export class AusenciasMasivasController {
    * Valida y procesa el parámetro de turnos de query parameters (string)
    */
   private validarTurnosQuery(turnos?: string): string[] {
-    console.log('🔍 [DEBUG] ==========================================');
-    console.log('🔍 [DEBUG] ENTRANDO A validarTurnosQuery (Query)');
-    console.log('🔍 [DEBUG] ==========================================');
-    console.log('🔍 [DEBUG] turnos recibido en validarTurnosQuery:', turnos);
-    console.log('🔍 [DEBUG] tipo de turnos en validarTurnosQuery:', typeof turnos);
-    console.log('🔍 [DEBUG] turnos === "MAÑANA":', turnos === 'MAÑANA');
-    console.log('🔍 [DEBUG] turnos === "TARDE":', turnos === 'TARDE');
-    console.log('🔍 [DEBUG] turnos === "AMBOS":', turnos === 'AMBOS');
-    console.log('🔍 [DEBUG] turnos === undefined:', turnos === undefined);
-    console.log('🔍 [DEBUG] turnos === null:', turnos === null);
-    console.log('🔍 [DEBUG] ==========================================');
 
     if (!turnos || turnos === 'AMBOS') {
-      console.log('🔍 [DEBUG] Retornando ambos turnos');
       return ['MAÑANA', 'TARDE'];
     }
     
     if (turnos === 'MAÑANA') {
-      console.log('🔍 [DEBUG] Retornando solo mañana');
       return ['MAÑANA'];
     }
     
     if (turnos === 'TARDE') {
-      console.log('🔍 [DEBUG] Retornando solo tarde');
       return ['TARDE'];
     }
     
     // Si no es válido, por defecto procesa ambos
-    console.log('🔍 [DEBUG] Retornando ambos turnos (caso por defecto)');
     return ['MAÑANA', 'TARDE'];
   }
 
@@ -232,17 +192,6 @@ export class AusenciasMasivasController {
     @Body() programarDto: EjecutarAusenciasMasivasDto,
     @Headers('user-id') usuario_id: string
   ) {
-    console.log('🔍 [CONTROLLER] ==========================================');
-    console.log('🔍 [CONTROLLER] PETICIÓN RECIBIDA EN programarAusencias');
-    console.log('🔍 [CONTROLLER] ==========================================');
-    console.log('🔍 [CONTROLLER] DTO completo recibido:', JSON.stringify(programarDto, null, 2));
-    console.log('🔍 [CONTROLLER] turnos recibido:', programarDto.turnos);
-    console.log('🔍 [CONTROLLER] tipo de turnos:', typeof programarDto.turnos);
-    console.log('🔍 [CONTROLLER] fecha recibida:', programarDto.fecha);
-    console.log('🔍 [CONTROLLER] hora recibida:', programarDto.hora);
-    console.log('🔍 [CONTROLLER] ¿Es instancia de EjecutarAusenciasMasivasDto?:', programarDto instanceof EjecutarAusenciasMasivasDto);
-    console.log('🔍 [CONTROLLER] ¿Tiene método afterLoad?:', typeof programarDto.afterLoad === 'function');
-    console.log('🔍 [CONTROLLER] ==========================================');
 
     if (!programarDto.fecha || !programarDto.hora) {
       throw new BadRequestException('La fecha y hora son obligatorias para programar ausencias');
@@ -305,13 +254,10 @@ export class AusenciasMasivasController {
           timestamp: new Date().toISOString()
         });
 
-        this.logger.log(`📡 Eventos WebSocket emitidos para actualización en tiempo real`);
       } catch (wsError) {
-        console.error('Error emitiendo eventos WebSocket:', wsError);
         // No fallar la operación principal si falla WebSocket
       }
     } catch (error) {
-      console.error('Error creando notificación de programación:', error);
       // No fallar la operación principal si falla la notificación
     }
     
@@ -492,9 +438,7 @@ export class AusenciasMasivasController {
         timestamp: new Date().toISOString()
       });
 
-      this.logger.log(`📡 Eventos WebSocket emitidos para cancelación en tiempo real`);
     } catch (wsError) {
-      console.error('Error emitiendo eventos WebSocket de cancelación:', wsError);
       // No fallar la operación principal si falla WebSocket
     }
     

@@ -12,6 +12,5 @@ import { Turno } from './turno.entity';
 })
 export class TurnoModule {
   constructor() {
-    console.log('📦 [TurnoModule] Módulo de turnos inicializado');
   }
 }

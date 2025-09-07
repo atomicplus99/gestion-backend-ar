@@ -22,16 +22,13 @@ export class JustificacionAsistenciaService {
    */
   async procesarAsistenciasJustificadas(justificacion: Justificacion): Promise<void> {
     try {
-      this.logger.log(`Procesando asistencias justificadas para alumno ${justificacion.alumno.id_alumno}`);
 
       // Procesar cada fecha de justificación
       for (const fechaStr of justificacion.fecha_de_justificacion) {
         await this.procesarFechaJustificada(justificacion, fechaStr);
       }
 
-      this.logger.log(`Asistencias justificadas procesadas exitosamente para ${justificacion.fecha_de_justificacion.length} fechas`);
     } catch (error) {
-      this.logger.error(`Error procesando asistencias justificadas: ${error.message}`);
       throw error;
     }
   }
@@ -54,14 +51,11 @@ export class JustificacionAsistenciaService {
       if (asistenciaExistente) {
         // Actualizar asistencia existente
         await this.actualizarAsistenciaExistente(asistenciaExistente, justificacion);
-        this.logger.log(`Asistencia actualizada a JUSTIFICADO para fecha ${fechaStr}`);
       } else {
         // Crear nueva asistencia justificada
         await this.crearAsistenciaJustificada(justificacion, fecha);
-        this.logger.log(`Nueva asistencia JUSTIFICADO creada para fecha ${fechaStr}`);
       }
     } catch (error) {
-      this.logger.error(`Error procesando fecha ${fechaStr}: ${error.message}`);
       throw error;
     }
   }
@@ -93,7 +87,6 @@ export class JustificacionAsistenciaService {
     // Guardar la entidad modificada (misma estrategia que ANULADO)
     await this.asistenciaRepository.save(asistencia);
     
-    this.logger.log(`Asistencia ${asistencia.id_asistencia} actualizada a estado: ${asistencia.estado_asistencia}`);
   }
 
   /**
@@ -109,6 +102,5 @@ export class JustificacionAsistenciaService {
     });
 
     const asistenciaGuardada = await this.asistenciaRepository.save(nuevaAsistencia);
-    this.logger.log(`Nueva asistencia creada con ID: ${asistenciaGuardada.id_asistencia} y estado: ${asistenciaGuardada.estado_asistencia}`);
   }
 }

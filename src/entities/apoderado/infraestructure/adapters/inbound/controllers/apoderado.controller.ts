@@ -69,11 +69,9 @@ export class ApoderadoController {
   })
   async create(@Body() createApoderadoDto: CreateApoderadoDto): Promise<ApoderadoCreateResponseDto> {
     try {
-      console.log('📝 [ApoderadoController] Datos recibidos:', JSON.stringify(createApoderadoDto, null, 2));
       
       const apoderado = await this.createApoderadoUseCase.execute(createApoderadoDto);
       
-      console.log('✅ [ApoderadoController] Apoderado creado exitosamente:', apoderado.id_apoderado);
       
       if (!apoderado.id_apoderado) {
         throw new HttpException(
@@ -98,9 +96,6 @@ export class ApoderadoController {
       
       return response;
     } catch (error) {
-      console.error('❌ [ApoderadoController] Error al crear apoderado:', error);
-      console.error('📋 [ApoderadoController] Stack trace:', error.stack);
-      console.error('📋 [ApoderadoController] DTO recibido:', JSON.stringify(createApoderadoDto, null, 2));
       
              // Determinar el tipo de error y proporcionar mensajes más específicos
        let errorMessage = 'Error al crear apoderado';
@@ -310,14 +305,10 @@ export class ApoderadoController {
   @Get(':id/estudiantes')
   async getStudents(@Param('id') id: string) {
     try {
-      console.log('🔍 [ApoderadoController] Buscando estudiantes para apoderado ID:', id);
       
       const apoderado = await this.getApoderadoByIdUseCase.execute(id);
       
-      console.log('🔍 [ApoderadoController] Apoderado encontrado:', apoderado ? 'SÍ' : 'NO');
       if (apoderado) {
-        console.log('🔍 [ApoderadoController] Pupilos en apoderado:', apoderado.pupilos?.length || 0);
-        console.log('🔍 [ApoderadoController] Datos de pupilos:', JSON.stringify(apoderado.pupilos, null, 2));
       }
       
       if (!apoderado) {
@@ -339,7 +330,6 @@ export class ApoderadoController {
         },
       };
       
-      console.log('🔍 [ApoderadoController] Respuesta final:', JSON.stringify(response, null, 2));
       
       return response;
     } catch (error) {
@@ -397,13 +387,10 @@ export class ApoderadoController {
     @Body() assignStudentsDto: AssignStudentsRequestDto,
   ) {
     try {
-      console.log('🔍 [ApoderadoController] Asignando estudiantes al apoderado ID:', id);
-      console.log('🔍 [ApoderadoController] Estudiantes a asignar:', assignStudentsDto.estudiante_ids);
       
       const result = await this.assignStudentsUseCase.execute(id, assignStudentsDto);
       
       if (!result.success) {
-        console.log('❌ [ApoderadoController] Error al asignar estudiantes:', result.error);
         
         if (result.alumnosConApoderado && result.alumnosConApoderado.length > 0) {
           // Error específico: alumnos ya tienen apoderado
@@ -434,7 +421,6 @@ export class ApoderadoController {
         }
       }
 
-      console.log('✅ [ApoderadoController] Estudiantes asignados exitosamente');
       
       return {
         success: true,
@@ -444,7 +430,6 @@ export class ApoderadoController {
     } catch (error) {
       if (error instanceof HttpException) throw error;
       
-      console.error('❌ [ApoderadoController] Error inesperado al asignar estudiantes:', error);
       
       throw new HttpException(
         {

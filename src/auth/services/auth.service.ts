@@ -85,7 +85,6 @@ export class AuthService {
         // Es un payload JWT directo
         userPayload = payload;
       } else {
-        console.error('Payload inválido:', payload);
         throw new Error('Payload de autenticación inválido');
       }
       
@@ -171,12 +170,10 @@ export class AuthService {
           return response;
           
         default:
-          console.error('Rol de usuario no reconocido:', userPayload.userRole);
           return response;
       }
       
       // Si no se encontró la entidad correspondiente, retorna solo datos básicos
-      console.warn(`No se encontró ${userPayload.userRole.toLowerCase()} para el usuario:`, userPayload.idUser);
       return response;
     }
     

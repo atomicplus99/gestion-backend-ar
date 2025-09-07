@@ -7,7 +7,6 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 @Controller('turno')
 export class TurnoController {
   constructor(private readonly turnoService: TurnoService) {
-    console.log('🎮 [TurnoController] Controlador de turnos inicializado');
   }
 
   /**
@@ -19,16 +18,10 @@ export class TurnoController {
   @ApiResponse({ status: 200, description: 'Lista de turnos obtenida exitosamente', type: [Turno] })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   async findAll(): Promise<Turno[]> {
-    console.log('🚀 [TurnoController] Iniciando petición GET /turno');
     try {
-      console.log('📞 [TurnoController] Llamando al servicio de turnos...');
       const turnos = await this.turnoService.findAll();
-      console.log(`✅ [TurnoController] Turnos obtenidos exitosamente: ${turnos.length} turnos`);
-      console.log('📊 [TurnoController] Datos de turnos:', JSON.stringify(turnos, null, 2));
       return turnos;
     } catch (error) {
-      console.error('❌ [TurnoController] Error al obtener turnos:', error);
-      console.error('❌ [TurnoController] Stack trace:', error.stack);
       throw new HttpException(
         'Error interno al obtener los turnos',
         HttpStatus.INTERNAL_SERVER_ERROR

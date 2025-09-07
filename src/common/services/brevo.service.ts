@@ -6,31 +6,26 @@ export class BrevoService {
 
   async sendPasswordResetEmail(email: string, resetToken: string, username: string): Promise<boolean> {
     try {
-      this.logger.log(`📧 Intentando enviar email a: ${email}`);
       
       const apiKey = process.env.BREVO_API_KEY;
       const fromEmail = process.env.BREVO_FROM_EMAIL;
       const fromName = process.env.BREVO_FROM_NAME;
       
       if (!apiKey) {
-        this.logger.error('❌ BREVO_API_KEY no configurado');
         return false;
       }
       
       if (!fromEmail) {
-        this.logger.error('❌ BREVO_FROM_EMAIL no configurado');
         return false;
       }
       
       if (!fromName) {
-        this.logger.error('❌ BREVO_FROM_NAME no configurado');
         return false;
       }
 
       const frontendUrl = process.env.FRONTEND_URL;
       
       if (!frontendUrl) {
-        this.logger.error('❌ FRONTEND_URL no configurado');
         return false;
       }
       
@@ -116,16 +111,12 @@ export class BrevoService {
 
       if (response.ok) {
         const result = await response.json();
-        this.logger.log(`✅ Email de restablecimiento enviado a: ${email} usando Brevo (ID: ${result.messageId})`);
         return true;
       } else {
         const error = await response.text();
-        this.logger.error(`❌ Error enviando email con Brevo a ${email}: ${error}`);
         return false;
       }
     } catch (error) {
-      this.logger.error(`❌ Error enviando email con Brevo a ${email}: ${error.message}`);
-      this.logger.error(`❌ Error completo:`, error);
       return false;
     }
   }

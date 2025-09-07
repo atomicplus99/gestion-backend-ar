@@ -14,23 +14,17 @@ export class ResendService {
     try {
       const apiKey = process.env.RESEND_API_KEY;
       if (!apiKey) {
-        this.logger.warn('⚠️ RESEND_API_KEY no configurado en variables de entorno');
         return;
       }
       this.resend = new Resend(apiKey);
-      this.logger.log('✅ Resend inicializado correctamente');
     } catch (error) {
-      this.logger.error(`❌ Error inicializando Resend: ${error.message}`);
     }
   }
 
   async sendPasswordResetEmail(email: string, resetToken: string, username: string): Promise<boolean> {
     try {
-      this.logger.log(`📧 Intentando enviar email a: ${email}`);
-      this.logger.log(`📧 Resend inicializado: ${!!this.resend}`);
       
       if (!this.resend) {
-        this.logger.error('❌ Resend no está inicializado');
         return false;
       }
 
@@ -98,15 +92,11 @@ export class ResendService {
       });
 
       if (error) {
-        this.logger.error(`❌ Error enviando email con Resend a ${email}: ${error.message}`);
-        this.logger.error(`❌ Error completo:`, error);
         return false;
       }
 
-      this.logger.log(`✅ Email de restablecimiento enviado a: ${email} usando Resend (ID: ${data?.id})`);
       return true;
     } catch (error) {
-      this.logger.error(`❌ Error enviando email con Resend a ${email}: ${error.message}`);
       return false;
     }
   }

@@ -23,8 +23,6 @@ export class UpdateEstadoJustificacionUseCase {
     idJustificacion: string, 
     updateDto: UpdateEstadoJustificacionDto
   ): Promise<JustificacionListResponseDto> {
-    console.log(`🔄 Iniciando actualización de estado para justificación: ${idJustificacion}`);
-    console.log(`📝 Nuevo estado solicitado: ${updateDto.nuevo_estado}`);
 
     // 1. Buscar la justificación
     const justificacion = await this.justificacionRepository.findOne({
@@ -36,8 +34,6 @@ export class UpdateEstadoJustificacionUseCase {
       throw new NotFoundException(`No se encontró ninguna justificación con el ID: ${idJustificacion}`);
     }
 
-    console.log(`👤 Alumno encontrado: ${justificacion.alumno.nombre} ${justificacion.alumno.apellido}`);
-    console.log(`📅 Fechas de justificación: ${justificacion.fecha_de_justificacion.join(', ')}`);
 
     // 2. Validar que el estado actual sea PENDIENTE
     if (justificacion.estado !== 'PENDIENTE') {
@@ -51,22 +47,17 @@ export class UpdateEstadoJustificacionUseCase {
     justificacion.observaciones_admin = updateDto.observaciones_respuesta;
     justificacion.fecha_actualizacion = new Date();
 
-    console.log(`✅ Estado actualizado a: ${justificacion.estado}`);
 
     // 4. Guardar los cambios
     const justificacionActualizada = await this.justificacionRepository.save(justificacion);
-    console.log(`💾 Justificación guardada exitosamente`);
 
     // 5. Si se aprueba la justificación, procesar las asistencias
     if (updateDto.nuevo_estado === 'APROBADA') {
-      console.log(`🚀 Justificación APROBADA - Iniciando procesamiento de asistencias...`);
       try {
         await this.justificacionAsistenciaService.procesarAsistenciasJustificadas(justificacionActualizada);
-        console.log(`✅ Asistencias justificadas procesadas exitosamente`);
         
         // 5.1 Enviar notificación de Telegram para justificación aprobada
         try {
-          console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM (JUSTIFICACIÓN APROBADA) 🔔🔔🔔');
           // Buscar las asistencias justificadas para notificar
           const asistenciasJustificadas = await this.buscarAsistenciasJustificadas(justificacionActualizada);
           if (asistenciasJustificadas && asistenciasJustificadas.length > 0) {
@@ -78,23 +69,18 @@ export class UpdateEstadoJustificacionUseCase {
                 'JUSTIFICACION'
               );
             }
-            console.log(`✅✅✅ NOTIFICACIONES TELEGRAM ENVIADAS PARA ${asistenciasJustificadas.length} ASISTENCIAS JUSTIFICADAS ✅✅✅`);
           }
         } catch (telegramError) {
-          console.error('[UpdateEstadoJustificacionUseCase] Error enviando notificación Telegram:', telegramError);
           // No lanzamos error para no afectar la aprobación de justificación
         }
       } catch (error) {
         // Log del error pero no fallar la operación principal
-        console.error('❌ Error procesando asistencias justificadas:', error);
       }
     } else {
-      console.log(`ℹ️ Estado ${updateDto.nuevo_estado} - No se procesan asistencias`);
     }
 
     // 6. Mapear a DTO de respuesta
     const response = this.mapToResponseDto(justificacionActualizada);
-    console.log(`📤 Respuesta preparada con ${response.asistencias_creadas} asistencias creadas`);
     
     return response;
   }
@@ -143,7 +129,6 @@ export class UpdateEstadoJustificacionUseCase {
           asistencias.push(asistencia);
         }
       } catch (error) {
-        console.error(`Error buscando asistencia para fecha ${fechaStr}:`, error);
       }
     }
     

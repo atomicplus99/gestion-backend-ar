@@ -31,13 +31,10 @@ export class EstadoAlumnoController {
     description: 'Error interno del servidor'
   })
   async listarTodos(): Promise<AlumnoEstadoResponseDto[]> {
-    this.logger.log(`🔍 [Controller] Obteniendo lista completa de alumnos con estado`);
     try {
       const resultado = await this.getAlumnosEstadoCase.execute();
-      this.logger.log(`✅ [Controller] Lista obtenida exitosamente: ${resultado.length} alumnos`);
       return resultado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al obtener lista de alumnos: ${error.message}`);
       throw error;
     }
   }
@@ -67,13 +64,10 @@ export class EstadoAlumnoController {
     description: 'Error interno del servidor'
   })
   async obtenerEstadoPorAlumno(@Param('codigo') codigo: string): Promise<AlumnoEstadoResponseDto> {
-    this.logger.log(`🔍 [Controller] Obteniendo estado del alumno con código: ${codigo}`);
     try {
       const resultado = await this.getAlumnosEstadoCase.executeByCodigo(codigo);
-      this.logger.log(`✅ [Controller] Estado del alumno ${codigo} obtenido exitosamente`);
       return resultado;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al obtener estado del alumno: ${error.message}`);
       throw error;
     }
   }
@@ -109,7 +103,6 @@ export class EstadoAlumnoController {
     @Param('codigo') codigo: string,
     @Body() data: UpdateEstadoAlumno
   ) {
-    this.logger.log(`🔄 [Controller] Actualizando estado del alumno con código: ${codigo}`);
     try {
       const result = await this.changeStatusCase.execute(codigo, data);
 
@@ -117,7 +110,6 @@ export class EstadoAlumnoController {
         throw new NotFoundException('Alumno no encontrado');
       }
 
-      this.logger.log(`✅ [Controller] Estado actualizado exitosamente para alumno: ${codigo}`);
       return {
         success: true,
         message: 'Estado actualizado correctamente',
@@ -125,7 +117,6 @@ export class EstadoAlumnoController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error al actualizar estado: ${error.message}`);
       throw error;
     }
   }

@@ -45,40 +45,29 @@ export class TelegramNotificationService {
     private readonly alumnoRepository: Repository<Alumno>,
     private readonly telegramApoderadoService: TelegramApoderadoService,
   ) {
-    console.log('🚀🚀🚀 TELEGRAM SERVICE CONSTRUCTOR INICIADO 🚀🚀🚀');
-    this.logger.log('🚀 TelegramNotificationService constructor iniciado');
     this.initializeBot();
   }
 
   private initializeBot() {
     try {
-      console.log('🔍🔍🔍 INICIANDO CONFIGURACIÓN DEL BOT 🔍🔍🔍');
       this.logger.log('🔍 Iniciando configuración del bot de Telegram...');
       
       const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-      console.log(`🔑🔑🔑 TOKEN OBTENIDO: ${token ? 'SÍ' : 'NO'} 🔑🔑🔑`);
-      console.log(`🔑🔑🔑 TOKEN COMPLETO: ${token} 🔑🔑🔑`);
-      this.logger.log(`🔑 Token obtenido: ${token ? 'SÍ' : 'NO'} (${token ? token.substring(0, 10) + '...' : 'vacío'})`);
+
       
       if (!token) {
-        console.log('⚠️⚠️⚠️ NO HAY TOKEN CONFIGURADO ⚠️⚠️⚠️');
-        this.logger.warn('⚠️ TELEGRAM_BOT_TOKEN no configurado');
         return;
       }
 
-      console.log('🤖🤖🤖 CREANDO INSTANCIA DEL BOT 🤖🤖🤖');
       this.logger.log('🤖 Creando instancia del bot...');
       this.bot = new TelegramBot(token, { polling: true });
       
-      console.log('⚙️⚙️⚙️ CONFIGURANDO COMANDOS ⚙️⚙️⚙️');
       this.logger.log('⚙️ Configurando comandos del bot...');
       // Configurar comandos del bot
       this.configurarComandos();
       
-      console.log('✅✅✅ BOT INICIALIZADO EXITOSAMENTE ✅✅✅');
       this.logger.log('✅ Bot de Telegram inicializado correctamente');
     } catch (error) {
-      console.log(`❌❌❌ ERROR INICIALIZANDO BOT: ${error.message} ❌❌❌`);
       this.logger.error(`❌ Error inicializando bot: ${error.message}`);
       this.logger.error(`❌ Stack trace: ${error.stack}`);
     }
@@ -88,10 +77,8 @@ export class TelegramNotificationService {
    * Configura los comandos y manejadores del bot
    */
   private configurarComandos() {
-    this.logger.log('📱 Configurando comando /start...');
     // Comando /start - Bienvenida
     this.bot.onText(/\/start/, (msg) => {
-      this.logger.log(`📨 Comando /start recibido de ${msg.from?.first_name} (ID: ${msg.from?.id})`);
       this.enviarMensajeBienvenida(msg.chat.id);
     });
 
@@ -1123,6 +1110,7 @@ ${ultimasAsistencias}
       };
     } catch (error) {
       console.log(`❌❌❌ ERROR EN TEST: ${error.message} ❌❌❌`);
+
       return {
         success: false,
         message: `Error: ${error.message}`,

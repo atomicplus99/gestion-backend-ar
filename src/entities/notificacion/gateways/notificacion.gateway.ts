@@ -36,7 +36,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
    * Inicializar el gateway
    */
   afterInit(server: Server) {
-    this.logger.log('🚀 WebSocket Gateway inicializado correctamente');
     this.server = server;
   }
 
@@ -44,7 +43,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
    * Manejar conexión de cliente
    */
   handleConnection(client: Socket) {
-    this.logger.log(`🔌 Cliente conectado: ${client.id}`);
     this.connectedClients.set(client.id, client);
 
     // Enviar mensaje de bienvenida
@@ -56,23 +54,19 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
 
     // Agregar listener para errores
     client.on('error', (error) => {
-      this.logger.error(`❌ Error en cliente ${client.id}:`, error);
     });
 
     // Agregar listener para desconexión
     client.on('disconnect', (reason) => {
-      this.logger.log(`🔌 Cliente ${client.id} desconectado. Razón: ${reason}`);
       this.connectedClients.delete(client.id);
     });
 
     // Agregar listener para todos los mensajes
     client.onAny((eventName, ...args) => {
-      this.logger.log(`📨 Cliente ${client.id} envió evento: ${eventName}`, args);
     });
 
     // Agregar listener específico para el evento 'connect' de Socket.IO
     client.on('connect', () => {
-      this.logger.log(`🔌 Cliente ${client.id} emitió evento 'connect'`);
     });
   }
 
@@ -80,7 +74,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
    * Manejar desconexión de cliente
    */
   handleDisconnect(client: Socket) {
-    this.logger.log(`🔌 Cliente desconectado: ${client.id}`);
     this.connectedClients.delete(client.id);
   }
 
@@ -94,7 +87,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
   ) {
     try {
       const { usuario_id } = data;
-      this.logger.log(`👤 Cliente ${client.id} se suscribió a notificaciones de usuario: ${usuario_id}`);
       
       // Unir al cliente a una sala específica del usuario
       client.join(`user_${usuario_id}`);
@@ -105,7 +97,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.error(`❌ Error suscribiendo usuario: ${error.message}`);
       client.emit('error', {
         message: 'Error al suscribirse a notificaciones',
         error: error.message
@@ -119,22 +110,17 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
   @SubscribeMessage('subscribe_global')
   handleSubscribeGlobal(@ConnectedSocket() client: Socket) {
     try {
-      this.logger.log(`🌐 Cliente ${client.id} se suscribió a notificaciones globales`);
       
       // Unir al cliente a la sala global
       client.join('global');
       
-      this.logger.log(`🌐 Cliente ${client.id} unido a sala 'global'`);
       
       client.emit('subscribed_global', {
         message: 'Suscrito a notificaciones globales',
         timestamp: new Date().toISOString()
       });
       
-      this.logger.log(`🌐 Respuesta enviada a cliente ${client.id}`);
     } catch (error) {
-      this.logger.error(`❌ Error suscribiendo global: ${error.message}`);
-      this.logger.error(`❌ Stack trace:`, error.stack);
       client.emit('error', {
         message: 'Error al suscribirse a notificaciones globales',
         error: error.message
@@ -160,7 +146,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo contador: ${error.message}`);
       client.emit('error', {
         message: 'Error al obtener contador de notificaciones',
         error: error.message
@@ -186,7 +171,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      this.logger.error(`❌ Error marcando como leída: ${error.message}`);
       client.emit('error', {
         message: 'Error al marcar notificación como leída',
         error: error.message
@@ -199,12 +183,9 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
    */
   async broadcastNotification(notificacion: Notificacion) {
     try {
-      this.logger.log(`📢 Enviando notificación a todos los clientes: ${notificacion.titulo}`);
-      this.logger.log(`📊 Clientes conectados: ${this.connectedClients.size}`);
       
       // Si la notificación tiene un usuario_id específico, enviar solo a ese usuario
       if (notificacion.usuario_id) {
-        this.logger.log(`📢 Enviando notificación a usuario específico: ${notificacion.usuario_id}`);
         await this.sendNotificationToUser(notificacion, notificacion.usuario_id);
         return;
       }
@@ -216,10 +197,8 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
         timestamp: new Date().toISOString()
       });
 
-      this.logger.log(`✅ Notificación enviada a ${this.connectedClients.size} clientes`);
 
     } catch (error) {
-      this.logger.error(`❌ Error enviando notificación: ${error.message}`);
     }
   }
 
@@ -228,7 +207,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
    */
   async sendNotificationToUser(notificacion: Notificacion, usuario_id: string) {
     try {
-      this.logger.log(`📢 Enviando notificación a usuario ${usuario_id}: ${notificacion.titulo}`);
       
       this.server.to(`user_${usuario_id}`).emit('new_notification', {
         notificacion,
@@ -244,7 +222,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
       });
 
     } catch (error) {
-      this.logger.error(`❌ Error enviando notificación a usuario: ${error.message}`);
     }
   }
 
@@ -274,7 +251,6 @@ export class NotificacionGateway implements OnGatewayInit, OnGatewayConnection, 
         }
       }
     } catch (error) {
-      this.logger.error(`❌ Error actualizando contadores: ${error.message}`);
     }
   }
 

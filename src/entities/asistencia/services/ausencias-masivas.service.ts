@@ -33,7 +33,6 @@ export class AusenciasMasivasService {
     detalles: string[];
   }> {
     try {
-      this.logger.log(`🔍 Verificando ausencias existentes para ${fecha.toDateString()} en turnos: ${turnos.join(', ')}`);
 
       // Obtener alumnos de los turnos especificados
       const alumnos = await this.alumnoRepository
@@ -75,9 +74,6 @@ export class AusenciasMasivasService {
         detalles.push(`Fecha: ${fecha.toDateString()}`);
       }
 
-      this.logger.log(`🔍 Verificación completada: ${existenAusencias ? 'EXISTEN' : 'NO EXISTEN'} ausencias`);
-      this.logger.log(`   - Alumnos con ausencias: ${alumnosConAusencias}`);
-      this.logger.log(`   - Total ausencias: ${ausenciasExistentes.length}`);
 
       return {
         existenAusencias,
@@ -86,7 +82,6 @@ export class AusenciasMasivasService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error verificando ausencias existentes: ${error.message}`);
       throw error;
     }
   }
@@ -128,7 +123,6 @@ export class AusenciasMasivasService {
     }
     
     try {
-      this.logger.log(`🚀 Iniciando programa de ausencias masivas para fecha: ${fechaProcesada.toDateString()}`);
 
       // 1. Obtener todos los alumnos activos con turno asignado
       const alumnos = await this.alumnoRepository.find({
@@ -139,15 +133,9 @@ export class AusenciasMasivasService {
        const turnosProcesar = turnos || ['MAÑANA', 'TARDE'];
       
       // Log detallado de cada alumno y su turno
-      this.logger.log(`🔍 [DEBUG] Analizando ${alumnos.length} alumnos:`);
       alumnos.forEach((alumno, index) => {
-        this.logger.log(`   Alumno ${index + 1}: ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
-        this.logger.log(`     - Tiene turno: ${!!alumno.turno}`);
         if (alumno.turno) {
-          this.logger.log(`     - Turno asignado: ${alumno.turno.turno}`);
-          this.logger.log(`     - ¿Coincide con ${turnosProcesar.join(', ')}?: ${turnosProcesar.includes(alumno.turno.turno)}`);
         } else {
-          this.logger.log(`     - Sin turno asignado`);
         }
       });
 
@@ -162,17 +150,13 @@ export class AusenciasMasivasService {
          });
        });
 
-      this.logger.log(`📊 Total de alumnos encontrados: ${alumnos.length}`);
-      this.logger.log(`🎯 Alumnos del turno(s) ${turnosProcesar.join(', ')}: ${alumnosFiltrados.length}`);
 
-      this.logger.log(`📊 Total de alumnos encontrados: ${alumnos.length}`);
 
       let ausenciasCreadas = 0;
       let alumnosConAsistencia = 0;
       let alumnosOmitidos = 0;
       let alumnosInactivos = 0;
 
-      this.logger.log(`🔄 Procesando ${alumnosFiltrados.length} alumnos del turno(s) ${turnosProcesar.join(', ')}...`);
 
       // 3. Procesar cada alumno del turno especificado
       for (const alumno of alumnosFiltrados) {
@@ -180,7 +164,6 @@ export class AusenciasMasivasService {
           const resultado = await this.procesarAlumno(alumno, fechaProcesada);
           if (resultado.ausenciaCreada) {
             ausenciasCreadas++;
-            this.logger.log(`✅ Ausencia creada para ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
             
             // Enviar notificación de ausencia masiva si el alumno tiene apoderado
             if (resultado.asistencia && resultado.apoderado) {
@@ -190,13 +173,10 @@ export class AusenciasMasivasService {
                   'AUSENCIA MASIVA AUTOMÁTICA',
                   'REGISTRO'
                 );
-                this.logger.log(`📱 Notificación enviada a apoderado de ${alumno.codigo}`);
               } catch (telegramError) {
-                this.logger.warn(`⚠️ No se pudo enviar notificación Telegram para ${alumno.codigo}: ${telegramError.message}`);
                 // Continuar sin interrumpir el proceso
               }
             } else {
-              this.logger.log(`⏭️ Alumno ${alumno.codigo} sin apoderado - no se envía notificación`);
             }
           } else {
             alumnosConAsistencia++;
@@ -207,20 +187,12 @@ export class AusenciasMasivasService {
               alumnosInactivos++;
             }
             
-            this.logger.log(`⏭️ Alumno ${alumno.codigo} omitido: ${resultado.motivo}`);
           }
         } catch (error) {
-          this.logger.error(`❌ Error procesando alumno ${alumno.codigo}: ${error.message}`);
           // Continuar con el siguiente alumno
         }
       }
 
-      this.logger.log(`📊 Resumen del procesamiento:`);
-      this.logger.log(`   - Total alumnos procesados: ${alumnosFiltrados.length}`);
-      this.logger.log(`   - Ausencias creadas: ${ausenciasCreadas}`);
-      this.logger.log(`   - Alumnos omitidos (total): ${alumnosOmitidos}`);
-      this.logger.log(`   - Alumnos inactivos omitidos: ${alumnosInactivos}`);
-      this.logger.log(`   - Alumnos con asistencia previa: ${alumnosConAsistencia - alumnosInactivos}`);
 
       const resultado = {
         totalAlumnos: alumnosFiltrados.length,
@@ -235,7 +207,6 @@ export class AusenciasMasivasService {
         programada: false,
       };
 
-      this.logger.log(`✅ Programa de ausencias completado: ${JSON.stringify(resultado)}`);
       
              // Guardar historial de la ejecución
        await this.guardarHistorialEjecucion(
@@ -248,7 +219,6 @@ export class AusenciasMasivasService {
       return resultado;
 
     } catch (error) {
-      this.logger.error(`❌ Error en programa de ausencias masivas: ${error.message}`);
       
              // Guardar historial con error
        await this.guardarHistorialEjecucion(
@@ -279,7 +249,6 @@ export class AusenciasMasivasService {
       const estadoAlumno = await this.verificarEstadoAlumno(alumno.id_alumno);
       
       if (estadoAlumno && estadoAlumno.estado === 'inactivo') {
-        this.logger.log(`⏭️ Alumno ${alumno.codigo} está INACTIVO - omitiendo`);
         return { 
           ausenciaCreada: false, 
           motivo: 'Alumno inactivo - no se registra ausencia' 
@@ -292,7 +261,6 @@ export class AusenciasMasivasService {
       if (asistenciaExistente) {
         // Ya tiene asistencia registrada (PUNTUAL, AUSENTE, ANULADO, JUSTIFICADO, TARDANZA)
         const estadoActual = asistenciaExistente.estado_asistencia;
-        this.logger.log(`⏭️ Alumno ${alumno.codigo} ya tiene asistencia registrada con estado: ${estadoActual} - omitiendo`);
         return { 
           ausenciaCreada: false, 
           motivo: `Ya tiene asistencia registrada con estado: ${estadoActual}` 
@@ -301,7 +269,6 @@ export class AusenciasMasivasService {
 
       // 3. Verificar si el alumno tiene turno asignado
       if (!alumno.turno) {
-        this.logger.warn(`⚠️ Alumno ${alumno.codigo} sin turno asignado - omitiendo`);
         return { ausenciaCreada: false, motivo: 'Sin turno asignado' };
       }
 
@@ -326,7 +293,6 @@ export class AusenciasMasivasService {
       const asistenciaGuardada = await this.asistenciaRepository.save(nuevaAusencia);
       
       const estadoTexto = estadoAlumno ? estadoAlumno.estado : 'activo (por defecto)';
-      this.logger.log(`✅ Ausencia creada para alumno ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido} (estado: ${estadoTexto}, sin asistencia previa)`);
       
       // Obtener información del apoderado si existe
       let apoderado: any = null;
@@ -335,7 +301,6 @@ export class AusenciasMasivasService {
           apoderado = alumno.apoderados[0]; // Tomar el primer apoderado
         }
       } catch (error) {
-        this.logger.warn(`⚠️ No se pudo obtener información del apoderado para ${alumno.codigo}: ${error.message}`);
       }
       
       return { 
@@ -346,7 +311,6 @@ export class AusenciasMasivasService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error procesando alumno ${alumno.codigo}: ${error.message}`);
       throw error;
     }
   }
@@ -363,14 +327,11 @@ export class AusenciasMasivasService {
       });
 
       if (estadoAlumno) {
-        this.logger.log(`🔍 Estado encontrado para alumno ${idAlumno}: ${estadoAlumno.estado}`);
       } else {
-        this.logger.log(`🔍 No se encontró estado para alumno ${idAlumno} - se considera activo por defecto`);
       }
 
       return estadoAlumno;
     } catch (error) {
-      this.logger.error(`❌ Error verificando estado del alumno ${idAlumno}: ${error.message}`);
       return null; // En caso de error, considerar activo por defecto
     }
   }
@@ -392,9 +353,7 @@ export class AusenciasMasivasService {
       .getOne();
 
     if (asistencia) {
-      this.logger.log(`🔍 Asistencia encontrada para alumno ${idAlumno} en ${fecha.toDateString()}: estado ${asistencia.estado_asistencia}`);
     } else {
-      this.logger.log(`🔍 No se encontró asistencia para alumno ${idAlumno} en ${fecha.toDateString()}`);
     }
 
     return asistencia;
@@ -472,10 +431,8 @@ export class AusenciasMasivasService {
       });
 
       await this.ausenciasMasivasLogRepository.save(log);
-      this.logger.log(`📝 Historial de ejecución guardado: ${log.id_log}`);
 
     } catch (error) {
-      this.logger.error(`❌ Error guardando historial: ${error.message}`);
     }
   }
 
@@ -494,17 +451,7 @@ export class AusenciasMasivasService {
     mensaje: string;
   }> {
     try {
-      console.log('🔍 [SERVICE] ==========================================');
-      console.log('🔍 [SERVICE] ENTRANDO A programarAusencia');
-      console.log('🔍 [SERVICE] ==========================================');
-      console.log('🔍 [SERVICE] fecha recibida:', fecha);
-      console.log('🔍 [SERVICE] hora recibida:', hora);
-      console.log('🔍 [SERVICE] turnos recibidos:', turnos);
-      console.log('🔍 [SERVICE] tipo de turnos:', typeof turnos);
-      console.log('🔍 [SERVICE] ¿Es array?:', Array.isArray(turnos));
-      console.log('🔍 [SERVICE] ==========================================');
       
-      this.logger.log(`📅 Programando ausencia para ${fecha.toDateString()} a las ${hora}`);
 
       // Crear registro de programación
       const log = this.ausenciasMasivasLogRepository.create({
@@ -523,7 +470,6 @@ export class AusenciasMasivasService {
 
       const resultado = await this.ausenciasMasivasLogRepository.save(log);
       
-      this.logger.log(`✅ Ausencia programada exitosamente: ${resultado.id_log}`);
       
       return {
         idProgramacion: resultado.id_log,
@@ -534,7 +480,6 @@ export class AusenciasMasivasService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error programando ausencia: ${error.message}`);
       throw error;
     }
   }
@@ -544,7 +489,6 @@ export class AusenciasMasivasService {
    */
   async obtenerHistorial(limite: number = 50): Promise<any[]> {
     try {
-      this.logger.log(`📊 Obteniendo historial real de ausencias masivas (límite: ${limite})`);
 
       const historial = await this.ausenciasMasivasLogRepository.find({
         order: { fecha_creacion: 'DESC' },
@@ -563,11 +507,9 @@ export class AusenciasMasivasService {
         turnosProcesados: log.turnos_procesados,
       }));
 
-      this.logger.log(`✅ Historial real obtenido: ${historialFormateado.length} registros`);
       return historialFormateado;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo historial: ${error.message}`);
       throw error;
     }
   }
@@ -577,7 +519,6 @@ export class AusenciasMasivasService {
    */
   async obtenerAusenciasProgramadas(): Promise<any[]> {
     try {
-      this.logger.log(`📅 Obteniendo ausencias programadas para ejecución futura`);
 
       const programadas = await this.ausenciasMasivasLogRepository.find({
         where: { estado: 'PROGRAMADA' },
@@ -594,11 +535,9 @@ export class AusenciasMasivasService {
         fechaProgramacion: log.fecha_creacion.toISOString(),
       }));
 
-      this.logger.log(`✅ Ausencias programadas obtenidas: ${programadasFormateadas.length} registros`);
       return programadasFormateadas;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo ausencias programadas: ${error.message}`);
       throw error;
     }
   }
@@ -611,7 +550,6 @@ export class AusenciasMasivasService {
     fechaEliminacion: string;
   }> {
     try {
-      this.logger.log(`🗑️ Eliminando historial de ausencias masivas`);
 
       // Contar registros antes de eliminar
       const totalRegistros = await this.ausenciasMasivasLogRepository.count();
@@ -622,7 +560,6 @@ export class AusenciasMasivasService {
       const registrosEliminados = resultado.affected || 0;
       const fechaEliminacion = new Date().toISOString();
 
-      this.logger.log(`✅ Historial eliminado: ${registrosEliminados} registros eliminados`);
       
       return {
         registrosEliminados,
@@ -630,7 +567,6 @@ export class AusenciasMasivasService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error eliminando historial: ${error.message}`);
       throw error;
     }
   }

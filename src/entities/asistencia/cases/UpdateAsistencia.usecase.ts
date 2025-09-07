@@ -27,8 +27,6 @@ export class UpdateAsistenciaUseCase {
 
   async execute(updateDto: UpdateAsistenciaDto) {
     try {
-      console.log('🚀🚀🚀 UPDATE ASISTENCIA USE CASE EJECUTÁNDOSE 🚀🚀🚀');
-      console.log('📝 Datos recibidos:', JSON.stringify(updateDto, null, 2));
       
       // 1. Buscar al alumno por código o DNI
       const alumno = await this.alumnoRepository.findOne({
@@ -76,21 +74,16 @@ export class UpdateAsistenciaUseCase {
       await this.asistenciaRepository.save(asistencia);
 
       // 5. Enviar notificación de Telegram al apoderado
-      console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM 🔔🔔🔔');
-      console.log('📱 TelegramNotificationService disponible:', !!this.telegramNotificationService);
       
       try {
         await this.telegramNotificationService.notificarAsistenciaApoderado(asistencia);
-        console.log('✅✅✅ NOTIFICACIÓN TELEGRAM ENVIADA EXITOSAMENTE ✅✅✅');
       } catch (telegramError) {
-        console.error('[UpdateAsistenciaUseCase] Error enviando notificación Telegram:', telegramError);
         // No lanzamos error para no afectar la actualización de asistencia
       }
 
       return asistencia;
 
     } catch (error) {
-      console.error('[UpdateAsistenciaUseCase Error]', error);
       throw new InternalServerErrorException('Error actualizando asistencia.');
     }
   }

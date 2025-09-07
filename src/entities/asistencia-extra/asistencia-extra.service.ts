@@ -32,7 +32,6 @@ export class AsistenciaExtraService {
    */
   async create(createDto: CreateAsistenciaExtraDto, alumno: any): Promise<AsistenciaExtra> {
     try {
-      this.logger.log(`📝 Creando asistencia extra para alumno: ${alumno.id_alumno}`);
 
       // Determinar el estado basado en la hora de llegada vs hora límite
       const estado = this.determinarEstadoAsistencia(
@@ -51,7 +50,6 @@ export class AsistenciaExtraService {
 
       const asistenciaGuardada = await this.asistenciaExtraRepo.save(nuevaAsistenciaExtra);
       
-      this.logger.log(`✅ Asistencia extra creada exitosamente: ${asistenciaGuardada.id_asistencia_extra}`);
       
       // Enviar notificación de Telegram al apoderado
       await this.telegramNotificationService.notificarAsistenciaApoderado(asistenciaGuardada);
@@ -59,7 +57,6 @@ export class AsistenciaExtraService {
       return asistenciaGuardada;
 
     } catch (error) {
-      this.logger.error(`❌ Error creando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -69,15 +66,12 @@ export class AsistenciaExtraService {
    */
   async findAll(): Promise<AsistenciaExtra[]> {
     try {
-      this.logger.log(`🔍 Obteniendo todas las asistencias extra`);
       
       const asistenciasExtra = await this.asistenciaExtraRepo.findAllWithAlumnoYTurno();
       
-      this.logger.log(`✅ Encontradas ${asistenciasExtra.length} asistencias extra`);
       return asistenciasExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo asistencias extra: ${error.message}`);
       throw error;
     }
   }
@@ -87,15 +81,12 @@ export class AsistenciaExtraService {
    */
   async findByAlumnoAndDate(id_alumno: string, fecha: Date): Promise<AsistenciaExtra | null> {
     try {
-      this.logger.log(`🔍 Verificando asistencia extra para alumno: ${id_alumno} en fecha: ${fecha}`);
       
       const asistenciaExtra = await this.asistenciaExtraRepo.findByAlumnoAndDate(id_alumno, fecha);
       
-      this.logger.log(`✅ Verificación completada para alumno: ${id_alumno}`);
       return asistenciaExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error verificando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -105,7 +96,6 @@ export class AsistenciaExtraService {
    */
   async findOne(id: string): Promise<AsistenciaExtra> {
     try {
-      this.logger.log(`🔍 Obteniendo asistencia extra: ${id}`);
 
       const asistenciaExtra = await this.asistenciaExtraRepo.findOne(id);
       
@@ -113,11 +103,9 @@ export class AsistenciaExtraService {
         throw new NotFoundException(`Asistencia extra con ID ${id} no encontrada`);
       }
 
-      this.logger.log(`✅ Asistencia extra encontrada: ${id}`);
       return asistenciaExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -127,7 +115,6 @@ export class AsistenciaExtraService {
    */
   async update(id: string, updateDto: UpdateAsistenciaExtraDto): Promise<AsistenciaExtra> {
     try {
-      this.logger.log(`📝 Actualizando asistencia extra: ${id}`);
 
       // Verificar que existe
       await this.findOne(id);
@@ -135,11 +122,9 @@ export class AsistenciaExtraService {
       // Actualizar
       const asistenciaActualizada = await this.asistenciaExtraRepo.update(id, updateDto);
       
-      this.logger.log(`✅ Asistencia extra actualizada exitosamente: ${id}`);
       return asistenciaActualizada;
 
     } catch (error) {
-      this.logger.error(`❌ Error actualizando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -149,7 +134,6 @@ export class AsistenciaExtraService {
    */
   async remove(id: string): Promise<{ success: boolean; message: string }> {
     try {
-      this.logger.log(`🗑️ Eliminando asistencia extra: ${id}`);
 
       // Verificar que existe
       await this.findOne(id);
@@ -157,7 +141,6 @@ export class AsistenciaExtraService {
       // Eliminar
       await this.asistenciaExtraRepo.delete(id);
       
-      this.logger.log(`✅ Asistencia extra eliminada exitosamente: ${id}`);
       
       return {
         success: true,
@@ -165,7 +148,6 @@ export class AsistenciaExtraService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error eliminando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -189,7 +171,6 @@ export class AsistenciaExtraService {
    */
   async marcarComoAusente(id: string, observaciones?: string): Promise<AsistenciaExtra> {
     try {
-      this.logger.log(`📝 Marcando asistencia extra como ausente: ${id}`);
 
       const updateData: UpdateAsistenciaExtraDto = {
         estado_asistencia: EstadoAsistenciaExtra.AUSENTE_EXTRA,
@@ -199,7 +180,6 @@ export class AsistenciaExtraService {
       return await this.update(id, updateData);
 
     } catch (error) {
-      this.logger.error(`❌ Error marcando asistencia extra como ausente: ${error.message}`);
       throw error;
     }
   }
@@ -209,7 +189,6 @@ export class AsistenciaExtraService {
    */
   async marcarComoJustificada(id: string, observaciones: string): Promise<AsistenciaExtra> {
     try {
-      this.logger.log(`📝 Marcando asistencia extra como justificada: ${id}`);
 
       const updateData: UpdateAsistenciaExtraDto = {
         estado_asistencia: EstadoAsistenciaExtra.JUSTIFICADO_EXTRA,
@@ -219,7 +198,6 @@ export class AsistenciaExtraService {
       return await this.update(id, updateData);
 
     } catch (error) {
-      this.logger.error(`❌ Error marcando asistencia extra como justificada: ${error.message}`);
       throw error;
     }
   }
@@ -229,7 +207,6 @@ export class AsistenciaExtraService {
    */
   async anular(id: string, observaciones: string): Promise<AsistenciaExtra> {
     try {
-      this.logger.log(`📝 Anulando asistencia extra: ${id}`);
 
       const updateData: UpdateAsistenciaExtraDto = {
         estado_asistencia: EstadoAsistenciaExtra.ANULADO_EXTRA,
@@ -239,7 +216,6 @@ export class AsistenciaExtraService {
       return await this.update(id, updateData);
 
     } catch (error) {
-      this.logger.error(`❌ Error anulando asistencia extra: ${error.message}`);
       throw error;
     }
   }

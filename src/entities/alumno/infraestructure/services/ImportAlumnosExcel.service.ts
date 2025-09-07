@@ -81,7 +81,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
         try {
           // PASO 1: Crear ALUMNO
             const alumnoGuardado = await manager.save('ALUMNO', alumnoData);
-          console.log(`✅ Alumno creado: ${alumnoGuardado.nombre} (ID: ${alumnoGuardado.id_alumno})`);
           
           // PASO 2: Crear USUARIO para este alumno
           if (crearUsuarios) {
@@ -89,10 +88,8 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
               const usuario = new (await import('../../../usuario/usuario.entity')).Usuario();
               
               const nombreUsuario = this.generarNombreUsuario(datosOriginales);
-              console.log(`🔍 Generando nombre de usuario para: ${datosOriginales.nombre} → ${nombreUsuario}`);
               
               let nombreUsuarioUnico = await this.generarNombreUsuarioUnico(nombreUsuario, datosOriginales);
-              console.log(`✅ Nombre de usuario final: ${nombreUsuarioUnico}`);
               
               // VERIFICACIÓN DENTRO DE LA TRANSACCIÓN para evitar condición de carrera
               let usuarioExistente = await manager.findOne('USUARIO', { 
@@ -105,11 +102,9 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
               let nombreBase = nombreUsuario;
               
               while (usuarioExistente && intentos < 5) {
-                console.log(`⚠️ Usuario ${nombreUsuarioUnico} ya existe en transacción, regenerando...`);
                 
                 // Generar nombre con numeración incremental
                 nombreUsuarioUnico = `${nombreBase}${contadorNumeracion}`;
-                console.log(`🔄 Probando nombre incremental: ${nombreUsuarioUnico}`);
                 
                 // Verificar si este nombre está disponible
                 usuarioExistente = await manager.findOne('USUARIO', { 
@@ -120,7 +115,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
                 intentos++;
                 
                 if (!usuarioExistente) {
-                  console.log(`✅ Nombre incremental disponible: ${nombreUsuarioUnico}`);
                   break;
                 }
               }
@@ -128,7 +122,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
               if (usuarioExistente) {
                 // Si después de 5 intentos no se encuentra nombre único, usar timestamp
                 nombreUsuarioUnico = `${nombreBase}${Date.now().toString().slice(-4)}`;
-                console.log(`⚠️ Usando timestamp como último recurso: ${nombreUsuarioUnico}`);
                 
                 // Verificar una vez más
                 usuarioExistente = await manager.findOne('USUARIO', { 
@@ -140,7 +133,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
                 }
               }
               
-              console.log(`✅ Nombre de usuario final confirmado: ${nombreUsuarioUnico}`);
               
             usuario.nombre_usuario = nombreUsuarioUnico;
             // Generar contraseña por defecto: primerNombre + primerApellido + año (minúsculas)
@@ -153,7 +145,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
             usuario.profile_image = 'uploads/profiles/no-image.png';
             
             const usuarioGuardado = await manager.save('USUARIO', usuario);
-            console.log(`✅ Usuario creado: ${nombreUsuarioUnico} para alumno ${alumnoGuardado.nombre}`);
             
             // Guardar credenciales en archivo
             if (alumnoGuardado.codigo && alumnoGuardado.nombre && alumnoGuardado.apellido) {
@@ -163,7 +154,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
             // Asociar usuario con alumno
             alumnoGuardado.usuario = usuarioGuardado;
               await manager.save('ALUMNO', alumnoGuardado);
-            console.log(`✅ Usuario asociado con alumno ${alumnoGuardado.nombre}`);
               
               usuariosCreados++;
           }
@@ -171,7 +161,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
           // PASO 3: Crear ESTADO ACTIVO
             if (alumnoGuardado.id_alumno) {
               await this.crearEstadoAlumnoConManager(manager, alumnoGuardado.id_alumno);
-          console.log(`✅ Estado ACTIVO creado para alumno ${alumnoGuardado.nombre}`);
             } else {
               throw new Error(`No se pudo obtener ID del alumno creado: ${alumnoGuardado.nombre}`);
             }
@@ -179,7 +168,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
           alumnosGuardados.push(alumnoGuardado);
           
         } catch (error) {
-          console.error(`❌ Error procesando alumno ${alumnoData.nombre}:`, error);
             throw error; // Revertir transacción si hay error
         }
       }
@@ -189,12 +177,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
       const tiempoProcesamiento = Math.round((endTime - startTime) / 1000);
 
       // Log del resumen completo
-      console.log(`\n🎉 IMPORTACIÓN COMPLETADA EXITOSAMENTE:`);
-      console.log(`   📊 Total alumnos procesados: ${alumnosExcel.length}`);
-      console.log(`   ✅ Alumnos creados: ${alumnosGuardados.length}`);
-      console.log(`   👤 Usuarios creados: ${usuariosCreados}`);
-      console.log(`   ⏱️  Tiempo total: ${tiempoProcesamiento} segundos`);
-      console.log(`   🔄 Transacción: COMPLETADA\n`);
 
       // Generar respuesta exitosa
       return this.generarRespuestaExitosa(
@@ -206,7 +188,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
       );
 
     } catch (error) {
-      console.error('❌ Error en importación:', error);
       return this.generarRespuestaErrorServidor(
         error.message || 'Error interno del servidor',
         error,
@@ -222,26 +203,19 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     const nombre = (alumno.nombre || '').toString().trim();
     const apellido = (alumno.apellidoPaterno || alumno.apellidoMaterno || '').toString().trim();
     
-    console.log(`🔍 DEBUG generarNombreUsuario:`);
-    console.log(`   Nombre original: "${nombre}"`);
-    console.log(`   Apellido original: "${apellido}"`);
     
     if (nombre && apellido) {
       // Tomar SOLO el primer nombre y primer apellido, SIN ESPACIOS
       const primerNombre = nombre.split(' ')[0];
       const primerApellido = apellido.split(' ')[0];
       
-      console.log(`   Primer nombre: "${primerNombre}"`);
-      console.log(`   Primer apellido: "${primerApellido}"`);
       
       const resultado = `${primerNombre.toUpperCase()}.${primerApellido.toUpperCase()}`;
-      console.log(`   Resultado final: "${resultado}"`);
       
       return resultado;
     }
     
     const resultado = `${nombre.toUpperCase()}`;
-    console.log(`   Solo nombre: "${resultado}"`);
     return resultado;
   }
 
@@ -253,30 +227,25 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     let contador = 1;
     let intentoAlternativo = 1;
     
-    console.log(`🔍 Verificando si existe usuario: ${nombreUsuario}`);
     
     // Verificar si ya existe un usuario con ese nombre
     let usuarioExistente: any = await this.usuarioRepository.findByUsername(nombreUsuario);
     
     // Si existe, intentar con nombres alternativos primero
     while (usuarioExistente && intentoAlternativo <= 3) {
-      console.log(`🔄 Usuario ${nombreUsuario} ya existe, intentando alternativa ${intentoAlternativo}`);
       
       // Intentar con nombre alternativo
       nombreUsuario = this.generarNombreUsuarioAlternativo(alumnoData, intentoAlternativo);
-      console.log(`🔄 Probando nombre alternativo: ${nombreUsuario}`);
       
       usuarioExistente = await this.usuarioRepository.findByUsername(nombreUsuario);
       intentoAlternativo++;
       
       if (!usuarioExistente) {
-        console.log(`✅ Nombre alternativo disponible: ${nombreUsuario}`);
         return nombreUsuario;
       }
     }
     
     // Si los nombres alternativos también están ocupados, usar numeración
-    console.log(`⚠️ Todos los nombres alternativos están ocupados, usando numeración`);
     
     // IMPORTANTE: Reinicializar la verificación para la numeración
     usuarioExistente = true; // Forzar entrada al bucle
@@ -285,14 +254,12 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     // NUNCA devolver el nombre base, siempre generar uno único
     while (usuarioExistente) {
       nombreUsuario = `${nombreBase}${contador}`;
-      console.log(`🔄 Probando con numeración: ${nombreUsuario}`);
       
       usuarioExistente = await this.usuarioRepository.findByUsername(nombreUsuario);
       contador++;
       
       // Evitar bucle infinito (máximo 10 intentos)
       if (contador > 10) {
-        console.warn(`⚠️ Demasiados intentos para generar nombre único para: ${nombreBase}`);
         // Usar timestamp solo como último recurso
         nombreUsuario = `${nombreBase}${Date.now().toString().slice(-4)}`;
         break;
@@ -300,7 +267,6 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     }
     
     if (contador > 1) {
-      console.log(`🔄 Usuario duplicado, generando nombre único: ${nombreBase} → ${nombreUsuario}`);
     }
     
     return nombreUsuario;
@@ -313,27 +279,22 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     const nombre = (alumno.nombre || '').toString().trim();
     const apellido = (alumno.apellidoPaterno || alumno.apellidoMaterno || '').toString().trim();
     
-    console.log(`🔍 Generando alternativa ${intento} para: ${nombre} ${apellido}`);
     
     if (nombre && apellido) {
       const nombres = nombre.split(' ');
       const apellidos = apellido.split(' ');
       
-      console.log(`   Nombres disponibles: [${nombres.join(', ')}]`);
-      console.log(`   Apellidos disponibles: [${apellidos.join(', ')}]`);
       
       switch (intento) {
         case 1:
           // Primer intento: primer nombre + segundo apellido (si existe)
           if (apellidos.length > 1) {
             const resultado = `${nombres[0].toUpperCase()}.${apellidos[1].toUpperCase()}`;
-            console.log(`   Alternativa 1: ${nombres[0]} + ${apellidos[1]} = ${resultado}`);
             return resultado;
           }
           // Si no hay segundo apellido, usar segundo nombre + primer apellido
           if (nombres.length > 1) {
             const resultado = `${nombres[1].toUpperCase()}.${apellidos[0].toUpperCase()}`;
-            console.log(`   Alternativa 1: ${nombres[1]} + ${apellidos[0]} = ${resultado}`);
             return resultado;
           }
           break;
@@ -342,18 +303,15 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
           // Segundo intento: segundo nombre + segundo apellido (si ambos existen)
           if (nombres.length > 1 && apellidos.length > 1) {
             const resultado = `${nombres[1].toUpperCase()}.${apellidos[1].toUpperCase()}`;
-            console.log(`   Alternativa 2: ${nombres[1]} + ${apellidos[1]} = ${resultado}`);
             return resultado;
           }
           // Si no, usar tercer nombre o apellido
           if (nombres.length > 2) {
             const resultado = `${nombres[2].toUpperCase()}.${apellidos[0].toUpperCase()}`;
-            console.log(`   Alternativa 2: ${nombres[2]} + ${apellidos[0]} = ${resultado}`);
             return resultado;
           }
           if (apellidos.length > 2) {
             const resultado = `${nombres[0].toUpperCase()}.${apellidos[2].toUpperCase()}`;
-            console.log(`   Alternativa 2: ${nombres[0]} + ${apellidos[2]} = ${resultado}`);
             return resultado;
           }
           break;
@@ -362,12 +320,10 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
           // Tercer intento: combinaciones más específicas
           if (nombres.length > 2 && apellidos.length > 1) {
             const resultado = `${nombres[2].toUpperCase()}.${apellidos[1].toUpperCase()}`;
-            console.log(`   Alternativa 3: ${nombres[2]} + ${apellidos[1]} = ${resultado}`);
             return resultado;
           }
           if (nombres.length > 1 && apellidos.length > 2) {
             const resultado = `${nombres[1].toUpperCase()}.${apellidos[2].toUpperCase()}`;
-            console.log(`   Alternativa 3: ${nombres[1]} + ${apellidos[2]} = ${resultado}`);
             return resultado;
           }
           break;
@@ -375,14 +331,12 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
     }
     
     // Si no se puede generar alternativa, crear una combinación única
-    console.log(`   No se pudo generar alternativa estándar, creando combinación única`);
     
     // Usar el primer nombre + timestamp para garantizar unicidad
     const primerNombre = nombre.split(' ')[0];
     const timestamp = Date.now().toString().slice(-4);
     const resultado = `${primerNombre.toUpperCase()}.${timestamp}`;
     
-    console.log(`   Combinación única generada: ${resultado}`);
     return resultado;
   }
 
@@ -399,9 +353,7 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
 
       await manager.save('ESTADO_ALUMNO', estadoAlumno);
       
-      console.log(`✅ Estado ACTIVO creado para alumno ID: ${idAlumno}`);
     } catch (error) {
-      console.error(`❌ Error al crear estado para alumno ID: ${idAlumno}:`, error);
       throw error; // Revertir transacción si hay error
     }
   }
@@ -420,9 +372,7 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
       const estadoRepo = this.dataSource.getRepository(EstadoAlumno);
       await estadoRepo.save(estadoAlumno);
       
-      console.log(`✅ Estado ACTIVO creado para alumno ID: ${idAlumno}`);
     } catch (error) {
-      console.error(`❌ Error al crear estado para alumno ID: ${idAlumno}:`, error);
       // No lanzar error para no detener el proceso de importación
     }
   }
@@ -584,9 +534,7 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
       // Agregar las credenciales al final del archivo
       fs.appendFileSync(archivoPath, lineaCredenciales);
       
-      console.log(`✅ Credenciales guardadas en password-alumnos.txt para alumno: ${codigo}`);
     } catch (error) {
-      console.error(`❌ Error al guardar credenciales en archivo: ${error.message}`);
       // No lanzar error para no detener el proceso de creación del alumno
     }
   }

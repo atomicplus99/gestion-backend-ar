@@ -24,7 +24,6 @@ export class UsuarioFotoService {
   private ensureUploadDirectory(): void {
     if (!fs.existsSync(this.uploadPath)) {
       fs.mkdirSync(this.uploadPath, { recursive: true });
-      this.logger.log(`📁 Directorio de upload creado: ${this.uploadPath}`);
     }
   }
 
@@ -59,7 +58,6 @@ export class UsuarioFotoService {
    */
   private async processImage(inputPath: string, outputPath: string): Promise<void> {
     try {
-      this.logger.log(`🔄 Procesando imagen: ${inputPath} -> ${outputPath}`);
       
       // Verificar que el archivo de entrada existe
       if (!fs.existsSync(inputPath)) {
@@ -70,7 +68,6 @@ export class UsuarioFotoService {
       const outputDir = path.dirname(outputPath);
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
-        this.logger.log(`📁 Directorio de salida creado: ${outputDir}`);
       }
       
       await sharp(inputPath)
@@ -81,10 +78,7 @@ export class UsuarioFotoService {
         .jpeg({ quality: 90 })
         .toFile(outputPath);
       
-      this.logger.log(`✅ Imagen procesada y redimensionada: ${outputPath}`);
     } catch (error) {
-      this.logger.error(`❌ Error procesando imagen: ${error.message}`);
-      this.logger.error(`❌ Stack trace: ${error.stack}`);
       throw new BadRequestException(`Error procesando la imagen: ${error.message}`);
     }
   }
@@ -94,24 +88,18 @@ export class UsuarioFotoService {
    */
   async uploadProfilePhoto(userId: string, file: Express.Multer.File): Promise<string> {
     try {
-      this.logger.log(`🔄 Iniciando subida de foto para usuario: ${userId}`);
-      this.logger.log(`📁 Archivo recibido: ${file.originalname}, tamaño: ${file.size}, tipo: ${file.mimetype}`);
-      this.logger.log(`📁 Ruta temporal: ${file.path}`);
       
       this.validateFile(file);
       
       const fileName = this.generateFileName(userId, file.originalname);
       const filePath = path.join(this.uploadPath, fileName);
       
-      this.logger.log(`📁 Ruta de destino: ${filePath}`);
       
       // Si el archivo no tiene ruta temporal, crear un archivo temporal
       let tempFilePath = file.path;
       if (!tempFilePath || !fs.existsSync(tempFilePath)) {
-        this.logger.log(`⚠️ Archivo temporal no encontrado, creando uno nuevo`);
         tempFilePath = path.join(this.uploadPath, `temp_${Date.now()}_${file.originalname}`);
         fs.writeFileSync(tempFilePath, file.buffer);
-        this.logger.log(`📁 Archivo temporal creado: ${tempFilePath}`);
       }
       
       // Procesar y redimensionar la imagen
@@ -120,25 +108,19 @@ export class UsuarioFotoService {
       // Eliminar archivo temporal
       if (fs.existsSync(tempFilePath)) {
         fs.unlinkSync(tempFilePath);
-        this.logger.log(`🗑️ Archivo temporal eliminado: ${tempFilePath}`);
       }
       
       const relativePath = `usuarios/${fileName}`;
-      this.logger.log(`✅ Foto de perfil subida para usuario ${userId}: ${relativePath}`);
       
       return relativePath;
       
     } catch (error) {
-      this.logger.error(`❌ Error en uploadProfilePhoto: ${error.message}`);
-      this.logger.error(`❌ Stack trace: ${error.stack}`);
       
       // Limpiar archivo temporal en caso de error
       if (file && file.path && fs.existsSync(file.path)) {
         try {
           fs.unlinkSync(file.path);
-          this.logger.log(`🗑️ Archivo temporal eliminado tras error: ${file.path}`);
         } catch (cleanupError) {
-          this.logger.error(`❌ Error limpiando archivo temporal: ${cleanupError.message}`);
         }
       }
       throw error;
@@ -158,7 +140,6 @@ export class UsuarioFotoService {
     if (fs.existsSync(fullPath)) {
       return profileImage;
     } else {
-      this.logger.warn(`⚠️ Archivo de foto no encontrado: ${profileImage}`);
       return 'no-image.png';
     }
   }
@@ -177,10 +158,8 @@ export class UsuarioFotoService {
     try {
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
-        this.logger.log(`✅ Foto de perfil eliminada: ${profileImage}`);
       }
     } catch (error) {
-      this.logger.error(`❌ Error eliminando foto de perfil: ${error.message}`);
       throw new BadRequestException('Error eliminando la foto de perfil');
     }
   }

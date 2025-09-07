@@ -6,8 +6,6 @@ import { AlumnoExcelData } from '../../domain/dtos/ImportAlumnosExcel.dto';
 export class ExcelProcessorService {
   processExcelFile(file: Express.Multer.File): AlumnoExcelData[] {
     try {
-      console.log('🔍 [ExcelProcessor] Procesando archivo:', file.originalname);
-      console.log('🔍 [ExcelProcessor] Tamaño del archivo:', file.size, 'bytes');
       
       // Leer el archivo Excel
       const workbook = XLSX.read(file.buffer, { type: 'buffer' });
@@ -22,15 +20,9 @@ export class ExcelProcessorService {
         header: 1
       }) as any[][];
 
-      console.log('🔍 [ExcelProcessor] Datos raw del archivo:');
-      console.log('🔍 [ExcelProcessor] Total de filas:', rawData.length);
-      console.log('🔍 [ExcelProcessor] Primera fila:', rawData[0]);
-      console.log('🔍 [ExcelProcessor] Segunda fila:', rawData[1]);
-      console.log('🔍 [ExcelProcessor] Tercera fila:', rawData[2]);
       
       // Analizar estructura del Excel
       const startRow = this.findHeaderRow(rawData);
-      console.log('🔍 [ExcelProcessor] Fila de cabecera encontrada en índice:', startRow);
       
       if (startRow === -1 || startRow + 1 >= rawData.length) {
         throw new BadRequestException('Formato de archivo no válido: No se encontraron las cabeceras esperadas');
@@ -54,11 +46,9 @@ export class ExcelProcessorService {
   }
 
   private findHeaderRow(rawData: any[][]): number {
-    console.log('🔍 [ExcelProcessor] Buscando fila de cabecera...');
     
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
-      console.log(`🔍 [ExcelProcessor] Revisando fila ${i}:`, row);
       
       if (row && Array.isArray(row)) {
         // Buscar grados (PRIMERO, SEGUNDO, TERCERO, CUARTO, QUINTO)
@@ -77,16 +67,13 @@ export class ExcelProcessorService {
            cell.trim() === 'J' || cell.includes('SECCIÓN') || cell.includes('SECCION'))
         );
         
-        console.log(`🔍 [ExcelProcessor] Fila ${i} - hasGrado: ${hasGrado}, hasSeccion: ${hasSeccion}`);
         
         if (hasGrado && hasSeccion) {
-          console.log(`🔍 [ExcelProcessor] ¡Cabecera encontrada en fila ${i}!`);
           return i;
         }
       }
     }
     
-    console.log('🔍 [ExcelProcessor] No se encontró fila de cabecera válida');
     return -1;
   }
 

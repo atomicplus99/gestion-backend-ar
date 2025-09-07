@@ -52,30 +52,17 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       const fechaTurnoStr = fechaTurno.toISOString().split('T')[0];
       const fechaLimiteStr = fechaLimite.toISOString().split('T')[0];
       
-      console.log(`🔍 DEBUG BÚSQUEDA TURNO EXTRA:`);
-      console.log(`   - Fecha inicio turno extra: ${fechaTurnoStr}`);
-      console.log(`   - Fecha límite turno extra: ${fechaLimiteStr}`);
-      console.log(`   - Fecha actual: ${fechaActualStr}`);
-      console.log(`   - ¿Fecha actual >= fecha inicio? ${fechaActualStr >= fechaTurnoStr}`);
-      console.log(`   - ¿Fecha actual <= fecha límite? ${fechaActualStr <= fechaLimiteStr}`);
-      console.log(`   - Estado turno extra: ${turno.estado}`);
-      console.log(`   - ¿Estado ACTIVO? ${turno.estado === 'ACTIVO'}`);
       
       // Verificar que la fecha actual esté dentro del rango del turno extra
       const fechaEnRango = fechaActualStr >= fechaTurnoStr && fechaActualStr <= fechaLimiteStr;
       const estadoActivo = turno.estado === 'ACTIVO';
       
-      console.log(`   - ¿Fecha en rango? ${fechaEnRango}`);
-      console.log(`   - ¿Estado activo? ${estadoActivo}`);
-      console.log(`   - ¿Turno extra válido? ${fechaEnRango && estadoActivo}`);
       
       return fechaEnRango && estadoActivo;
     });
     
     if (turnoExtraHoy) {
-      console.log(`✅ TURNO EXTRA ENCONTRADO para hoy: ${turnoExtraHoy.observaciones}`);
     } else {
-      console.log(`❌ NO se encontró turno extra para hoy`);
     }
 
     // 🔒 VALIDACIÓN CRÍTICA: Verificar que la hora actual esté dentro del rango del turno O del turno extra
@@ -93,20 +80,10 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       const ventanaToleranciaMinutos = 2 * 60; // 2 horas en minutos
       const horaMinimaEntrada = horaInicioMinutos - ventanaToleranciaMinutos;
       
-      console.log(`🔍 DEBUG TURNO REGULAR (en minutos):`);
-      console.log(`   - Hora actual: ${horaActual} (${horaActualMinutos} min)`);
-      console.log(`   - Hora inicio turno: ${turno.hora_inicio} (${horaInicioMinutos} min)`);
-      console.log(`   - Hora fin turno: ${turno.hora_fin} (${horaFinMinutos} min)`);
-      console.log(`   - Ventana tolerancia: 2 horas antes`);
-      console.log(`   - Hora mínima entrada: ${horaMinimaEntrada} min (${Math.floor(horaMinimaEntrada/60)}:${(horaMinimaEntrada%60).toString().padStart(2,'0')})`);
-      console.log(`   - Comparación: ${horaActualMinutos} >= ${horaMinimaEntrada} = ${horaActualMinutos >= horaMinimaEntrada}`);
-      console.log(`   - Comparación: ${horaActualMinutos} <= ${horaFinMinutos} = ${horaActualMinutos <= horaFinMinutos}`);
       
       if (horaActualMinutos >= horaMinimaEntrada && horaActualMinutos <= horaFinMinutos) {
         horaValida = true;
-        console.log(`✅ Hora válida para turno regular (dentro de ventana de tolerancia)`);
       } else {
-        console.log(`❌ Hora NO válida para turno regular`);
       }
     }
     
@@ -116,20 +93,12 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       const horaEntradaMinutos = convertirHoraAMinutos(turnoExtraHoy.hora_entrada);
       const horaSalidaMinutos = convertirHoraAMinutos(turnoExtraHoy.hora_salida);
       
-      console.log(`🔍 DEBUG TURNO EXTRA (en minutos):`);
-      console.log(`   - Hora actual: ${horaActual} (${horaActualMinutos} min)`);
-      console.log(`   - Hora entrada turno extra: ${turnoExtraHoy.hora_entrada} (${horaEntradaMinutos} min)`);
-      console.log(`   - Hora salida turno extra: ${turnoExtraHoy.hora_salida} (${horaSalidaMinutos} min)`);
-      console.log(`   - Comparación: ${horaActualMinutos} >= ${horaEntradaMinutos} = ${horaActualMinutos >= horaEntradaMinutos}`);
-      console.log(`   - Comparación: ${horaActualMinutos} <= ${horaSalidaMinutos} = ${horaActualMinutos <= horaSalidaMinutos}`);
       
       // Para turnos extra: NO hay ventana de tolerancia, debe llegar exactamente en su hora
       if (horaActualMinutos >= horaEntradaMinutos && horaActualMinutos <= horaSalidaMinutos) {
         horaValida = true;
         dentroHorarioExtra = true;
-        console.log(`✅ Hora válida para turno extra (sin tolerancia)`);
       } else {
-        console.log(`❌ Hora NO válida para turno extra (fuera del horario exacto)`);
       }
     }
 
@@ -172,9 +141,6 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
         const asistenciaExtraGuardada = await this.asistenciaExtraService.create(createAsistenciaExtraDto, alumno);
         
-        console.log(`✅ Asistencia extra registrada:`);
-        console.log(`   - Hora actual: ${horaActual}`);
-        console.log(`   - Hora oficial entrada extra: ${horaOficialEntradaExtra}`);
         
         return asistenciaExtraGuardada;
       }
@@ -201,10 +167,6 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
       const asistenciaGuardada = await this.asistenciaRepo.save(nuevaAsistencia);
       
-      console.log(`✅ Asistencia registrada:`);
-      console.log(`   - Hora actual: ${horaActual}`);
-      console.log(`   - Hora oficial entrada: ${horaOficialEntrada}`);
-      console.log(`   - Estado: ${estado}`);
       
       // Enviar notificación de Telegram al apoderado
       await this.telegramNotificationService.notificarAsistenciaApoderado(asistenciaGuardada);
@@ -244,9 +206,6 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
             const asistenciaExtraGuardada = await this.asistenciaExtraService.create(createAsistenciaExtraDto, alumno);
             
-            console.log(`✅ Asistencia extra registrada:`);
-            console.log(`   - Hora actual: ${horaActual}`);
-            console.log(`   - Hora oficial entrada extra: ${horaOficialEntradaExtra}`);
             
             return asistenciaExtraGuardada;
           } else {
@@ -270,10 +229,6 @@ export class RegistrarAsistenciaDesdeQRUseCase {
                  { hora_salida: horaActual }
                );
                
-               console.log(`✅ Salida registrada para asistencia extra:`);
-               console.log(`   - Hora real de salida: ${horaActual}`);
-               console.log(`   - Hora fin turno extra oficial: ${turnoExtraHoy.hora_salida}`);
-               console.log(`   - Salida registrada con hora real del alumno`);
                return asistenciaExtraActualizada;
             } else {
               throw new BadRequestException('Ya se registró la entrada y salida del turno extra de hoy');
@@ -320,10 +275,6 @@ export class RegistrarAsistenciaDesdeQRUseCase {
           // La hora de salida debe ser la hora REAL cuando marca, no la hora oficial
           asistencia.hora_salida = horaActual;
           
-          console.log(`✅ Salida registrada para turno regular:`);
-          console.log(`   - Hora real de salida: ${horaActual}`);
-          console.log(`   - Hora fin turno oficial: ${horaFin}`);
-          console.log(`   - Salida registrada con hora real del alumno`);
           
           return this.asistenciaRepo.save(asistencia);
        }

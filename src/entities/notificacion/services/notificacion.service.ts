@@ -38,7 +38,6 @@ export class NotificacionService {
    */
   async create(createNotificacionDto: CreateNotificacionDto): Promise<Notificacion> {
     try {
-      this.logger.log(`📝 Creando notificación: ${createNotificacionDto.titulo}`);
 
       const notificacion = this.notificacionRepository.create({
         ...createNotificacionDto,
@@ -49,11 +48,9 @@ export class NotificacionService {
 
       const savedNotificacion = await this.notificacionRepository.save(notificacion);
       
-      this.logger.log(`✅ Notificación creada exitosamente: ${savedNotificacion.id}`);
       return savedNotificacion;
 
     } catch (error) {
-      this.logger.error(`❌ Error creando notificación: ${error.message}`);
       throw error;
     }
   }
@@ -129,7 +126,6 @@ export class NotificacionService {
       });
 
     } catch (error) {
-      this.logger.error(`❌ Error creando notificación de scheduler: ${error.message}`);
       throw error;
     }
   }
@@ -150,7 +146,6 @@ export class NotificacionService {
         limit = 10
       } = filters;
 
-      this.logger.log(`🔍 Buscando notificaciones con filtros: ${JSON.stringify(filters)}`);
 
       const queryBuilder = this.notificacionRepository.createQueryBuilder('notificacion')
         .leftJoinAndSelect('notificacion.usuario', 'usuario')
@@ -187,7 +182,6 @@ export class NotificacionService {
 
       const [notificaciones, total] = await queryBuilder.getManyAndCount();
 
-      this.logger.log(`✅ Encontradas ${notificaciones.length} notificaciones de ${total} total`);
 
       return {
         success: true,
@@ -204,7 +198,6 @@ export class NotificacionService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo notificaciones: ${error.message}`);
       throw error;
     }
   }
@@ -249,11 +242,9 @@ export class NotificacionService {
         }
       });
 
-      this.logger.log(`✅ Notificación de cancelación creada: ${notificacion.id}`);
       return notificacion;
 
     } catch (error) {
-      this.logger.error(`❌ Error creando notificación de cancelación: ${error.message}`);
       throw error;
     }
   }
@@ -263,22 +254,18 @@ export class NotificacionService {
    */
   async findOne(id: string): Promise<Notificacion | null> {
     try {
-      this.logger.log(`🔍 Buscando notificación: ${id}`);
 
       const notificacion = await this.notificacionRepository.findOne({
         where: { id }
       });
 
       if (!notificacion) {
-        this.logger.warn(`⚠️ Notificación no encontrada: ${id}`);
         return null;
       }
 
-      this.logger.log(`✅ Notificación encontrada: ${id}`);
       return notificacion;
 
     } catch (error) {
-      this.logger.error(`❌ Error buscando notificación: ${error.message}`);
       throw error;
     }
   }
@@ -288,7 +275,6 @@ export class NotificacionService {
    */
   async markAsRead(id: string): Promise<Notificacion> {
     try {
-      this.logger.log(`📖 Marcando notificación como leída: ${id}`);
 
       const notificacion = await this.notificacionRepository.findOne({
         where: { id }
@@ -303,11 +289,9 @@ export class NotificacionService {
 
       const updatedNotificacion = await this.notificacionRepository.save(notificacion);
       
-      this.logger.log(`✅ Notificación marcada como leída: ${id}`);
       return updatedNotificacion;
 
     } catch (error) {
-      this.logger.error(`❌ Error marcando notificación como leída: ${error.message}`);
       throw error;
     }
   }
@@ -317,7 +301,6 @@ export class NotificacionService {
    */
   async markAllAsRead(usuario_id?: string): Promise<void> {
     try {
-      this.logger.log(`📖 Marcando todas las notificaciones como leídas`);
 
       const queryBuilder = this.notificacionRepository.createQueryBuilder()
         .update(Notificacion)
@@ -333,10 +316,8 @@ export class NotificacionService {
 
       const result = await queryBuilder.execute();
       
-      this.logger.log(`✅ ${result.affected} notificaciones marcadas como leídas`);
 
     } catch (error) {
-      this.logger.error(`❌ Error marcando todas las notificaciones como leídas: ${error.message}`);
       throw error;
     }
   }
@@ -357,7 +338,6 @@ export class NotificacionService {
       return count;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo contador de notificaciones no leídas: ${error.message}`);
       return 0;
     }
   }
@@ -367,7 +347,6 @@ export class NotificacionService {
    */
   async remove(id: string): Promise<void> {
     try {
-      this.logger.log(`🗑️ Eliminando notificación: ${id}`);
 
       const result = await this.notificacionRepository.delete(id);
       
@@ -375,10 +354,8 @@ export class NotificacionService {
         throw new Error('Notificación no encontrada');
       }
 
-      this.logger.log(`✅ Notificación eliminada: ${id}`);
 
     } catch (error) {
-      this.logger.error(`❌ Error eliminando notificación: ${error.message}`);
       throw error;
     }
   }

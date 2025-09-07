@@ -41,12 +41,10 @@ export class DirectorService {
       const director = this.directorRepository.create(createDirectorDto);
       const directorGuardado = await this.directorRepository.save(director);
       
-      this.logger.log(`✅ Director creado: ${directorGuardado.nombres} ${directorGuardado.apellidos}`);
       
       return directorGuardado as DirectorResponseDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error creando director: ${error.message}`);
       throw error;
     }
   }
@@ -87,7 +85,6 @@ export class DirectorService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo directores: ${error.message}`);
       throw error;
     }
   }
@@ -109,7 +106,6 @@ export class DirectorService {
       return director as DirectorResponseDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo director ${id}: ${error.message}`);
       throw error;
     }
   }
@@ -143,12 +139,10 @@ export class DirectorService {
       
       const directorActualizado = await this.directorRepository.save(director);
       
-      this.logger.log(`✅ Director actualizado: ${directorActualizado.nombres} ${directorActualizado.apellidos}`);
       
       return directorActualizado as DirectorResponseDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error actualizando director ${id}: ${error.message}`);
       throw error;
     }
   }
@@ -176,13 +170,10 @@ export class DirectorService {
       // DESPUÉS eliminar el usuario (si existe)
       if (usuarioAEliminar) {
         await this.usuarioService.remove(usuarioAEliminar.id_user);
-        this.logger.log(`✅ Usuario eliminado: ${usuarioAEliminar.nombre_usuario}`);
       }
       
-      this.logger.log(`✅ Director eliminado: ${director.nombres} ${director.apellidos}`);
 
     } catch (error) {
-      this.logger.error(`❌ Error eliminando director ${id}: ${error.message}`);
       throw error;
     }
   }
@@ -201,7 +192,6 @@ export class DirectorService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo estadísticas: ${error.message}`);
       throw error;
     }
   }
@@ -254,7 +244,6 @@ export class DirectorService {
       });
 
       const directorGuardado = await this.directorRepository.save(director);
-      this.logger.log(`Usuario ${id_user} asignado a director: ${directorGuardado.id_director}`);
 
       return {
         id_director: directorGuardado.id_director,
@@ -266,7 +255,6 @@ export class DirectorService {
         id_user: directorGuardado.usuario?.id_user
       };
     } catch (error) {
-      this.logger.error(`Error asignando usuario a director: ${error.message}`);
       throw error;
     }
   }
@@ -307,7 +295,6 @@ export class DirectorService {
         throw new NotFoundException('Director no encontrado después de la actualización');
       }
 
-      this.logger.log(`Usuario del director ${id_director} cambiado a ${nuevo_id_user}`);
 
       return {
         id_director: directorActualizado.id_director,
@@ -319,7 +306,6 @@ export class DirectorService {
         id_user: directorActualizado.usuario?.id_user
       };
     } catch (error) {
-      this.logger.error(`Error cambiando usuario del director: ${error.message}`);
       throw error;
     }
   }

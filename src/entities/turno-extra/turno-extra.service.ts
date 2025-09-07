@@ -46,7 +46,6 @@ export class TurnoExtraService {
    */
   async create(createDto: CreateTurnoExtraDto): Promise<TurnoExtra> {
     try {
-      this.logger.log(`📝 Creando turno extra para alumno: ${createDto.alumno_id}`);
 
       // 1. Validar que el alumno existe
       const alumno = await this.alumnoRepository.findOne({
@@ -103,11 +102,9 @@ export class TurnoExtraService {
 
       const savedTurnoExtra = await this.turnoExtraRepository.save(turnoExtra);
       
-      this.logger.log(`✅ Turno extra creado exitosamente: ${savedTurnoExtra.id}`);
       return savedTurnoExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error creando turno extra: ${error.message}`);
       throw error;
     }
   }
@@ -117,18 +114,15 @@ export class TurnoExtraService {
    */
   async findAll(): Promise<TurnoExtra[]> {
     try {
-      this.logger.log(`🔍 Obteniendo todos los turnos extra`);
 
       const turnosExtra = await this.turnoExtraRepository.find({
         relations: ['alumno', 'usuario'],
         order: { fecha_creacion: 'DESC' }
       });
 
-      this.logger.log(`✅ Encontrados ${turnosExtra.length} turnos extra`);
       return turnosExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo turnos extra: ${error.message}`);
       throw error;
     }
   }
@@ -138,7 +132,6 @@ export class TurnoExtraService {
    */
   async findByAlumno(alumno_id: string): Promise<TurnoExtra[]> {
     try {
-      this.logger.log(`🔍 Obteniendo turnos extra del alumno: ${alumno_id}`);
 
       // Validar que el alumno existe
       const alumno = await this.alumnoRepository.findOne({
@@ -155,11 +148,9 @@ export class TurnoExtraService {
         order: { fecha_creacion: 'DESC' }
       });
 
-      this.logger.log(`✅ Encontrados ${turnosExtra.length} turnos extra para el alumno`);
       return turnosExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo turnos extra del alumno: ${error.message}`);
       throw error;
     }
   }
@@ -169,7 +160,6 @@ export class TurnoExtraService {
    */
   async findOne(id: string): Promise<TurnoExtra> {
     try {
-      this.logger.log(`🔍 Obteniendo turno extra: ${id}`);
 
       const turnoExtra = await this.turnoExtraRepository.findOne({
         where: { id },
@@ -180,11 +170,9 @@ export class TurnoExtraService {
         throw new NotFoundException(`Turno extra con ID ${id} no encontrado`);
       }
 
-      this.logger.log(`✅ Turno extra encontrado: ${id}`);
       return turnoExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo turno extra: ${error.message}`);
       throw error;
     }
   }
@@ -194,7 +182,6 @@ export class TurnoExtraService {
    */
   async update(id: string, updateDto: UpdateTurnoExtraDto): Promise<TurnoExtra> {
     try {
-      this.logger.log(`📝 Actualizando turno extra: ${id}`);
 
       // 1. Verificar que el turno extra existe
       const turnoExtra = await this.findOne(id);
@@ -230,11 +217,9 @@ export class TurnoExtraService {
         ...updateDto
       });
 
-      this.logger.log(`✅ Turno extra actualizado exitosamente: ${id}`);
       return updatedTurnoExtra;
 
     } catch (error) {
-      this.logger.error(`❌ Error actualizando turno extra: ${error.message}`);
       throw error;
     }
   }
@@ -244,7 +229,6 @@ export class TurnoExtraService {
    */
   async remove(id: string): Promise<{ success: boolean; message: string }> {
     try {
-      this.logger.log(`🗑️ Eliminando turno extra: ${id}`);
 
       const turnoExtra = await this.findOne(id);
 
@@ -257,14 +241,12 @@ export class TurnoExtraService {
 
       await this.turnoExtraRepository.remove(turnoExtra);
 
-      this.logger.log(`✅ Turno extra eliminado exitosamente: ${id}`);
       return {
         success: true,
         message: 'Turno extra eliminado exitosamente'
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error eliminando turno extra: ${error.message}`);
       throw error;
     }
   }
@@ -315,12 +297,6 @@ export class TurnoExtraService {
       const haySolapamiento = !turnoExtraEnHorarioPermitido;
 
       // Logs detallados para debugging
-      this.logger.log(`🔍 Validando horarios para alumno: ${alumnoId}`);
-      this.logger.log(`📅 Turno regular: ${turnoAlumno.turno} (${turnoAlumno.hora_inicio} - ${turnoAlumno.hora_fin})`);
-      this.logger.log(`📅 Turno extra: ${horaEntrada} - ${horaSalida}`);
-      this.logger.log(`⏰ Turno regular en minutos: ${horaInicioTurno} - ${horaFinTurno}`);
-      this.logger.log(`⏰ Turno extra en minutos: ${horaEntradaMinutos} - ${horaSalidaMinutos}`);
-      this.logger.log(`🚨 ¿Hay solapamiento? ${haySolapamiento}`);
 
       if (haySolapamiento) {
         const mensajeError = `El turno extra no puede estar antes o durante el turno regular del alumno (${turnoAlumno.turno}). ` +
@@ -328,14 +304,11 @@ export class TurnoExtraService {
           `Horario del turno extra: ${horaEntrada} - ${horaSalida}. ` +
           `El turno extra debe ser DESPUÉS de las ${turnoAlumno.hora_fin}`;
         
-        this.logger.error(`❌ ${mensajeError}`);
         throw new BadRequestException(mensajeError);
       }
 
-      this.logger.log(`✅ Horarios validados - no hay conflicto con turnos regulares`);
 
     } catch (error) {
-      this.logger.error(`❌ Error validando horarios: ${error.message}`);
       throw error;
     }
   }
@@ -352,7 +325,6 @@ export class TurnoExtraService {
     excludeId?: string
   ): Promise<void> {
     try {
-      this.logger.log(`🔍 Validando turnos extra duplicados para alumno: ${alumnoId}`);
 
       // Convertir fechas a objetos Date si son strings
       const fechaTurnoDate = fechaTurno instanceof Date ? fechaTurno : new Date(fechaTurno);
@@ -420,16 +392,13 @@ export class TurnoExtraService {
                `Motivo: ${turnoExtraExistente.observaciones}. ` +
                `Nuevo turno extra: ${fechaTurnoStr} - ${fechaLimiteStr} (${horaEntrada} - ${horaSalida})`;
 
-             this.logger.error(`❌ ${mensajeError}`);
              throw new BadRequestException(mensajeError);
            }
         }
       }
 
-      this.logger.log(`✅ No se encontraron turnos extra duplicados o superpuestos`);
 
     } catch (error) {
-      this.logger.error(`❌ Error validando turnos extra duplicados: ${error.message}`);
       throw error;
     }
   }
@@ -439,7 +408,6 @@ export class TurnoExtraService {
    */
   async marcarTurnosExpirados(): Promise<number> {
     try {
-      this.logger.log(`🔄 Marcando turnos extra expirados`);
 
       const fechaActual = new Date();
       fechaActual.setHours(0, 0, 0, 0);
@@ -455,12 +423,10 @@ export class TurnoExtraService {
       );
 
       const turnosExpirados = resultado.affected || 0;
-      this.logger.log(`✅ ${turnosExpirados} turnos extra marcados como expirados`);
 
       return turnosExpirados;
 
     } catch (error) {
-      this.logger.error(`❌ Error marcando turnos expirados: ${error.message}`);
       throw error;
     }
   }

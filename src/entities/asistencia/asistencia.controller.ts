@@ -151,8 +151,6 @@ export class AsistenciaController {
   })
   async crearAsistenciaManualEndpoint(@Body() body: CreateAsistenciaManualDto, @Req() req: Request): Promise<RegistroAsistenciaResponseManual> {
     // Logs para depurar qué envía el frontend
-    this.logger.log('🟧 [POST /asistencia/manual] Body recibido (DTO): ' + JSON.stringify(body));
-    console.log('[POST /asistencia/manual] body (raw obj):', body);
     this.logger.log(
       `🟧 Campos -> id_alumno=${(body as any)?.id_alumno} | id_auxiliar=${(body as any)?.id_auxiliar} | id_usuario=${(body as any)?.id_usuario} | estado_asistencia=${(body as any)?.estado_asistencia} | hora_de_llegada=${(body as any)?.hora_de_llegada} | hora_salida=${(body as any)?.hora_salida} | fecha=${(body as any)?.fecha} | motivo_len=${(body as any)?.motivo ? String((body as any).motivo).length : 0}`
     );
@@ -161,7 +159,6 @@ export class AsistenciaController {
     try {
       const forwarded = (req.headers['x-forwarded-for'] as string) || '';
       const ip = forwarded.split(',')[0] || req.ip;
-      this.logger.log(`🟦 Request: method=${req.method} url=${req.originalUrl || req.url} ip=${ip}`);
       this.logger.log(`🟦 Headers: ${JSON.stringify({
         authorization: req.headers['authorization'] || null,
         'content-type': req.headers['content-type'] || null,
@@ -172,7 +169,6 @@ export class AsistenciaController {
         'x-forwarded-for': req.headers['x-forwarded-for'] || null,
       })}`);
     } catch (e) {
-      console.log('Error registrando headers de la solicitud:', e);
     }
 
     const asistencia = await this.crearAsistenciaManual.execute(body);
@@ -308,7 +304,6 @@ async updateAsistencia(
     @Query('fecha') fecha?: string,
   ): Promise<VerificarAsistenciaResponse> {
     try {
-      console.log('🔍 [AsistenciaController] Verificando asistencia para código:', codigo, 'fecha:', fecha);
 
       // Si no se proporciona fecha, usar fecha actual en zona horaria de Perú (UTC-5)
       let fechaDate: Date;
@@ -321,7 +316,6 @@ async updateAsistencia(
         // Construir fecha a las 00:00:00 en hora local de Perú
         fechaDate = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
         
-        console.log('📅 [AsistenciaController] No se proporcionó fecha, usando fecha actual Perú:', fechaDate.toISOString().split('T')[0]);
       } else {
         fechaDate = new Date(fecha);
         
@@ -332,12 +326,10 @@ async updateAsistencia(
 
       const resultado = await this.verificarAsistenciaUseCase.execute(codigo, fechaDate);
 
-      console.log('✅ [AsistenciaController] Verificación completada:', resultado.tiene_asistencia);
       
       return resultado;
 
     } catch (error) {
-      console.error('❌ [AsistenciaController] Error al verificar asistencia:', error);
       
       if (error instanceof BadRequestException) {
         throw error;

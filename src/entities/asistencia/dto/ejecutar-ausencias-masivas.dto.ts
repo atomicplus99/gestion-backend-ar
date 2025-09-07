@@ -46,15 +46,9 @@ export class EjecutarAusenciasMasivasDto {
 
   // Constructor para logging
   constructor() {
-    console.log('🔍 [DTO] Constructor EjecutarAusenciasMasivasDto llamado');
   }
 
   // Método para logging cuando se valida
   afterLoad() {
-    console.log('🔍 [DTO] afterLoad() llamado');
-    console.log('🔍 [DTO] this.fecha:', this.fecha);
-    console.log('🔍 [DTO] this.hora:', this.hora);
-    console.log('🔍 [DTO] this.turnos:', this.turnos);
-    console.log('🔍 [DTO] typeof this.turnos:', typeof this.turnos);
   }
 }

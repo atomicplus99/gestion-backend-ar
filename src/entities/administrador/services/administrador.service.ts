@@ -35,12 +35,10 @@ export class AdministradorService {
       const administrador = this.administradorRepository.create(createAdministradorDto);
       const administradorGuardado = await this.administradorRepository.save(administrador);
       
-      this.logger.log(`✅ Administrador creado: ${administradorGuardado.nombres} ${administradorGuardado.apellidos}`);
       
       return administradorGuardado as AdministradorResponseDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error creando administrador: ${error.message}`);
       throw error;
     }
   }
@@ -81,7 +79,6 @@ export class AdministradorService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo administradores: ${error.message}`);
       throw error;
     }
   }
@@ -103,7 +100,6 @@ export class AdministradorService {
       return administrador as AdministradorResponseDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo administrador ${id}: ${error.message}`);
       throw error;
     }
   }
@@ -137,12 +133,10 @@ export class AdministradorService {
       
       const administradorActualizado = await this.administradorRepository.save(administrador);
       
-      this.logger.log(`✅ Administrador actualizado: ${administradorActualizado.nombres} ${administradorActualizado.apellidos}`);
       
       return administradorActualizado as AdministradorResponseDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error actualizando administrador ${id}: ${error.message}`);
       throw error;
     }
   }
@@ -170,13 +164,10 @@ export class AdministradorService {
       // DESPUÉS eliminar el usuario (si existe)
       if (usuarioAEliminar) {
         await this.usuarioService.remove(usuarioAEliminar.id_user);
-        this.logger.log(`✅ Usuario eliminado: ${usuarioAEliminar.nombre_usuario}`);
       }
       
-      this.logger.log(`✅ Administrador eliminado: ${administrador.nombres} ${administrador.apellidos}`);
 
     } catch (error) {
-      this.logger.error(`❌ Error eliminando administrador ${id}: ${error.message}`);
       throw error;
     }
   }
@@ -195,7 +186,6 @@ export class AdministradorService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo estadísticas: ${error.message}`);
       throw error;
     }
   }
@@ -230,7 +220,6 @@ export class AdministradorService {
       });
 
       const administradorGuardado = await this.administradorRepository.save(administrador);
-      this.logger.log(`Usuario ${id_user} asignado a administrador: ${administradorGuardado.id_administrador}`);
 
       return {
         id_administrador: administradorGuardado.id_administrador,
@@ -242,7 +231,6 @@ export class AdministradorService {
         id_user: administradorGuardado.usuario?.id_user
       };
     } catch (error) {
-      this.logger.error(`Error asignando usuario a administrador: ${error.message}`);
       throw error;
     }
   }
@@ -283,7 +271,6 @@ export class AdministradorService {
         throw new NotFoundException('Administrador no encontrado después de la actualización');
       }
 
-      this.logger.log(`Usuario del administrador ${id_administrador} cambiado a ${nuevo_id_user}`);
 
       return {
         id_administrador: administradorActualizado.id_administrador,
@@ -295,7 +282,6 @@ export class AdministradorService {
         id_user: administradorActualizado.usuario?.id_user
       };
     } catch (error) {
-      this.logger.error(`Error cambiando usuario del administrador: ${error.message}`);
       throw error;
     }
   }

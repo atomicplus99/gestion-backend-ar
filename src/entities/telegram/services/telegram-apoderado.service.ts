@@ -32,7 +32,6 @@ export class TelegramApoderadoService {
     error?: string;
   }> {
     try {
-      this.logger.log(`🔍 Iniciando registro para apoderado con DNI: ${dniApoderado}`);
 
       // Buscar apoderado por DNI
       const apoderado = await this.apoderadoRepository.findOne({
@@ -41,7 +40,6 @@ export class TelegramApoderadoService {
       });
 
       if (!apoderado) {
-        this.logger.log(`❌ Apoderado con DNI ${dniApoderado} no encontrado`);
         return {
           success: false,
           message: 'Apoderado no encontrado',
@@ -50,7 +48,6 @@ export class TelegramApoderadoService {
       }
 
       if (!apoderado.pupilos || apoderado.pupilos.length === 0) {
-        this.logger.log(`⚠️ Apoderado ${dniApoderado} no tiene alumnos asignados`);
         return {
           success: false,
           message: 'No tienes alumnos asignados',
@@ -64,7 +61,6 @@ export class TelegramApoderadoService {
       });
 
       if (telegramUser) {
-        this.logger.log(`⚠️ Apoderado ${dniApoderado} ya está registrado en Telegram`);
         return {
           success: false,
           message: 'Ya estás registrado en Telegram',
@@ -90,7 +86,6 @@ export class TelegramApoderadoService {
         }))
       };
 
-      this.logger.log(`✅ Apoderado ${dniApoderado} encontrado con ${apoderado.pupilos.length} alumnos`);
       
       return {
         success: true,
@@ -99,7 +94,6 @@ export class TelegramApoderadoService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error iniciando registro: ${error.message}`);
       return {
         success: false,
         message: 'Error interno del sistema',
@@ -117,7 +111,6 @@ export class TelegramApoderadoService {
     error?: string;
   }> {
     try {
-      this.logger.log(`🔍 Confirmando registro para apoderado ${datos.dni_apoderado}`);
 
       // Verificar que el apoderado existe y tiene esos alumnos
       const apoderado = await this.apoderadoRepository.findOne({
@@ -136,18 +129,14 @@ export class TelegramApoderadoService {
       // Verificar que todos los DNIs de alumnos son correctos
       const alumnosAsignados = apoderado.pupilos.map(alumno => alumno.dni_alumno);
       
-      this.logger.log(`🔍 DNIs enviados por el usuario: ${datos.dni_alumnos.join(', ')}`);
-      this.logger.log(`🔍 DNIs de alumnos asignados al apoderado: ${alumnosAsignados.join(', ')}`);
       
       // Verificar cada DNI individualmente
       const dniesCorrectos = datos.dni_alumnos.every(dni => {
         const esCorrecto = alumnosAsignados.includes(dni);
-        this.logger.log(`🔍 DNI ${dni}: ${esCorrecto ? '✅ CORRECTO' : '❌ INCORRECTO'}`);
         return esCorrecto;
       });
 
       if (!dniesCorrectos) {
-        this.logger.log(`❌ Validación fallida. DNIs incorrectos detectados.`);
         return {
           success: false,
           message: 'Algunos DNIs de alumnos no son correctos',
@@ -176,7 +165,6 @@ export class TelegramApoderadoService {
 
       await this.telegramChatRepository.save(telegramChat);
 
-      this.logger.log(`✅ Apoderado ${datos.dni_apoderado} registrado exitosamente en Telegram`);
 
       return {
         success: true,
@@ -184,7 +172,6 @@ export class TelegramApoderadoService {
       };
 
     } catch (error) {
-      this.logger.error(`❌ Error confirmando registro: ${error.message}`);
       return {
         success: false,
         message: 'Error interno del sistema',
@@ -203,7 +190,6 @@ export class TelegramApoderadoService {
       });
 
       if (!telegramUser) {
-        this.logger.log(`❌ Usuario de Telegram ${telegramUserId} no encontrado`);
         return null;
       }
 
@@ -213,12 +199,10 @@ export class TelegramApoderadoService {
       const dniMatch = nombreUsuario.match(/Apoderado_(\d+)/);
       
       if (!dniMatch) {
-        this.logger.log(`❌ No se pudo extraer DNI del nombre de usuario: ${nombreUsuario}`);
         return null;
       }
 
       const dniApoderado = dniMatch[1];
-      this.logger.log(`🔍 Buscando apoderado con DNI: ${dniApoderado}`);
 
       const apoderado = await this.apoderadoRepository.findOne({
         where: { dni: dniApoderado },
@@ -226,11 +210,9 @@ export class TelegramApoderadoService {
       });
 
       if (!apoderado) {
-        this.logger.log(`❌ Apoderado con DNI ${dniApoderado} no encontrado`);
         return null;
       }
 
-      this.logger.log(`✅ Apoderado encontrado: ${apoderado.nombre} ${apoderado.apellido} con ${apoderado.pupilos?.length || 0} alumnos`);
 
       const apoderadoDto = {
         id_apoderado: apoderado.id_apoderado,
@@ -249,11 +231,9 @@ export class TelegramApoderadoService {
         }))
       };
 
-      this.logger.log(`📋 DTO generado con ${apoderadoDto.alumnos.length} alumnos`);
       return apoderadoDto;
 
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo apoderado: ${error.message}`);
       return null;
     }
   }

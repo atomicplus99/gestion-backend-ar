@@ -21,10 +21,8 @@ export class TokenService {
         secret: process.env.JWT_SECRET
       });
 
-      this.logger.log(`✅ Token de restablecimiento generado para usuario: ${userId}`);
       return token;
     } catch (error) {
-      this.logger.error(`❌ Error generando token de restablecimiento: ${error.message}`);
       throw error;
     }
   }
@@ -36,13 +34,11 @@ export class TokenService {
       });
 
       if (payload.type !== 'password_reset') {
-        this.logger.warn(`⚠️ Token inválido: tipo incorrecto`);
         return { userId: '', email: '', valid: false };
       }
 
       return { userId: payload.sub, email: payload.email, valid: true };
     } catch (error) {
-      this.logger.error(`❌ Error verificando token de restablecimiento: ${error.message}`);
       return { userId: '', email: '', valid: false };
     }
   }
@@ -54,7 +50,6 @@ export class TokenService {
         secret: process.env.JWT_SECRET
       });
     } catch (error) {
-      this.logger.error(`❌ Error generando token de autenticación: ${error.message}`);
       throw error;
     }
   }

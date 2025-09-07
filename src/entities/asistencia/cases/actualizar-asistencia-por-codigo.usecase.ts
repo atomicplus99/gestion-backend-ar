@@ -147,15 +147,12 @@ export class ActualizarAsistenciaPorCodigoUseCase {
 
           // 9. Enviar notificación de Telegram al apoderado
       try {
-        console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM 🔔🔔🔔');
         await this.telegramNotificationService.notificarAsistenciaApoderado(
           asistenciaActualizada, 
           `ACTUALIZACIÓN: ${updateDto.motivo}`, 
           'ACTUALIZACION'
         );
-        console.log('✅✅✅ NOTIFICACIÓN TELEGRAM ENVIADA EXITOSAMENTE ✅✅✅');
       } catch (telegramError) {
-        console.error('[ActualizarAsistenciaPorCodigoUseCase] Error enviando notificación Telegram:', telegramError);
         // No lanzamos error para no afectar la actualización de asistencia
       }
 

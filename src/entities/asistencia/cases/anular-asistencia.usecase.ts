@@ -126,20 +126,15 @@ export class AnularAsistenciaUseCase {
     }
 
     // 5. Cambiar el estado a ANULADO usando save() para evitar problemas de enum
-    console.log(`🔍 [DEBUG] Antes de actualizar - Estado actual: "${asistencia.estado_asistencia}"`);
-    console.log(`🔍 [DEBUG] ID de asistencia a actualizar: ${asistencia.id_asistencia}`);
-    console.log(`🔍 [DEBUG] Nuevo estado a asignar: ${EstadoAsistencia.ANULADO}`);
     
     // Usar save() en lugar de update() para manejar correctamente los enums
     asistencia.estado_asistencia = EstadoAsistencia.ANULADO;
     const asistenciaActualizada = await this.asistenciaRepository.save(asistencia);
     
-    console.log(`🔍 [DEBUG] Resultado del save:`, asistenciaActualizada.estado_asistencia);
 
     // 6. Usar la asistencia ya actualizada por save()
     const asistenciaAnulada = asistenciaActualizada;
     
-    console.log(`🔍 [DEBUG] Asistencia actualizada - Nuevo estado: "${asistenciaAnulada.estado_asistencia}"`);
     console.log(`🔍 [DEBUG] Verificación completa de la asistencia:`, {
       id: asistenciaAnulada.id_asistencia,
       estado: asistenciaAnulada.estado_asistencia,
@@ -167,15 +162,12 @@ export class AnularAsistenciaUseCase {
 
           // 8. Enviar notificación de Telegram al apoderado
       try {
-        console.log('🔔🔔🔔 INTENTANDO ENVIAR NOTIFICACIÓN TELEGRAM (ANULAR) 🔔🔔🔔');
         await this.telegramNotificationService.notificarAsistenciaApoderado(
           asistenciaAnulada, 
           `ANULACIÓN: ${dto.motivo}`, 
           'ANULACION'
         );
-        console.log('✅✅✅ NOTIFICACIÓN TELEGRAM ENVIADA EXITOSAMENTE (ANULAR) ✅✅✅');
       } catch (telegramError) {
-        console.error('[AnularAsistenciaUseCase] Error enviando notificación Telegram:', telegramError);
         // No lanzamos error para no afectar la anulación de asistencia
       }
 

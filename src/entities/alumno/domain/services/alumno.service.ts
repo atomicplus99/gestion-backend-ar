@@ -65,8 +65,6 @@ export class AlumnoService {
 
   async getAllAlumnos(includeApoderado?: boolean): Promise<any[]> {
     try {
-      console.log('🔍 [AlumnoService] Obteniendo todos los alumnos');
-      console.log('🔍 [AlumnoService] Include apoderado:', includeApoderado);
       
       if (includeApoderado) {
         // Incluir información de apoderado
@@ -74,7 +72,6 @@ export class AlumnoService {
           relations: ['turno', 'usuario', 'apoderados'],
         });
         
-        console.log('✅ [AlumnoService] Alumnos con apoderado obtenidos:', alumnos.length);
         
         return alumnos.map(alumno => ({
           ...alumno,
@@ -93,11 +90,9 @@ export class AlumnoService {
       } else {
         // Sin información de apoderado (comportamiento original)
         const alumnos = await this.alumnoRepo.find({ relations: ['turno', 'usuario'] });
-        console.log('✅ [AlumnoService] Alumnos obtenidos (sin apoderado):', alumnos.length);
         return alumnos;
       }
     } catch (error) {
-      console.error('❌ [AlumnoService] Error al obtener alumnos:', error);
       throw error;
     }
   }
@@ -376,7 +371,6 @@ export class AlumnoService {
     });
     
     await this.estadoAlumnoRepo.save(estadosToCreate);
-    console.log(`✅ Estados activos creados para ${estadosToCreate.length} alumnos`);
     
     let usuariosCreados = 0;
     
@@ -501,9 +495,7 @@ export class AlumnoService {
       // Agregar las credenciales al final del archivo
       fs.appendFileSync(archivoPath, lineaCredenciales);
       
-      console.log(`✅ Credenciales guardadas en password-alumnos.txt para alumno: ${codigo}`);
     } catch (error) {
-      console.error(`❌ Error al guardar credenciales en archivo: ${error.message}`);
       // No lanzar error para no detener el proceso de creación del alumno
     }
   }

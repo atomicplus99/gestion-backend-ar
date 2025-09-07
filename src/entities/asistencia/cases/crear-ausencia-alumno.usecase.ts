@@ -36,8 +36,6 @@ export class CrearAusenciaAlumnoUseCase {
            // Si se proporciona fecha, crear una fecha a las 00:00:00 en hora local
            const [year, month, day] = dto.fecha.split('-').map(Number);
            fechaAusencia = new Date(year, month - 1, day, 0, 0, 0, 0);
-           console.log('📅 [CrearAusenciaAlumnoUseCase] Fecha proporcionada:', dto.fecha);
-           console.log('📅 [CrearAusenciaAlumnoUseCase] Fecha procesada:', fechaAusencia.toISOString());
                  } else {
           // Crear fecha actual en zona horaria de Perú (UTC-5)
           const ahora = new Date();
@@ -47,7 +45,6 @@ export class CrearAusenciaAlumnoUseCase {
           // Construir fecha a las 00:00:00 en hora local de Perú
           fechaAusencia = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
           
-          console.log('📅 [CrearAusenciaAlumnoUseCase] Usando fecha actual Perú:', fechaAusencia.toISOString());
         }
     
     // 3. Verificar que no exista asistencia para ese alumno en esa fecha
@@ -55,20 +52,14 @@ export class CrearAusenciaAlumnoUseCase {
     let asistenciaExistente: any = null;
              if (dto.fecha) {
            const fechaFormato = dto.fecha; // "2025-08-22"
-           console.log('🔍 [CrearAusenciaAlumnoUseCase] Validando duplicados...');
-           console.log('🔍 [CrearAusenciaAlumnoUseCase] Alumno ID:', alumno.id_alumno);
-           console.log('🔍 [CrearAusenciaAlumnoUseCase] Fecha formato:', fechaFormato);
-           console.log('📅 [CrearAusenciaAlumnoUseCase] Fecha procesada para validación:', fechaAusencia.toISOString());
       
       // Mostrar TODOS los registros de ese alumno PRIMERO
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] === MOSTRANDO TODOS LOS REGISTROS DEL ALUMNO ===');
       const todasLasAsistencias = await this.asistenciaRepository
         .createQueryBuilder('asistencia')
         .leftJoinAndSelect('asistencia.alumno', 'alumno')
         .where('alumno.id_alumno = :alumnoId', { alumnoId: alumno.id_alumno })
         .getMany();
         
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Total de registros del alumno:', todasLasAsistencias.length);
       todasLasAsistencias.forEach((asist, index) => {
         console.log(`🔍 [CrearAusenciaAlumnoUseCase] Registro ${index + 1}:`, {
           id: asist.id_asistencia,
@@ -80,26 +71,17 @@ export class CrearAusenciaAlumnoUseCase {
       });
       
       // Buscar manualmente en los registros ya obtenidos (función DATE() no funciona)
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Buscando manualmente en los registros obtenidos...');
       asistenciaExistente = todasLasAsistencias.find(asist => {
         const fechaRegistro = asist.fecha.toISOString().split('T')[0];
-        console.log(`🔍 [CrearAusenciaAlumnoUseCase] Comparando: "${fechaRegistro}" === "${fechaFormato}"`);
         return fechaRegistro === fechaFormato;
       });
         
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Asistencia existente (búsqueda manual):', asistenciaExistente ? 'ENCONTRADA' : 'NO ENCONTRADA');
       
       if (asistenciaExistente) {
-        console.log('🔍 [CrearAusenciaAlumnoUseCase] Estado existente:', asistenciaExistente.estado_asistencia);
-        console.log('🔍 [CrearAusenciaAlumnoUseCase] ID existente:', asistenciaExistente.id_asistencia);
       }
     } else {
       // Si no se proporciona fecha, validar con fecha actual
       const fechaFormato = fechaAusencia.toISOString().split('T')[0];
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Validando duplicados con fecha actual...');
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Alumno ID:', alumno.id_alumno);
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Fecha formato:', fechaFormato);
-      console.log('📅 [CrearAusenciaAlumnoUseCase] Fecha procesada para validación:', fechaAusencia.toISOString());
       
       // Obtener todos los registros y buscar manualmente
       const todasLasAsistencias = await this.asistenciaRepository
@@ -108,7 +90,6 @@ export class CrearAusenciaAlumnoUseCase {
         .where('alumno.id_alumno = :alumnoId', { alumnoId: alumno.id_alumno })
         .getMany();
         
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Total de registros del alumno:', todasLasAsistencias.length);
       
       // Buscar manualmente
       asistenciaExistente = todasLasAsistencias.find(asist => {
@@ -116,30 +97,24 @@ export class CrearAusenciaAlumnoUseCase {
         return fechaRegistro === fechaFormato;
       });
         
-      console.log('🔍 [CrearAusenciaAlumnoUseCase] Asistencia existente:', asistenciaExistente ? 'ENCONTRADA' : 'NO ENCONTRADA');
       
       if (asistenciaExistente) {
-        console.log('🔍 [CrearAusenciaAlumnoUseCase] Estado existente:', asistenciaExistente.estado_asistencia);
-        console.log('🔍 [CrearAusenciaAlumnoUseCase] ID existente:', asistenciaExistente.id_asistencia);
       }
     }
 
     if (asistenciaExistente) {
       // Verificar si ya existe específicamente una AUSENCIA
       if (asistenciaExistente.estado_asistencia === EstadoAsistencia.AUSENTE) {
-        console.log('❌ [CrearAusenciaAlumnoUseCase] Ya existe AUSENCIA, lanzando error');
         throw new ConflictException(
           `Ya existe un registro de AUSENCIA para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${dto.fecha || fechaAusencia.toISOString().split('T')[0]}`
         );
       } else {
         // Si existe otro tipo de asistencia (PUNTUAL, TARDANZA), también impedir
-        console.log('❌ [CrearAusenciaAlumnoUseCase] Ya existe otro tipo de asistencia, lanzando error');
         throw new ConflictException(
           `Ya existe un registro de asistencia (${asistenciaExistente.estado_asistencia}) para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${dto.fecha || fechaAusencia.toISOString().split('T')[0]}`
         );
       }
     } else {
-      console.log('✅ [CrearAusenciaAlumnoUseCase] No hay duplicados, procediendo a crear ausencia');
     }
 
     // 4. Crear el registro de ausencia
@@ -157,7 +132,6 @@ export class CrearAusenciaAlumnoUseCase {
     try {
       await this.telegramNotificationService.notificarAsistenciaApoderado(ausenciaGuardada);
     } catch (telegramError) {
-      console.error('[CrearAusenciaAlumnoUseCase] Error enviando notificación Telegram:', telegramError);
       // No lanzamos error para no afectar el registro de ausencia
     }
 

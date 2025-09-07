@@ -19,8 +19,6 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
 
   async create(apoderado: Apoderado): Promise<Apoderado> {
     try {
-      console.log('💾 [ApoderadoRepository] Iniciando creación de apoderado');
-      console.log('💾 [ApoderadoRepository] Entidad de dominio recibida:', JSON.stringify(apoderado, null, 2));
       
       // Validación: DNI obligatorio (opcional según modelo) y único
       const dni = (apoderado.dni || '').toString().trim();
@@ -35,18 +33,13 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
       }
       
       const orm = ApoderadoMapper.toORM(apoderado);
-      console.log('💾 [ApoderadoRepository] Entidad ORM mapeada:', JSON.stringify(orm, null, 2));
       
       const saved = await this.apoderadoRepository.save(orm);
-      console.log('✅ [ApoderadoRepository] Entidad guardada exitosamente:', saved.id_apoderado);
       
       const result = ApoderadoMapper.toDomain(saved);
-      console.log('✅ [ApoderadoRepository] Entidad convertida a dominio:', result.id_apoderado);
       
       return result;
     } catch (error) {
-      console.error('❌ [ApoderadoRepository] Error al guardar apoderado:', error);
-      console.error('❌ [ApoderadoRepository] Stack trace:', error.stack);
       throw error;
     }
   }
@@ -59,34 +52,26 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
   }
 
   async findById(id: string): Promise<Apoderado | null> {
-    console.log('🔍 [ApoderadoRepository] Buscando apoderado por ID:', id);
     
     const orm = await this.apoderadoRepository.findOne({
       where: { id_apoderado: id },
       relations: ['pupilos'],
     });
     
-    console.log('🔍 [ApoderadoRepository] Apoderado encontrado:', orm ? 'SÍ' : 'NO');
     if (orm) {
-      console.log('🔍 [ApoderadoRepository] Pupilos cargados:', orm.pupilos?.length || 0);
-      console.log('🔍 [ApoderadoRepository] Datos de pupilos:', JSON.stringify(orm.pupilos, null, 2));
     }
     
     return orm ? ApoderadoMapper.toDomain(orm) : null;
   }
 
   async findByDni(dni: string): Promise<Apoderado | null> {
-    console.log('🔍 [ApoderadoRepository] Buscando apoderado por DNI:', dni);
     
     const orm = await this.apoderadoRepository.findOne({
       where: { dni },
       relations: ['pupilos'],
     });
     
-    console.log('🔍 [ApoderadoRepository] Apoderado encontrado por DNI:', orm ? 'SÍ' : 'NO');
     if (orm) {
-      console.log('🔍 [ApoderadoRepository] Pupilos cargados por DNI:', orm.pupilos?.length || 0);
-      console.log('🔍 [ApoderadoRepository] Datos de pupilos por DNI:', JSON.stringify(orm.pupilos, null, 2));
     }
     
     return orm ? ApoderadoMapper.toDomain(orm) : null;
@@ -149,7 +134,6 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
 
   async assignStudents(apoderadoId: string, studentIds: string[]): Promise<{ success: boolean; error?: string; alumnosConApoderado?: string[] }> {
     try {
-      console.log('🔍 [ApoderadoRepository] Iniciando asignación de estudiantes:', studentIds);
       
       const apoderado = await this.apoderadoRepository.findOne({
         where: { id_apoderado: apoderadoId },
@@ -157,7 +141,6 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
       });
 
       if (!apoderado) {
-        console.log('❌ [ApoderadoRepository] Apoderado no encontrado');
         return { success: false, error: 'Apoderado no encontrado' };
       }
 
@@ -171,28 +154,21 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
           [studentId]
         );
         
-        console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - Relaciones existentes:`, relacionesExistentes);
         
         // CORRECCIÓN: MySQL retorna [rows, fields] - necesitamos solo rows
         const rows = relacionesExistentes;
-        console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - Rows extraídos:`, rows);
         
         // CORRECCIÓN: Verificar si hay relaciones existentes (puede ser objeto o array)
         if (rows && (Array.isArray(rows) ? rows.length > 0 : Object.keys(rows).length > 0)) {
-          console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - TIPO de rows:`, typeof rows);
-          console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - ES ARRAY:`, Array.isArray(rows));
-          console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - CONTENIDO COMPLETO:`, JSON.stringify(rows, null, 2));
           
           // Convertir a array si es objeto
           const rowsArray = Array.isArray(rows) ? rows : [rows];
-          console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - Rows convertidos a array:`, rowsArray);
           
           // Verificar si ya está asignado a este apoderado específico
           const yaAsignadoAEste = rowsArray.some(
             (rel: any) => rel.id_apoderado === apoderadoId
           );
           
-          console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - Ya asignado a este apoderado:`, yaAsignadoAEste);
           
           if (!yaAsignadoAEste) {
             // El alumno ya tiene otro apoderado - CONFLICTO!
@@ -200,20 +176,15 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
             if (alumno) {
               const nombreAlumno = `${alumno.nombre} ${alumno.apellido} (${alumno.codigo})`;
               alumnosConApoderado.push(nombreAlumno);
-              console.log(`❌ [ApoderadoRepository] CONFLICTO: Alumno ${nombreAlumno} ya tiene apoderado asignado`);
             }
           } else {
-            console.log(`⚠️ [ApoderadoRepository] Alumno ${studentId} ya está asignado a este apoderado`);
           }
         } else {
-          console.log(`✅ [ApoderadoRepository] Alumno ${studentId} no tiene apoderado asignado`);
-          console.log(`🔍 [ApoderadoRepository] Alumno ${studentId} - rows es:`, rows);
         }
       }
 
       // Si hay alumnos que ya tienen apoderado, retornar error
       if (alumnosConApoderado.length > 0) {
-        console.log('❌ [ApoderadoRepository] Alumnos ya tienen apoderado:', alumnosConApoderado);
         return { 
           success: false, 
           error: 'Algunos alumnos ya tienen apoderado asignado',
@@ -233,7 +204,6 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
       );
       
       if (alumnosNuevos.length === 0) {
-        console.log('⚠️ [ApoderadoRepository] Todos los alumnos ya están asignados a este apoderado');
         return { success: false, error: 'Todos los alumnos ya están asignados a este apoderado' };
       }
 
@@ -246,7 +216,6 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
         
         if (duplicados && duplicados[0] && duplicados[0].total > 0) {
           const nombreAlumno = `${alumno.nombre} ${alumno.apellido} (${alumno.codigo})`;
-          console.log(`❌ [ApoderadoRepository] VALIDACIÓN FINAL: Alumno ${nombreAlumno} ya existe en la base de datos`);
           return { 
             success: false, 
             error: `Alumno ${nombreAlumno} ya tiene apoderado asignado`,
@@ -260,11 +229,9 @@ export class ApoderadoTypeOrmRepository implements ApoderadoRepositoryPort {
       
       await this.apoderadoRepository.save(apoderado);
       
-      console.log('✅ [ApoderadoRepository] Estudiantes asignados exitosamente:', alumnosNuevos.length);
       return { success: true };
       
     } catch (error) {
-      console.error('❌ [ApoderadoRepository] Error al asignar estudiantes:', error);
       return { success: false, error: 'Error interno al asignar estudiantes' };
     }
   }

@@ -128,7 +128,6 @@ export class CrearAsistenciaManualUseCase {
       try {
         await this.telegramNotificationService.notificarAsistenciaApoderado(nuevaAsistencia);
       } catch (telegramError) {
-        console.error('[CrearAsistenciaManualUseCase] Error enviando notificación Telegram:', telegramError);
         // No lanzamos error para no afectar el registro de asistencia
       }
 
@@ -146,7 +145,6 @@ export class CrearAsistenciaManualUseCase {
       return nuevaAsistencia;
 
     } catch (error) {
-      console.error('[CrearAsistenciaManualUseCase Error]', error);
       
       // Si ya es una excepción HTTP, la re-lanzamos tal como es
       if (error instanceof NotFoundException) {

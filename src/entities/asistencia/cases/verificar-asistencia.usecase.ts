@@ -16,20 +16,17 @@ export class VerificarAsistenciaUseCase implements VerificarAsistenciaPort {
 
   async execute(codigo: string, fecha: Date): Promise<VerificarAsistenciaResponse> {
     try {
-      console.log('🔍 [VerificarAsistenciaUseCase] Verificando asistencia para código:', codigo, 'fecha:', fecha);
 
       // 1. Buscar el alumno por código, incluyendo el turno asignado
       const alumno = await this.alumnoRepository.findByCodigoAlumno(codigo);
       
       if (!alumno) {
-        console.log('❌ [VerificarAsistenciaUseCase] Alumno no encontrado con código:', codigo);
         return {
           tiene_asistencia: false,
           mensaje: `No se encontró ningún alumno con el código: ${codigo}`,
         };
       }
 
-      console.log('✅ [VerificarAsistenciaUseCase] Alumno encontrado:', alumno.nombre, alumno.apellido);
 
       // 2. Verificar si ya tiene asistencia para esa fecha
       const asistenciaExistente = await this.asistenciaRepository.findByAlumnoAndDate(
@@ -38,7 +35,6 @@ export class VerificarAsistenciaUseCase implements VerificarAsistenciaPort {
       );
 
       if (asistenciaExistente) {
-        console.log('✅ [VerificarAsistenciaUseCase] Asistencia encontrada para la fecha');
         
         // Construir respuesta con asistencia existente
         const asistenciaInfo: AsistenciaExistenteManual = {
@@ -57,7 +53,6 @@ export class VerificarAsistenciaUseCase implements VerificarAsistenciaPort {
       }
 
       // 3. Si no tiene asistencia, devolver información del alumno para registro manual
-      console.log('ℹ️ [VerificarAsistenciaUseCase] No hay asistencia registrada, devolviendo info del alumno');
       
       const alumnoInfo: AlumnoInfoAsistenciaManual = {
         id_alumno: alumno.id_alumno,
@@ -77,7 +72,6 @@ export class VerificarAsistenciaUseCase implements VerificarAsistenciaPort {
       };
 
     } catch (error) {
-      console.error('❌ [VerificarAsistenciaUseCase] Error al verificar asistencia:', error);
       throw error;
     }
   }

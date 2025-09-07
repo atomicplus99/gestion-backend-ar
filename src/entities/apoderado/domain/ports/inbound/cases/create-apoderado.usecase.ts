@@ -16,7 +16,6 @@ export class CreateApoderadoUseCase implements CreateApoderadoPort {
 
   async execute(dto: CreateApoderadoDto): Promise<Apoderado> {
     try {
-      console.log('🔧 [CreateApoderadoUseCase] Ejecutando caso de uso con DTO:', JSON.stringify(dto, null, 2));
       
       const apoderado = new Apoderado(
         undefined, // id se generará automáticamente
@@ -34,15 +33,12 @@ export class CreateApoderadoUseCase implements CreateApoderadoPort {
         undefined
       );
 
-      console.log('🔧 [CreateApoderadoUseCase] Entidad de dominio creada:', JSON.stringify(apoderado, null, 2));
 
       const result = await this.apoderadoRepository.create(apoderado);
       
-      console.log('✅ [CreateApoderadoUseCase] Apoderado guardado en repositorio:', result.id_apoderado);
       
       return result;
     } catch (error) {
-      console.error('❌ [CreateApoderadoUseCase] Error en caso de uso:', error);
       throw error;
     }
   }

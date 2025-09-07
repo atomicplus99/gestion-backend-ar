@@ -17,20 +17,15 @@ export class GetAlumnoByCodigoUseCase {
   ) {}
 
   async execute(codigo: string): Promise<AlumnoSearchResponseDto> {
-    this.logger.log(`🚀 [UseCase] Iniciando ejecución para código: ${codigo}`);
     
     try {
-      this.logger.log(`📞 [UseCase] Llamando al repositorio para buscar alumno`);
       const alumno = await this.alumnoTypeOrmRepository.findByCodigoAlumno(codigo);
       
-      this.logger.log(`📊 [UseCase] Resultado del repositorio: ${alumno ? 'Encontrado' : 'No encontrado'}`);
       
       if (!alumno) {
-        this.logger.warn(`⚠️ [UseCase] No se encontró alumno con código: ${codigo}`);
         throw new NotFoundException(`No se encontró ningún alumno con el código ${codigo}`);
       }
       
-      this.logger.log(`✅ [UseCase] Alumno encontrado exitosamente, buscando estado actual`);
       
       // Buscar el estado actual del alumno
       const estadoRepo = this.dataSource.getRepository(EstadoAlumno);
@@ -40,9 +35,7 @@ export class GetAlumnoByCodigoUseCase {
       });
 
       if (ultimoEstado) {
-        this.logger.log(`📊 [UseCase] Estado encontrado: ${ultimoEstado.estado}`);
       } else {
-        this.logger.log(`ℹ️ [UseCase] No se encontró estado para el alumno, será opcional`);
       }
       
       // Construir la respuesta con el estado incluido
@@ -79,21 +72,12 @@ export class GetAlumnoByCodigoUseCase {
         } : undefined,
       };
       
-      this.logger.log(`✅ [UseCase] Respuesta construida exitosamente con estado incluido`);
-      this.logger.log(`   - ID: ${respuesta.id_alumno}`);
-      this.logger.log(`   - Código: ${respuesta.codigo}`);
-      this.logger.log(`   - Nombre: ${respuesta.nombre} ${respuesta.apellido}`);
-      this.logger.log(`   - Turno: ${respuesta.turno ? `ID: ${respuesta.turno.id_turno}` : 'No asignado'}`);
-      this.logger.log(`   - Usuario: ${respuesta.usuario ? `ID: ${respuesta.usuario.id_user}` : 'No asignado'}`);
-      this.logger.log(`   - Estado: ${respuesta.estado_actual ? respuesta.estado_actual.estado : 'No asignado'}`);
       
       return respuesta;
     } catch (error) {
-      this.logger.error(`❌ [UseCase] Error en ejecución: ${error.message}`);
       if (error instanceof NotFoundException) {
         throw error; // Re-lanzar NotFoundException sin modificar
       }
-      this.logger.error(`Stack trace: ${error.stack}`);
       throw error;
     }
   }

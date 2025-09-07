@@ -73,7 +73,6 @@ export class ImportAlumnosExcelMapper {
         }
       }
     } catch (error) {
-      console.warn('Error al parsear fecha de nacimiento:', error);
     }
     return new Date();
   }

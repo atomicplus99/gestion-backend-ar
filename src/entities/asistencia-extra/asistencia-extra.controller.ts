@@ -25,7 +25,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo asistencias extra: ${error.message}`);
       throw error;
     }
   }
@@ -45,7 +44,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error obteniendo asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -68,7 +66,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error creando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -88,7 +85,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error actualizando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -107,7 +103,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error eliminando asistencia extra: ${error.message}`);
       throw error;
     }
   }
@@ -126,7 +121,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error marcando asistencia extra como ausente: ${error.message}`);
       throw error;
     }
   }
@@ -145,7 +139,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error marcando asistencia extra como justificada: ${error.message}`);
       throw error;
     }
   }
@@ -164,7 +157,6 @@ export class AsistenciaExtraController {
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      this.logger.error(`❌ Error anulando asistencia extra: ${error.message}`);
       throw error;
     }
   }

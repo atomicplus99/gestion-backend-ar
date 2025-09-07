@@ -44,7 +44,6 @@ export class AuthController {
       try {
         return this.authService.getProfileDetails(req.user);
       } catch (error) {
-        console.error('❌ [AuthController] Error en /auth/me:', error);
         return {
           statusCode: 500,
           message: 'Error interno del servidor',
@@ -55,7 +54,6 @@ export class AuthController {
 
     @Get('test')
     test(@Req() req: any) {
-      console.log('🔐 [AuthController] Endpoint de prueba llamado');
       return {
         message: 'Endpoint de prueba funcionando correctamente',
         timestamp: new Date().toISOString()
