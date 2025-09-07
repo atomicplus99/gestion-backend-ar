@@ -56,9 +56,13 @@ RUN mkdir -p logs
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nestjs -u 1001
 
+# Crear directorio para migraciones
+RUN mkdir -p /app/dist/database/migrations
+
 # Cambiar ownership de archivos
 RUN chown -R nestjs:nodejs /app
 RUN chmod 644 /app/ssl/* 2>/dev/null || true
+RUN chmod 755 /app/dist/database/migrations
 USER nestjs
 
 # Exponer puerto
