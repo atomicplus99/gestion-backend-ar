@@ -49,6 +49,9 @@ lerna-debug.log*
 # Archivos de contraseñas
 password-alumnos.txt
 
+# Fotos de usuarios
+public/profiles/usuarios/*
+
 # Runtime data
 pids
 *.pid
