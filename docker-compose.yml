@@ -1,9 +1,9 @@
 # version: '3.8'  # Obsoleto en Docker Compose v2
 
 services:
-  # Base de datos MySQL
+  # Base de datos MariaDB
   mysql:
-    image: mysql:8.0
+    image: mariadb:10.4.32
     container_name: colegio_mysql
     restart: "no"
     environment:
@@ -18,7 +18,6 @@ services:
       - ./database/init:/docker-entrypoint-initdb.d
     networks:
       - colegio_network
-    command: --default-authentication-plugin=mysql_native_password
 
   # Aplicación NestJS
   app:
