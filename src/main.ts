@@ -86,7 +86,7 @@ async function bootstrap() {
     app.useGlobalInterceptors(new ResponseTransformInterceptor());
     
     const port = process.env.HTTPS_ENABLED === 'true' ? 443 : 3000;
-    const host = 'localhost';
+    const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
     const protocol = process.env.HTTPS_ENABLED === 'true' ? 'https' : 'http';
     
     await app.listen(port, host);
