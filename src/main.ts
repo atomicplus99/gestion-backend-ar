@@ -9,6 +9,12 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ResponseTransformInterceptor } from './common/interceptors/response-transform.interceptor';
 import * as fs from 'fs';
 import * as https from 'https';
+import * as crypto from 'crypto';
+
+// Polyfill para crypto en el entorno global
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = crypto as any;
+}
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');

@@ -25,7 +25,15 @@ docker compose up -d mysql
 
 # Esperar a que MySQL esté listo
 echo "⏳ Esperando a que MySQL esté listo..."
-sleep 30
+sleep 45
+
+# Verificar que MySQL esté realmente listo
+echo "🔍 Verificando conexión a MySQL..."
+until docker compose exec mysql mysqladmin ping -h localhost --silent; do
+  echo "⏳ MySQL aún no está listo, esperando..."
+  sleep 5
+done
+echo "✅ MySQL está listo y respondiendo"
 
 # PASO 3: Generar migraciones
 echo "📝 PASO 3: Generando migraciones..."
