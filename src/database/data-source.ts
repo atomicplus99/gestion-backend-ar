@@ -31,6 +31,6 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion, AusenciasMasivasLog, TelegramUser, TelegramChat, Administrador, Director, Notificacion, AusenciasMasivasProgramadas, TurnoExtra, AsistenciaExtra],
-  migrations: ['dist/database/migrations/*.ts'],
+  migrations: ['dist/database/migrations/*.js'],
   synchronize: false,
 });
