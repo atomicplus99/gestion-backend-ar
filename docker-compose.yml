@@ -5,7 +5,7 @@ services:
   mysql:
     image: mysql:8.0
     container_name: colegio_mysql
-    restart: unless-stopped
+    restart: "no"
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
@@ -24,7 +24,7 @@ services:
   app:
     build: .
     container_name: colegio_app
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "443:443"
     environment:
