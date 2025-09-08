@@ -88,13 +88,13 @@ export class Justificacion {
   observaciones_admin?: string;
 
   @CreateDateColumn({
-    type: 'timestamp',
+    type: 'datetime',
     default: () => 'CURRENT_TIMESTAMP',
   })
   fecha_creacion: Date;
 
   @UpdateDateColumn({
-    type: 'timestamp',
+    type: 'datetime',
     default: () => 'CURRENT_TIMESTAMP',
     onUpdate: 'CURRENT_TIMESTAMP',
   })

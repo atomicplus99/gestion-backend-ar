@@ -50,21 +50,7 @@ services:
       - mysql
     networks:
       - colegio_network
-    command: >
-      sh -c "
-        echo 'Esperando a que MySQL esté listo...' &&
-        sleep 30 &&
-        echo 'Generando migraciones...' &&
-        npm run migration:generate &&
-        echo 'Ejecutando migraciones...' &&
-        npm run migration:run &&
-        echo 'Verificando migraciones ejecutadas...' &&
-        npm run typeorm migration:show &&
-        echo 'Ejecutando seeders...' &&
-        npm run seed:run &&
-        echo 'Iniciando aplicación...' &&
-        npm run start:prod
-      "
+    command: npm run start:prod
 
   # Nginx (opcional para producción)
   # nginx:
