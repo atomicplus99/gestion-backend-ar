@@ -351,7 +351,7 @@ export class AlumnoService {
       
       // Establecer rol y imagen de perfil predeterminada
       usuario.rol_usuario = RolUsuario.ALUMNO;
-      usuario.profile_image = 'uploads/profiles/no-image.png';
+      usuario.profile_image = 'no-image.png';
       
       // Agregar el par alumno-usuario a la lista
       usersToCreate.push({ alumno, usuario });

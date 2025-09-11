@@ -35,8 +35,13 @@ docker compose up -d
 echo "=========================================="
 echo "✅ APLICACIÓN INICIADA EXITOSAMENTE"
 echo "=========================================="
-echo "🌐 URL: http://localhost:3000"
-echo "📊 API Docs: http://localhost:3000/api"
+if [ "$HTTPS_ENABLED" = "true" ]; then
+    echo "🌐 URL: https://localhost:443"
+    echo "📊 API Docs: https://localhost:443/api"
+else
+    echo "🌐 URL: http://localhost:3000"
+    echo "📊 API Docs: http://localhost:3000/api"
+fi
 echo "🗄️ MySQL: localhost:3306"
 echo "=========================================="
 

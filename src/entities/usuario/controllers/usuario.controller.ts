@@ -303,11 +303,17 @@ export class UsuarioController {
   @ApiOperation({ summary: 'Obtener imagen por defecto' })
   @ApiResponse({ status: 200, description: 'Imagen por defecto obtenida exitosamente' })
   async getDefaultPhoto() {
+    const baseUrl = process.env.BASE_URL;
+    
+    if (!baseUrl) {
+      throw new Error('BASE_URL no está configurada en las variables de entorno');
+    }
+    
     return {
       success: true,
       message: 'Imagen por defecto obtenida exitosamente',
       data: {
-        foto_url: 'http://localhost:3000/profiles/no-image.png'
+        foto_url: `${baseUrl}/profiles/no-image.png`
       }
     };
   }

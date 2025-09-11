@@ -22,8 +22,8 @@ async function bootstrap() {
   try {
     let app;
     
-    // Configuración HTTPS si está habilitado
-    if (process.env.HTTPS_ENABLED === 'true') {
+    // Configuración HTTPS si el protocolo es https
+    if (process.env.PROTOCOL === 'https') {
       const httpsOptions = {
         key: fs.readFileSync('./ssl/server.key'),
         cert: fs.readFileSync('./ssl/server.crt'),
@@ -85,9 +85,13 @@ async function bootstrap() {
     // Aplicar interceptor global de transformación de respuestas
     app.useGlobalInterceptors(new ResponseTransformInterceptor());
     
-    const port = process.env.HTTPS_ENABLED === 'true' ? 443 : 3000;
-    const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
-    const protocol = process.env.HTTPS_ENABLED === 'true' ? 'https' : 'http';
+    const port = process.env.PORT;
+    const host = process.env.HOST;
+    const protocol = process.env.PROTOCOL;
+    
+    if (!port || !host || !protocol) {
+      throw new Error('PORT, HOST y PROTOCOL deben estar configurados en las variables de entorno');
+    }
     
     await app.listen(port, host);
     

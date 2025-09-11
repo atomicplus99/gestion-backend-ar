@@ -26,6 +26,7 @@ import { DirectorModule } from './entities/director/director.module';
 import { NotificacionModule } from './entities/notificacion/notificacion.module';
 import { TurnoExtraModule } from './entities/turno-extra/turno-extra.module';
 import { AsistenciaExtraModule } from './entities/asistencia-extra/asistencia-extra.module';
+import { ConfigModule } from '@nestjs/config';
 
 
 
@@ -35,6 +36,10 @@ dotenv.config();
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

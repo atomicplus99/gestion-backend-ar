@@ -142,7 +142,7 @@ export class ImportAlumnosExcelService implements ImportAlumnosExcelPort {
             const defaultPlainPassword = `${firstName.toLowerCase()}${firstLast.toLowerCase()}${year}`;
             usuario.password_user = await this.hashPassword(defaultPlainPassword);
             usuario.rol_usuario = 'ALUMNO' as any;
-            usuario.profile_image = 'uploads/profiles/no-image.png';
+            usuario.profile_image = 'no-image.png';
             
             const usuarioGuardado = await manager.save('USUARIO', usuario);
             

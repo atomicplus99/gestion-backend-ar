@@ -1,0 +1,558 @@
+==========================================
+GUÍA COMPLETA DE DESPLIEGUE - SISTEMA GESTIÓN COLEGIO
+==========================================
+
+FECHA: 08/09/2025
+SISTEMA: Debian 12 (Bookworm) en VirtualBox
+APLICACIÓN: NestJS + TypeORM + MySQL + Docker
+
+==========================================
+1. CONFIGURACIÓN INICIAL DEL SERVIDOR DEBIAN
+==========================================
+
+# Actualizar sistema
+sudo apt update && sudo apt upgrade -y
+
+# Instalar dependencias necesarias
+sudo apt install -y curl wget git docker.io docker-compose python3 python3-pip openssl
+
+# Agregar usuario al grupo docker
+sudo usermod -aG docker $USER
+
+# Habilitar Docker al inicio
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Reiniciar sesión para aplicar cambios
+# (cerrar y abrir terminal)
+
+# Verificar instalación
+docker --version
+docker-compose --version
+systemctl status docker
+
+==========================================
+2. CONFIGURACIÓN DE RED VIRTUALBOX
+==========================================
+
+IMPORTANTE: Para acceso desde red local
+
+1. Cerrar máquina virtual
+2. En VirtualBox Manager:
+   - Seleccionar VM
+   - Settings → Network → Adapter 1
+   - Attached to: "Bridged Adapter"
+   - Name: Seleccionar adaptador de red (WiFi/Ethernet)
+   - Promiscuous Mode: "Allow All"
+3. Reiniciar VM
+
+# Verificar IP de red local
+hostname -I
+# Debe mostrar IP tipo 192.168.1.x
+
+# Verificar conectividad de red
+ping -c 3 8.8.8.8
+
+==========================================
+3. CONFIGURACIÓN DE FIREWALL (UFW)
+==========================================
+
+# Instalar UFW si no está instalado
+sudo apt install -y ufw
+
+# Habilitar firewall y permitir puerto 443
+sudo ufw allow 443/tcp
+sudo ufw allow 22/tcp  # SSH
+sudo ufw allow 80/tcp  # HTTP (opcional)
+sudo ufw --force enable
+
+# Verificar estado
+sudo ufw status verbose
+
+# Verificar que el puerto esté abierto
+sudo netstat -tlnp | grep :443
+
+==========================================
+4. CONFIGURACIÓN DE SISTEMA
+==========================================
+
+# Configurar zona horaria
+sudo timedatectl set-timezone America/Lima
+
+# Verificar zona horaria
+timedatectl
+
+# Configurar locales
+sudo dpkg-reconfigure locales
+# Seleccionar: es_PE.UTF-8 UTF-8
+
+# Verificar locales
+locale
+
+==========================================
+5. CLONAR Y CONFIGURAR PROYECTO
+==========================================
+
+# Instalar Git si no está instalado
+sudo apt install -y git
+
+# Clonar repositorio
+git clone [URL_DEL_REPOSITORIO] gestion-backend-ar
+cd gestion-backend-ar
+
+# Verificar que se clonó correctamente
+ls -la
+
+# Configurar archivo .env
+nano .env
+
+# Contenido del .env:
+DB_HOST=mysql
+DB_PORT=3306
+DB_USERNAME=gestion_user
+DB_PASSWORD=gestion2024
+DB_NAME=gestion_academica_ar
+HTTPS_ENABLED=true
+NODE_ENV=production
+JWT_SECRET=tu_jwt_secret_aqui
+TELEGRAM_BOT_TOKEN=tu_telegram_token_aqui
+TELEGRAM_CHAT_ID=tu_chat_id_aqui
+
+# Verificar archivo .env
+cat .env
+
+==========================================
+6. CONFIGURACIÓN DE SSL
+==========================================
+
+# Crear directorio SSL
+mkdir -p ssl
+
+# Generar certificado autofirmado
+openssl req -x509 -newkey rsa:4096 -keyout ssl/server.key -out ssl/server.crt -days 365 -nodes -subj "/C=PE/ST=Lima/L=Lima/O=Colegio/CN=localhost"
+
+# Configurar permisos correctos para SSL
+chmod 600 ssl/server.key
+chmod 644 ssl/server.crt
+
+# IMPORTANTE: Cambiar propietario al usuario del contenedor Docker
+# Verificar el usuario del contenedor después de iniciarlo
+docker compose up -d
+docker compose exec app id
+# Usar el UID y GID del comando anterior (ejemplo: 1001:65533)
+sudo chown -R 1001:65533 ssl/
+
+# Verificar certificados y permisos
+ls -la ssl/
+
+# Verificar contenido del certificado
+openssl x509 -in ssl/server.crt -text -noout
+
+==========================================
+7. CONFIGURACIÓN DE DIRECTORIOS
+==========================================
+
+# Crear directorios necesarios
+mkdir -p logs
+mkdir -p public/profiles/usuarios
+
+# Configurar permisos
+chmod 755 logs
+chmod 755 public
+chmod 755 public/profiles
+chmod 755 public/profiles/usuarios
+
+# Verificar estructura
+ls -la
+tree -L 3  # Si tree está instalado
+
+==========================================
+8. CONFIGURACIÓN DE DOCKER
+==========================================
+
+# Verificar que Docker esté funcionando
+sudo systemctl status docker
+
+# Verificar docker-compose.yml
+cat docker-compose.yml
+
+# Verificar Dockerfile
+cat Dockerfile
+
+# Construir y ejecutar contenedores
+docker compose up -d --build
+
+# Verificar estado de contenedores
+docker compose ps
+
+# Verificar logs de construcción
+docker compose logs app --tail=50
+
+==========================================
+9. CONFIGURACIÓN DE BASE DE DATOS
+==========================================
+
+# Esperar a que MySQL esté listo
+sleep 30
+
+# Verificar que la base de datos esté lista
+docker compose exec mysql mysql -u root -p -e "SHOW DATABASES;"
+
+# Verificar conexión a la base de datos
+docker compose exec mysql mysql -u root -p -e "SELECT VERSION();"
+
+# Verificar variables de entorno de la base de datos
+docker compose exec app env | grep DB_
+
+==========================================
+10. EJECUTAR MIGRACIONES
+==========================================
+
+# Verificar que las migraciones estén disponibles
+docker compose exec app ls -la /app/dist/database/migrations/
+
+# Ejecutar migraciones
+docker compose exec app npm run typeorm migration:run
+
+# Verificar que las tablas se crearon
+docker compose exec mysql mysql -u root -p -e "USE gestion_academica_ar; SHOW TABLES;"
+
+# Verificar estructura de una tabla
+docker compose exec mysql mysql -u root -p -e "USE gestion_academica_ar; DESCRIBE USUARIO;"
+
+==========================================
+11. VERIFICACIÓN DEL DESPLIEGUE
+==========================================
+
+# Verificar logs de la aplicación
+docker compose logs app --tail=20
+
+# Verificar que el puerto esté escuchando
+sudo netstat -tlnp | grep :443
+# O usar ss si netstat no está disponible
+sudo ss -tlnp | grep :443
+
+# Probar desde el servidor
+curl -k https://localhost:443/health
+
+# Verificar IP del servidor
+hostname -I
+
+# Verificar conectividad externa
+curl -k https://$(hostname -I | awk '{print $1}'):443/health
+
+==========================================
+12. CONFIGURACIÓN PARA ACCESO EXTERNO
+==========================================
+
+# IP del servidor
+SERVER_IP=$(hostname -I | awk '{print $1}')
+echo "IP del servidor: $SERVER_IP"
+
+# URLs para acceso externo:
+echo "URLs disponibles:"
+echo "Health: https://$SERVER_IP:443/health"
+echo "Login: https://$SERVER_IP:443/auth/login"
+echo "API Docs: https://$SERVER_IP:443/api"
+echo "Alumnos: https://$SERVER_IP:443/alumnos"
+
+# Verificar que el puerto esté abierto externamente
+nmap -p 443 $SERVER_IP
+
+==========================================
+13. CONFIGURACIÓN EN POSTMAN/FRONTEND
+==========================================
+
+# Configuración SSL en Postman:
+# Settings → General → Desactivar "SSL certificate verification"
+
+# Endpoint de login:
+POST https://[IP_SERVIDOR]:443/auth/login
+Headers: Content-Type: application/json
+Body: {
+  "nombre_usuario": "admin",
+  "password_user": "admin123"
+}
+
+# Endpoints principales:
+GET  https://[IP_SERVIDOR]:443/health
+GET  https://[IP_SERVIDOR]:443/ping
+GET  https://[IP_SERVIDOR]:443/api
+GET  https://[IP_SERVIDOR]:443/alumnos
+GET  https://[IP_SERVIDOR]:443/asistencia/list
+
+# Probar desde línea de comandos
+curl -k -X POST https://$SERVER_IP:443/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"nombre_usuario": "admin", "password_user": "admin123"}'
+
+==========================================
+14. COMANDOS DE MANTENIMIENTO
+==========================================
+
+# Ver logs en tiempo real
+docker compose logs app -f
+
+# Reiniciar contenedores
+docker compose restart
+
+# Parar contenedores
+docker compose down
+
+# Iniciar contenedores
+docker compose up -d
+
+# Reconstruir contenedores
+docker compose up -d --build
+
+# Limpiar Docker
+docker system prune -a
+
+# Verificar espacio en disco
+df -h
+
+# Verificar memoria
+free -h
+
+# Verificar uso de CPU
+top
+
+==========================================
+15. SOLUCIÓN DE PROBLEMAS COMUNES
+==========================================
+
+# Problema: "No migrations are pending"
+# Solución: Verificar que data-source.ts tenga:
+# migrations: ['dist/database/migrations/*.js']
+
+# Problema: SSL_ERROR_SYSCALL
+# Solución: Usar -k en curl o desactivar verificación SSL
+
+# Problema: No se puede acceder desde red externa
+# Solución: Verificar configuración de red VirtualBox (Bridged Adapter)
+
+# Problema: Puerto 443 no accesible
+# Solución: Verificar firewall (sudo ufw allow 443/tcp)
+
+# Problema: Contenedores no inician
+# Solución: Verificar logs (docker compose logs)
+
+# Problema: Docker no inicia
+# Solución: 
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Problema: Permisos de archivos
+# Solución:
+sudo chown -R $USER:$USER gestion-backend-ar/
+chmod -R 755 gestion-backend-ar/
+
+# Problema: Certificados SSL
+# Solución: Regenerar certificados
+rm -rf ssl/*
+openssl req -x509 -newkey rsa:4096 -keyout ssl/server.key -out ssl/server.crt -days 365 -nodes -subj "/C=PE/ST=Lima/L=Lima/O=Colegio/CN=localhost"
+
+==========================================
+16. BACKUP Y RESTAURACIÓN
+==========================================
+
+# Backup de base de datos
+docker compose exec mysql mysqldump -u root -p gestion_academica_ar > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restaurar base de datos
+docker compose exec -i mysql mysql -u root -p gestion_academica_ar < backup_file.sql
+
+# Backup de archivos de aplicación
+tar -czf app_backup_$(date +%Y%m%d_%H%M%S).tar.gz gestion-backend-ar/
+
+# Backup de configuración del sistema
+sudo dpkg --get-selections > installed_packages.txt
+sudo cp /etc/ufw/user.rules ufw_backup.rules
+
+==========================================
+17. MONITOREO Y LOGS
+==========================================
+
+# Ver logs de aplicación
+docker compose logs app --tail=100
+
+# Ver logs de base de datos
+docker compose logs mysql --tail=100
+
+# Ver uso de recursos
+docker stats
+
+# Verificar espacio en disco
+df -h
+
+# Verificar memoria
+free -h
+
+# Verificar procesos
+ps aux | grep docker
+
+# Verificar servicios del sistema
+systemctl status docker
+systemctl status ufw
+
+# Ver logs del sistema
+sudo journalctl -u docker.service
+sudo journalctl -u ufw.service
+
+==========================================
+18. ACTUALIZACIÓN DE CÓDIGO
+==========================================
+
+# Hacer pull de cambios
+git pull origin master
+
+# Reconstruir contenedores
+docker compose up -d --build
+
+# Ejecutar nuevas migraciones (si las hay)
+docker compose exec app npm run typeorm migration:run
+
+# Verificar que todo funcione
+curl -k https://localhost:443/health
+
+# Verificar logs después de actualización
+docker compose logs app --tail=50
+
+==========================================
+19. CONFIGURACIÓN AVANZADA DE DEBIAN
+==========================================
+
+# Configurar swap si es necesario
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# Configurar límites del sistema
+echo '* soft nofile 65536' | sudo tee -a /etc/security/limits.conf
+echo '* hard nofile 65536' | sudo tee -a /etc/security/limits.conf
+
+# Configurar kernel parameters
+echo 'vm.max_map_count=262144' | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+
+# Configurar logrotate para logs de aplicación
+sudo tee /etc/logrotate.d/gestion-colegio << EOF
+/home/$USER/gestion-backend-ar/logs/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 $USER $USER
+}
+EOF
+
+==========================================
+20. COMANDOS ESPECÍFICOS DE DEBIAN
+==========================================
+
+# Actualizar paquetes
+sudo apt update && sudo apt upgrade -y
+
+# Instalar paquetes adicionales útiles
+sudo apt install -y htop tree nmap net-tools
+
+# Verificar versión de Debian
+cat /etc/debian_version
+lsb_release -a
+
+# Verificar arquitectura
+uname -m
+
+# Verificar kernel
+uname -r
+
+# Verificar servicios activos
+systemctl list-units --type=service --state=active
+
+# Verificar puertos abiertos
+sudo netstat -tlnp
+sudo ss -tlnp
+
+==========================================
+NOTAS IMPORTANTES PARA DEBIAN
+==========================================
+
+1. Debian 12 (Bookworm) es la versión estable actual
+2. Docker se instala desde los repositorios oficiales de Debian
+3. UFW es el firewall por defecto en Debian
+4. systemd es el sistema de init por defecto
+5. Los logs del sistema se manejan con journalctl
+6. La configuración de red se maneja con systemd-networkd
+7. Los certificados SSL se generan con OpenSSL
+8. La aplicación es accesible desde cualquier dispositivo en la red local
+
+==========================================
+ESTRUCTURA DE ARCHIVOS IMPORTANTES
+==========================================
+
+gestion-backend-ar/
+├── .env                    # Variables de entorno
+├── docker-compose.yml      # Configuración de contenedores
+├── Dockerfile             # Imagen de la aplicación
+├── ssl/                   # Certificados SSL
+│   ├── server.key
+│   └── server.crt
+├── logs/                  # Logs de la aplicación
+├── public/                # Archivos públicos
+└── src/                   # Código fuente
+    ├── main.ts            # Punto de entrada (configurado para 0.0.0.0)
+    └── database/
+        ├── data-source.ts # Configuración TypeORM
+        └── migrations/    # Migraciones de base de datos
+
+==========================================
+COMANDOS RÁPIDOS DE REFERENCIA
+==========================================
+
+# Iniciar todo
+docker compose up -d
+
+# Ver estado
+docker compose ps
+
+# Ver logs
+docker compose logs app
+
+# Reiniciar
+docker compose restart
+
+# Parar
+docker compose down
+
+# Reconstruir
+docker compose up -d --build
+
+# Ejecutar migraciones
+docker compose exec app npm run typeorm migration:run
+
+# Probar aplicación
+curl -k https://localhost:443/health
+
+# Ver IP del servidor
+hostname -I
+
+# Verificar firewall
+sudo ufw status
+
+# Verificar Docker
+sudo systemctl status docker
+
+==========================================
+FIN DE LA GUÍA PARA DEBIAN
+==========================================
+
+Esta guía contiene todos los pasos necesarios para desplegar
+el sistema de gestión de colegio en Debian 12 (Bookworm) con Docker.
+
+Fecha de creación: 08/09/2025
+Versión: 1.0
+Sistema: Debian 12 (Bookworm)

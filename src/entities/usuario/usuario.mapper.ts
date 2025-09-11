@@ -25,7 +25,7 @@ export class UsuarioMapper {
     u.password_user = await bcrypt.hash(plainPassword, saltRounds);
 
     u.rol_usuario   = RolUsuario.ALUMNO;
-    u.profile_image = 'uploads/profiles/no-image.png';
+    u.profile_image = 'no-image.png';
 
     return u;
   }

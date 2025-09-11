@@ -7,15 +7,22 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtDefaultService } from './services/jwt.service';
 import { AlumnoModule } from 'src/entities/alumno/alumno.module';
 import { AuxiliarModule } from 'src/entities/auxiliar/auxiliar.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 
 
 
 
 @Module({
-  imports: [UsuarioModule, AlumnoModule, AuxiliarModule,
-      JwtModule.register({
-        secret: process.env.JWT_SECRET,
-        signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+  imports: [UsuarioModule, AlumnoModule, AuxiliarModule, ConfigModule,
+      JwtModule.registerAsync({
+        imports: [ConfigModule],
+        useFactory: async (configService: ConfigService) => ({
+          secret: configService.get<string>('JWT_SECRET'),
+          signOptions: { 
+            expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1h' 
+          },
+        }),
+        inject: [ConfigService],
       }),
   ],
   providers: [AuthService, JwtDefaultService],

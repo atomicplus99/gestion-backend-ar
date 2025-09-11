@@ -135,10 +135,12 @@ export class UsuarioFotoService {
       return 'no-image.png';
     }
     
-    const fullPath = path.join(this.uploadPath, path.basename(profileImage));
+    // Si la imagen contiene una ruta completa, extraer solo el nombre del archivo
+    const fileName = path.basename(profileImage);
+    const fullPath = path.join(this.uploadPath, fileName);
     
     if (fs.existsSync(fullPath)) {
-      return profileImage;
+      return fileName;
     } else {
       return 'no-image.png';
     }
@@ -168,7 +170,12 @@ export class UsuarioFotoService {
    * Obtiene la URL completa de la foto de perfil
    */
   getProfilePhotoUrl(profileImage: string): string {
-    const baseUrl = this.configService.get<string>('BASE_URL') || 'http://localhost:3000';
+    const baseUrl = this.configService.get<string>('BASE_URL');
+    
+    if (!baseUrl) {
+      throw new Error('BASE_URL no está configurada en las variables de entorno');
+    }
+    
     const photoPath = this.getProfilePhotoPath(profileImage);
     return `${baseUrl}/profiles/${photoPath}`;
   }

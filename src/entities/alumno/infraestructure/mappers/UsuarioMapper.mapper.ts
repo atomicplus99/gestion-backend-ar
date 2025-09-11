@@ -19,7 +19,7 @@ export class UsuarioMapper {
     
     // Establecer rol y configuración predeterminada
     usuario.rol_usuario = RolUsuario.ALUMNO;
-    usuario.profile_image = 'uploads/profiles/no-image.png';
+    usuario.profile_image = 'no-image.png';
     
     return usuario;
   }

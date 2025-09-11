@@ -16,8 +16,12 @@ import { Notificacion } from '../notificacion.entity';
 @WebSocketGateway({
   cors: {
     origin: process.env.NODE_ENV === 'development' 
-      ? ['http://localhost:4200', 'http://localhost:3000', 'ws://localhost:3000'] 
-      : process.env.FRONTEND_URL || 'http://localhost:4200',
+      ? [
+          process.env.FRONTEND_URL,
+          process.env.BASE_URL,
+          process.env.WS_URL
+        ].filter(Boolean)
+      : process.env.FRONTEND_URL,
     credentials: process.env.NODE_ENV === 'development' ? false : true,
   }
 })
