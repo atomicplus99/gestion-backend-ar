@@ -177,6 +177,13 @@ export class UsuarioFotoService {
     }
     
     const photoPath = this.getProfilePhotoPath(profileImage);
-    return `${baseUrl}/profiles/${photoPath}`;
+    
+    // Si es la imagen por defecto, usar la ruta general de profiles
+    if (photoPath === 'no-image.png') {
+      return `${baseUrl}/profiles/${photoPath}`;
+    }
+    
+    // Para imágenes de usuarios, usar la ruta específica
+    return `${baseUrl}/profiles/usuarios/${photoPath}`;
   }
 }

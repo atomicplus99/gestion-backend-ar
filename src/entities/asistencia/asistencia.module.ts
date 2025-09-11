@@ -37,13 +37,17 @@ import { AsistenciaExtraModule } from '../asistencia-extra/asistencia-extra.modu
 import { AdministradorModule } from '../administrador/administrador.module';
 import { DirectorModule } from '../director/director.module';
 import { EstadoAlumno } from '../estado-alumnos/entities/estado-alumno.entity';
+import { EstadisticasAsistenciaService } from './services/estadisticas-asistencia.service';
+import { EstadisticasAsistenciaController } from './controllers/estadisticas-asistencia.controller';
+import { Turno } from '../turno/turno.entity';
+import { AsistenciaExtra } from '../asistencia-extra/asistencia-extra.entity';
 
 
 
 @Module({
   imports: [
     AlumnoModule,
-    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog, AusenciasMasivasProgramadas, Usuario, Administrador, Director, EstadoAlumno]),
+    TypeOrmModule.forFeature([Asistencia, Alumno, ActualizacionesAsistencia, Auxiliar, AusenciasMasivasLog, AusenciasMasivasProgramadas, Usuario, Administrador, Director, EstadoAlumno, Turno, AsistenciaExtra]),
     AuxiliarModule,
     ActualizacionesAsistenciaModule,
     TelegramModule,
@@ -53,7 +57,7 @@ import { EstadoAlumno } from '../estado-alumnos/entities/estado-alumno.entity';
     AdministradorModule,
     DirectorModule
   ],
-  controllers: [AsistenciaController, AusenciasMasivasController],
+  controllers: [AsistenciaController, AusenciasMasivasController, EstadisticasAsistenciaController],
   providers: [AsistenciaService,
       AsistenciaTypeOrmRepository,
       AlumnoTypeOrmRepository,
@@ -67,7 +71,8 @@ import { EstadoAlumno } from '../estado-alumnos/entities/estado-alumno.entity';
       ValidarAlumnoUseCase,
       VerificarAsistenciaUseCase,
       AusenciasMasivasService,
-      AusenciasMasivasSchedulerService],
+      AusenciasMasivasSchedulerService,
+      EstadisticasAsistenciaService],
   exports:[AsistenciaTypeOrmRepository]
 })
 export class AsistenciaModule {}

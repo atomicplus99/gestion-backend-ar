@@ -48,6 +48,10 @@ dotenv.config();
       rootPath: join(__dirname, '..', 'public/profiles'),
       serveRoot: '/profiles',
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public/profiles/usuarios'),
+      serveRoot: '/profiles/usuarios',
+    }),
     TypeOrmModule.forRoot(typeOrmConfig),
     ScheduleModule.forRoot(),
     AuthModule,
