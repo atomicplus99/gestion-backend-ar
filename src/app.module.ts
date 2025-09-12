@@ -27,6 +27,7 @@ import { NotificacionModule } from './entities/notificacion/notificacion.module'
 import { TurnoExtraModule } from './entities/turno-extra/turno-extra.module';
 import { AsistenciaExtraModule } from './entities/asistencia-extra/asistencia-extra.module';
 import { ConfigModule } from '@nestjs/config';
+import { BackupModule } from './common/modules/backup.module';
 
 
 
@@ -69,8 +70,9 @@ dotenv.config();
     AdministradorModule,
     DirectorModule,
     NotificacionModule,
-          TurnoExtraModule,
-      AsistenciaExtraModule
+    TurnoExtraModule,
+    AsistenciaExtraModule,
+    BackupModule
   ],
   controllers: [AppController], 
   providers: [AppService],       

@@ -1,0 +1,4 @@
+# Ignorar todos los archivos de respaldo
+*.sql
+*.gz
+*.zip
