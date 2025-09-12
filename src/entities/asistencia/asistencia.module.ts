@@ -36,6 +36,7 @@ import { TurnoExtraModule } from '../turno-extra/turno-extra.module';
 import { AsistenciaExtraModule } from '../asistencia-extra/asistencia-extra.module';
 import { AdministradorModule } from '../administrador/administrador.module';
 import { DirectorModule } from '../director/director.module';
+import { UsuarioModule } from '../usuario/usuario.module';
 import { EstadoAlumno } from '../estado-alumnos/entities/estado-alumno.entity';
 import { EstadisticasAsistenciaService } from './services/estadisticas-asistencia.service';
 import { EstadisticasAsistenciaController } from './controllers/estadisticas-asistencia.controller';
@@ -55,7 +56,8 @@ import { AsistenciaExtra } from '../asistencia-extra/asistencia-extra.entity';
     TurnoExtraModule,
     AsistenciaExtraModule,
     AdministradorModule,
-    DirectorModule
+    DirectorModule,
+    UsuarioModule
   ],
   controllers: [AsistenciaController, AusenciasMasivasController, EstadisticasAsistenciaController],
   providers: [AsistenciaService,

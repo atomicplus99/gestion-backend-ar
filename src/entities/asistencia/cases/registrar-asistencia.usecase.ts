@@ -7,6 +7,8 @@ import { TelegramNotificationService } from '../../telegram/services/telegram-no
 import { TurnoExtraService } from '../../turno-extra/turno-extra.service';
 import { AsistenciaExtraService } from '../../asistencia-extra/asistencia-extra.service';
 import { CreateAsistenciaExtraDto } from '../../asistencia-extra/asistencia-extra.service';
+import { UsuarioFotoService } from '../../usuario/services/usuario-foto.service';
+
 
 @Injectable()
 export class RegistrarAsistenciaDesdeQRUseCase {
@@ -16,7 +18,20 @@ export class RegistrarAsistenciaDesdeQRUseCase {
     private readonly telegramNotificationService: TelegramNotificationService,
     private readonly turnoExtraService: TurnoExtraService,
     private readonly asistenciaExtraService: AsistenciaExtraService,
+    private readonly usuarioFotoService: UsuarioFotoService,
   ) {}
+
+  /**
+   * Construye la URL completa de la imagen de perfil del usuario
+   */
+  private buildProfileImageUrl(profileImage: string): string {
+    try {
+      return this.usuarioFotoService.getProfilePhotoUrl(profileImage);
+    } catch (error) {
+      // Si hay error construyendo la URL, retornar la imagen por defecto
+      return this.usuarioFotoService.getProfilePhotoUrl('no-image.png');
+    }
+  }
 
   async execute(codigo_qr: string): Promise<Asistencia | any> {
     const alumno = await this.validarAlumno.execute(codigo_qr);
@@ -117,7 +132,7 @@ export class RegistrarAsistenciaDesdeQRUseCase {
         const horaMinimaFormato = `${Math.floor(horaMinimaEntrada/60).toString().padStart(2,'0')}:${(horaMinimaEntrada%60).toString().padStart(2,'0')}`;
         
         let mensajeError = `No se puede registrar asistencia fuera del horario del turno. ` +
-          `Turno: ${turno.turno} (${horaMinimaFormato} - ${turno.hora_fin}). ` +
+          `Turno: ${turno.turno} (${turno.hora_inicio} - ${turno.hora_fin}). ` +
           `Hora actual: ${horaActual}`;
         
         if (turnoExtraHoy) {
@@ -141,6 +156,10 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
         const asistenciaExtraGuardada = await this.asistenciaExtraService.create(createAsistenciaExtraDto, alumno);
         
+        // Construir URL completa de la imagen de perfil
+        if (asistenciaExtraGuardada.alumno?.usuario?.profile_image) {
+          asistenciaExtraGuardada.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaExtraGuardada.alumno.usuario.profile_image);
+        }
         
         return asistenciaExtraGuardada;
       }
@@ -167,6 +186,10 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
       const asistenciaGuardada = await this.asistenciaRepo.save(nuevaAsistencia);
       
+      // Construir URL completa de la imagen de perfil
+      if (asistenciaGuardada.alumno?.usuario?.profile_image) {
+        asistenciaGuardada.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaGuardada.alumno.usuario.profile_image);
+      }
       
       // Enviar notificación de Telegram al apoderado
       await this.telegramNotificationService.notificarAsistenciaApoderado(asistenciaGuardada);
@@ -206,6 +229,10 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
             const asistenciaExtraGuardada = await this.asistenciaExtraService.create(createAsistenciaExtraDto, alumno);
             
+            // Construir URL completa de la imagen de perfil
+            if (asistenciaExtraGuardada.alumno?.usuario?.profile_image) {
+              asistenciaExtraGuardada.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaExtraGuardada.alumno.usuario.profile_image);
+            }
             
             return asistenciaExtraGuardada;
           } else {
@@ -228,6 +255,11 @@ export class RegistrarAsistenciaDesdeQRUseCase {
                  asistenciaExtraExistente.id_asistencia_extra,
                  { hora_salida: horaActual }
                );
+               
+               // Construir URL completa de la imagen de perfil
+               if (asistenciaExtraActualizada.alumno?.usuario?.profile_image) {
+                 asistenciaExtraActualizada.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaExtraActualizada.alumno.usuario.profile_image);
+               }
                
                return asistenciaExtraActualizada;
             } else {
@@ -275,8 +307,14 @@ export class RegistrarAsistenciaDesdeQRUseCase {
           // La hora de salida debe ser la hora REAL cuando marca, no la hora oficial
           asistencia.hora_salida = horaActual;
           
+          const asistenciaActualizada = await this.asistenciaRepo.save(asistencia);
           
-          return this.asistenciaRepo.save(asistencia);
+          // Construir URL completa de la imagen de perfil
+          if (asistenciaActualizada.alumno?.usuario?.profile_image) {
+            asistenciaActualizada.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaActualizada.alumno.usuario.profile_image);
+          }
+          
+          return asistenciaActualizada;
        }
 
       // Ya tiene entrada y salida → rechazar

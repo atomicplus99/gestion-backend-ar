@@ -41,6 +41,10 @@ services:
       - BREVO_FROM_NAME=${BREVO_FROM_NAME}
       - ADMIN_DEFAULT_PASSWORD=${ADMIN_DEFAULT_PASSWORD}
       - HTTPS_ENABLED=${HTTPS_ENABLED}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - PROTOCOL=${PROTOCOL}
+      - BASE_URL=${BASE_URL}
     volumes:
       - ./logs:/app/logs
       - ./ssl:/app/ssl
