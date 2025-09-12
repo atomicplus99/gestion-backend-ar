@@ -629,23 +629,29 @@ export class UsuarioService {
   /**
    * Solicita restablecimiento de contraseña
    */
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<void> {
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ userFound: boolean }> {
     try {
+      this.logger.log(`🔐 Solicitud de recuperación de contraseña para: ${forgotPasswordDto.email}`);
+      
       // Buscar usuario por email en las entidades correspondientes según el rol
       const usuario = await this.buscarUsuarioPorEmail(forgotPasswordDto.email);
 
       if (!usuario) {
-        // Por seguridad, no revelar si el email existe o no
-        return;
+        this.logger.warn(`⚠️ Usuario no encontrado para email: ${forgotPasswordDto.email}`);
+        return { userFound: false };
       }
+
+      this.logger.log(`✅ Usuario encontrado: ${usuario.nombre_usuario} (ID: ${usuario.id_user})`);
 
       // Generar token de restablecimiento
       const resetToken = this.tokenService.generatePasswordResetToken(usuario.id_user, forgotPasswordDto.email);
+      this.logger.log(`🔑 Token de restablecimiento generado para: ${forgotPasswordDto.email}`);
       
       // Obtener nombre del usuario para el email
       const nombreUsuario = this.obtenerNombreUsuario(usuario);
       
       // Enviar email de restablecimiento
+      this.logger.log(`📧 Enviando email de restablecimiento a: ${forgotPasswordDto.email}`);
       const emailEnviado = await this.brevoService.sendPasswordResetEmail(
         forgotPasswordDto.email, 
         resetToken, 
@@ -653,11 +659,15 @@ export class UsuarioService {
       );
 
       if (emailEnviado) {
+        this.logger.log(`✅ Email de restablecimiento enviado exitosamente a: ${forgotPasswordDto.email}`);
+        return { userFound: true };
       } else {
+        this.logger.error(`❌ Error enviando email de restablecimiento a: ${forgotPasswordDto.email}`);
         throw new BadRequestException('Error enviando email de restablecimiento');
       }
 
     } catch (error) {
+      this.logger.error(`❌ Error en forgotPassword para ${forgotPasswordDto.email}:`, error.message);
       throw error;
     }
   }
@@ -708,6 +718,8 @@ export class UsuarioService {
    */
   private async buscarUsuarioPorEmail(email: string): Promise<Usuario | null> {
     try {
+      this.logger.log(`🔍 Buscando usuario con email: ${email}`);
+
       // Buscar en Administrador
       const administrador = await this.usuarioRepository
         .createQueryBuilder('usuario')
@@ -716,6 +728,7 @@ export class UsuarioService {
         .getOne();
 
       if (administrador) {
+        this.logger.log(`✅ Usuario encontrado en Administrador: ${administrador.nombre_usuario} (email: ${administrador.administrador?.email})`);
         return administrador;
       }
 
@@ -727,6 +740,7 @@ export class UsuarioService {
         .getOne();
 
       if (director) {
+        this.logger.log(`✅ Usuario encontrado en Director: ${director.nombre_usuario} (email: ${director.director?.email})`);
         return director;
       }
 
@@ -734,28 +748,100 @@ export class UsuarioService {
       const auxiliar = await this.usuarioRepository
         .createQueryBuilder('usuario')
         .leftJoinAndSelect('usuario.auxiliar', 'auxiliar')
-        .where('auxiliar.email = :email', { email })
+        .where('auxiliar.correo_electronico = :email', { email })
         .getOne();
 
       if (auxiliar) {
+        this.logger.log(`✅ Usuario encontrado en Auxiliar: ${auxiliar.nombre_usuario} (email: ${auxiliar.auxiliar?.correo_electronico})`);
         return auxiliar;
       }
 
       // Buscar en Alumno (email del apoderado)
+      this.logger.log(`🔍 Buscando en Alumno con email: ${email}`);
       const alumno = await this.usuarioRepository
         .createQueryBuilder('usuario')
         .leftJoinAndSelect('usuario.alumno', 'alumno')
-        .leftJoinAndSelect('alumno.apoderado', 'apoderado')
+        .leftJoinAndSelect('alumno.apoderados', 'apoderado')
         .where('apoderado.email = :email', { email })
         .getOne();
 
       if (alumno) {
+        this.logger.log(`✅ Usuario encontrado en Alumno: ${alumno.nombre_usuario} (email del apoderado: ${alumno.alumno?.apoderados?.[0]?.email})`);
         return alumno;
+      } else {
+        this.logger.log(`❌ No se encontró alumno con apoderado email: ${email}`);
       }
 
+      this.logger.log(`❌ No se encontró usuario con email: ${email}`);
       return null;
 
     } catch (error) {
+      this.logger.error(`❌ Error buscando usuario por email ${email}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Método de debug para verificar emails en la base de datos
+   */
+  async debugEmail(email: string): Promise<any> {
+    try {
+      this.logger.log(`🔍 DEBUG: Verificando email: ${email}`);
+      
+      // Verificar en Administrador
+      const administrador = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.administrador', 'administrador')
+        .where('administrador.email = :email', { email })
+        .getOne();
+
+      // Verificar en Director
+      const director = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.director', 'director')
+        .where('director.email = :email', { email })
+        .getOne();
+
+      // Verificar en Auxiliar
+      const auxiliar = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.auxiliar', 'auxiliar')
+        .where('auxiliar.correo_electronico = :email', { email })
+        .getOne();
+
+      // Verificar en Alumno (email del apoderado)
+      const alumno = await this.usuarioRepository
+        .createQueryBuilder('usuario')
+        .leftJoinAndSelect('usuario.alumno', 'alumno')
+        .leftJoinAndSelect('alumno.apoderados', 'apoderado')
+        .where('apoderado.email = :email', { email })
+        .getOne();
+
+      return {
+        email,
+        administrador: administrador ? {
+          id: administrador.id_user,
+          username: administrador.nombre_usuario,
+          email: administrador.administrador?.email
+        } : null,
+        director: director ? {
+          id: director.id_user,
+          username: director.nombre_usuario,
+          email: director.director?.email
+        } : null,
+        auxiliar: auxiliar ? {
+          id: auxiliar.id_user,
+          username: auxiliar.nombre_usuario,
+          email: auxiliar.auxiliar?.correo_electronico
+        } : null,
+        alumno: alumno ? {
+          id: alumno.id_user,
+          username: alumno.nombre_usuario,
+          apoderadoEmail: alumno.alumno?.apoderados?.[0]?.email
+        } : null
+      };
+    } catch (error) {
+      this.logger.error(`❌ Error en debugEmail:`, error.message);
       throw error;
     }
   }

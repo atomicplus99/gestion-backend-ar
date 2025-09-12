@@ -256,12 +256,28 @@ export class UsuarioController {
   @Post('forgot-password')
   @ApiOperation({ summary: 'Solicitar restablecimiento de contraseña' })
   @ApiResponse({ status: 200, description: 'Solicitud procesada exitosamente' })
+  @ApiResponse({ status: 404, description: 'Email no encontrado' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    await this.usuarioService.forgotPassword(forgotPasswordDto);
-    return {
-      success: true,
-      message: 'Si el email existe, se enviará un enlace de restablecimiento'
-    };
+    try {
+      const result = await this.usuarioService.forgotPassword(forgotPasswordDto);
+      
+      if (result.userFound) {
+        return {
+          success: true,
+          message: 'Se ha enviado un enlace de restablecimiento de contraseña a tu email'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'No se encontró una cuenta asociada a este email'
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error procesando la solicitud. Intenta nuevamente.'
+      };
+    }
   }
 
   @Post('reset-password')
@@ -274,6 +290,12 @@ export class UsuarioController {
       success: true,
       message: 'Contraseña restablecida exitosamente'
     };
+  }
+
+  @Get('debug-email/:email')
+  @ApiOperation({ summary: 'Debug: Verificar email en base de datos' })
+  async debugEmail(@Param('email') email: string) {
+    return await this.usuarioService.debugEmail(email);
   }
 
   @Post(':id/foto')

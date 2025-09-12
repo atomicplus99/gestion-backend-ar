@@ -6,28 +6,37 @@ export class BrevoService {
 
   async sendPasswordResetEmail(email: string, resetToken: string, username: string): Promise<boolean> {
     try {
+      this.logger.log(`📧 Iniciando envío de email de restablecimiento a: ${email}`);
       
       const apiKey = process.env.BREVO_API_KEY;
       const fromEmail = process.env.BREVO_FROM_EMAIL;
       const fromName = process.env.BREVO_FROM_NAME;
       
       if (!apiKey) {
+        this.logger.error('❌ BREVO_API_KEY no configurada');
         return false;
       }
       
       if (!fromEmail) {
+        this.logger.error('❌ BREVO_FROM_EMAIL no configurada');
         return false;
       }
       
       if (!fromName) {
+        this.logger.error('❌ BREVO_FROM_NAME no configurada');
         return false;
       }
 
       const frontendUrl = process.env.FRONTEND_URL;
       
       if (!frontendUrl) {
+        this.logger.error('❌ FRONTEND_URL no configurada');
         return false;
       }
+
+      this.logger.log(`✅ Variables de entorno configuradas correctamente`);
+      this.logger.log(`📧 Email remitente: ${fromEmail} (${fromName})`);
+      this.logger.log(`🌐 Frontend URL: ${frontendUrl}`);
       
       const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
@@ -100,6 +109,9 @@ export class BrevoService {
         `
       };
 
+      this.logger.log(`📤 Enviando email a través de Brevo API para: ${email}`);
+      this.logger.log(`🔗 URL de restablecimiento: ${resetUrl}`);
+      
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
@@ -111,12 +123,15 @@ export class BrevoService {
 
       if (response.ok) {
         const result = await response.json();
+        this.logger.log(`✅ Email enviado exitosamente a ${email}. ID de mensaje: ${result.messageId}`);
         return true;
       } else {
         const error = await response.text();
+        this.logger.error(`❌ Error enviando email a ${email}. Status: ${response.status}, Error: ${error}`);
         return false;
       }
     } catch (error) {
+      this.logger.error(`❌ Error inesperado enviando email a ${email}:`, error.message);
       return false;
     }
   }
