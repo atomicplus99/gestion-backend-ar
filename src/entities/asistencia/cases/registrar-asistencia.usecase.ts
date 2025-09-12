@@ -44,11 +44,20 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       throw new BadRequestException('El alumno no tiene un turno asignado. No se puede registrar asistencia.');
     }
 
+    // Obtener hora y fecha real de Perú usando toLocaleString
     const ahora = new Date();
-    ahora.setHours(15,0, 0); 
-
-    const fechaActual = new Date(ahora.toDateString()); 
-    const horaActual = ahora.toTimeString().split(' ')[0]; 
+    const ahoraPeru = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+    
+    // Debug: verificar las horas
+    console.log('🕐 DEBUG HORAS:', {
+      hora_utc: ahora.toTimeString().split(' ')[0],
+      hora_peru: ahoraPeru.toTimeString().split(' ')[0],
+      fecha_peru: ahoraPeru.toDateString()
+    });
+    
+    // Usar solo la fecha (sin hora) para buscar asistencia existente
+    const fechaActual = new Date(ahoraPeru.toDateString()); 
+    const horaActual = ahoraPeru.toTimeString().split(' ')[0];
 
     // 🔍 VALIDACIÓN DE TURNO EXTRA: Verificar si el alumno tiene turno extra para hoy
     const turnosExtra = await this.turnoExtraService.findByAlumno(alumno.id_alumno);
@@ -121,7 +130,7 @@ export class RegistrarAsistenciaDesdeQRUseCase {
 
     // Si no hay asistencia previa, crear nueva asistencia
     if (!asistencia) {
-      // 🔒 VALIDACIÓN CRÍTICA: Solo validar horarios para NUEVAS asistencias
+      // 🔒 VALIDACIÓN CRÍTICA: Solo validar horarios para NUEVAS asistencias (entrada)
       if (!horaValida) {
         // Calcular hora mínima para mostrar en el mensaje de error
         const horaInicioMinutos = convertirHoraAMinutos(turno.hora_inicio);
@@ -181,7 +190,7 @@ export class RegistrarAsistenciaDesdeQRUseCase {
         hora_de_llegada: horaOficialEntrada, // Hora oficial del turno
         hora_salida: null,
         estado_asistencia: estado,
-        fecha: fechaActual,
+        fecha: new Date(ahoraPeru), // Fecha con la hora real de Perú
       });
 
       const asistenciaGuardada = await this.asistenciaRepo.save(nuevaAsistencia);
@@ -294,6 +303,16 @@ export class RegistrarAsistenciaDesdeQRUseCase {
          const horaFin = alumno.turno?.hora_fin;
          if (!horaFin) throw new BadRequestException('El turno no tiene hora de fin definida');
 
+         // Verificar que la hora actual sea después de la hora de fin del turno
+         const horaActualMinutos = convertirHoraAMinutos(horaActual);
+         const horaFinMinutos = convertirHoraAMinutos(horaFin);
+         
+         if (horaActualMinutos < horaFinMinutos) {
+           throw new BadRequestException(
+             `La salida solo puede registrarse después de las ${horaFin}. Hora actual: ${horaActual}`
+           );
+         }
+
                    // Si está dentro del horario del turno extra, NO permitir registrar salida del turno regular
           if (dentroHorarioExtra && turnoExtraHoy) {
             throw new BadRequestException(
@@ -302,19 +321,24 @@ export class RegistrarAsistenciaDesdeQRUseCase {
             );
           }
 
-                   // Permitir registrar salida incluso después del horario del turno regular
-          // (los alumnos pueden salir tarde de sus aulas)
-          // La hora de salida debe ser la hora REAL cuando marca, no la hora oficial
+          // Registrar salida (ya validamos que es después de la hora de fin)
           asistencia.hora_salida = horaActual;
+          // Actualizar la fecha para incluir la hora de salida (mantener la fecha original pero con la hora de salida)
+          const fechaOriginal = new Date(asistencia.fecha);
+          fechaOriginal.setHours(ahoraPeru.getHours(), ahoraPeru.getMinutes(), ahoraPeru.getSeconds(), 0);
+          asistencia.fecha = fechaOriginal;
           
           const asistenciaActualizada = await this.asistenciaRepo.save(asistencia);
           
+          // Cargar las relaciones completas después de actualizar
+          const asistenciaConRelaciones = await this.asistenciaRepo.findByAlumnoAndDate(alumno.id_alumno, fechaActual);
+          
           // Construir URL completa de la imagen de perfil
-          if (asistenciaActualizada.alumno?.usuario?.profile_image) {
-            asistenciaActualizada.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaActualizada.alumno.usuario.profile_image);
+          if (asistenciaConRelaciones?.alumno?.usuario?.profile_image) {
+            asistenciaConRelaciones.alumno.usuario.profile_image = this.buildProfileImageUrl(asistenciaConRelaciones.alumno.usuario.profile_image);
           }
           
-          return asistenciaActualizada;
+          return asistenciaConRelaciones;
        }
 
       // Ya tiene entrada y salida → rechazar

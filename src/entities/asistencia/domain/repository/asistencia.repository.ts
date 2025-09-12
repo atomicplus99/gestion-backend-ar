@@ -42,6 +42,8 @@ export class AsistenciaTypeOrmRepository {
     return this.repo
       .createQueryBuilder('asistencia')
       .leftJoinAndSelect('asistencia.alumno', 'alumno')
+      .leftJoinAndSelect('alumno.turno', 'turno')
+      .leftJoinAndSelect('alumno.usuario', 'usuario')
       .where('alumno.id_alumno = :alumnoId', { alumnoId: id_alumno })
       .andWhere('DATE(asistencia.fecha) = :fecha', { fecha: fechaFormato })
       .getOne();
