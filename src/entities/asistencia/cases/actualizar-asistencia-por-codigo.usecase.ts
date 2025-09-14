@@ -57,11 +57,12 @@ export class ActualizarAsistenciaPorCodigoUseCase {
     } else {
       // Obtener fecha actual en zona horaria de Perú (UTC-5)
       const ahora = new Date();
-      const offsetPeru = -5 * 60; // UTC-5 en minutos
-      const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
-      // Construir fecha a las 00:00:00 en hora local de Perú
-      const fechaHoy = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
-      fechaFormato = fechaHoy.toISOString().split('T')[0];
+      
+      // Convertir a hora de Perú usando toLocaleString
+      const fechaPeru = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+      
+      // Usar la fecha completa de Perú (no solo 00:00:00)
+      fechaFormato = fechaPeru.toISOString().split('T')[0];
     }
 
     const asistencia = await this.asistenciaRepository

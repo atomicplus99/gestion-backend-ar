@@ -43,9 +43,13 @@ export class UpdateEstadoJustificacionUseCase {
     }
 
     // 3. Actualizar el estado y observaciones
+    // Obtener fecha actual en hora de Perú (UTC-5)
+    const ahora = new Date();
+    const horaPeru = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+    
     justificacion.estado = updateDto.nuevo_estado;
     justificacion.observaciones_admin = updateDto.observaciones_respuesta;
-    justificacion.fecha_actualizacion = new Date();
+    justificacion.fecha_actualizacion = horaPeru; // Fecha en hora de Perú
 
 
     // 4. Guardar los cambios

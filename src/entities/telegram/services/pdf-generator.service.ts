@@ -135,29 +135,37 @@ export class PdfGeneratorService {
         }
         .header {
             text-align: center;
-            border-bottom: 3px solid #007bff;
+            border-bottom: 2px solid #2c3e50;
             padding-bottom: 20px;
             margin-bottom: 30px;
         }
         .header h1 {
-            color: #007bff;
+            color: #2c3e50;
             margin: 0;
-            font-size: 28px;
+            font-size: 24px;
+            font-weight: bold;
         }
         .header h2 {
-            color: #6c757d;
+            color: #34495e;
             margin: 10px 0 0 0;
-            font-size: 18px;
+            font-size: 16px;
+            font-weight: normal;
+        }
+        .header h3 {
+            color: #7f8c8d;
+            margin: 5px 0 0 0;
+            font-size: 14px;
             font-weight: normal;
         }
         .info-section {
             margin-bottom: 30px;
         }
         .info-section h3 {
-            color: #007bff;
-            border-bottom: 2px solid #e9ecef;
-            padding-bottom: 10px;
+            color: #2c3e50;
+            border-bottom: 1px solid #bdc3c7;
+            padding-bottom: 8px;
             margin-bottom: 15px;
+            font-size: 16px;
         }
         .info-grid {
             display: grid;
@@ -167,12 +175,12 @@ export class PdfGeneratorService {
         }
         .info-item {
             background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
+            padding: 12px;
+            border-radius: 4px;
+            border-left: 3px solid #2c3e50;
         }
         .info-item strong {
-            color: #007bff;
+            color: #2c3e50;
         }
         .stats-grid {
             display: grid;
@@ -181,10 +189,10 @@ export class PdfGeneratorService {
             margin-bottom: 20px;
         }
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #34495e;
             color: white;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 15px;
+            border-radius: 4px;
             text-align: center;
         }
         .stat-card h4 {
@@ -199,11 +207,11 @@ export class PdfGeneratorService {
         }
         .estado-general {
             text-align: center;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 15px;
+            border-radius: 4px;
             margin: 20px 0;
-            background: ${colorEstado}20;
-            border: 2px solid ${colorEstado};
+            background: ${colorEstado}15;
+            border: 1px solid ${colorEstado};
         }
         .estado-general h3 {
             color: ${colorEstado};
@@ -224,12 +232,12 @@ export class PdfGeneratorService {
             margin-top: 15px;
         }
         th, td {
-            padding: 12px;
+            padding: 10px;
             text-align: left;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid #bdc3c7;
         }
         th {
-            background-color: #007bff;
+            background-color: #2c3e50;
             color: white;
             font-weight: bold;
         }
@@ -239,15 +247,15 @@ export class PdfGeneratorService {
         .footer {
             margin-top: 40px;
             text-align: center;
-            color: #6c757d;
+            color: #7f8c8d;
             font-size: 12px;
-            border-top: 1px solid #e9ecef;
+            border-top: 1px solid #bdc3c7;
             padding-top: 20px;
         }
         .logo {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
-            color: #007bff;
+            color: #2c3e50;
         }
     </style>
 </head>
@@ -255,7 +263,8 @@ export class PdfGeneratorService {
     <div class="container">
         <div class="header">
             <h1>📊 REPORTE DE ASISTENCIA</h1>
-            <h2>Institución Educativa Pública "Andrés de los Reyes"</h2>
+            <h2>Sistema de Control de Asistencia</h2>
+            <h3>Institución Educativa Pública "Andrés de los Reyes"</h3>
             <p>Generado el ${fechaActual}</p>
         </div>
 

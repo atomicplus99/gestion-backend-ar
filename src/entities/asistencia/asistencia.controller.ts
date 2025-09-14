@@ -150,6 +150,9 @@ export class AsistenciaController {
     description: 'Error interno del servidor'
   })
   async crearAsistenciaManualEndpoint(@Body() body: CreateAsistenciaManualDto, @Req() req: Request): Promise<RegistroAsistenciaResponseManual> {
+    this.logger.log(`🚀🚀🚀 INICIANDO ENDPOINT /manual 🚀🚀🚀`);
+    this.logger.log(`📝 Body recibido: ${JSON.stringify(body)}`);
+    
     // Logs para depurar qué envía el frontend
     this.logger.log(
       `🟧 Campos -> id_alumno=${(body as any)?.id_alumno} | id_auxiliar=${(body as any)?.id_auxiliar} | id_usuario=${(body as any)?.id_usuario} | estado_asistencia=${(body as any)?.estado_asistencia} | hora_de_llegada=${(body as any)?.hora_de_llegada} | hora_salida=${(body as any)?.hora_salida} | fecha=${(body as any)?.fecha} | motivo_len=${(body as any)?.motivo ? String((body as any).motivo).length : 0}`
@@ -171,7 +174,9 @@ export class AsistenciaController {
     } catch (e) {
     }
 
+    this.logger.log(`🔄 LLAMANDO A crearAsistenciaManual.execute()...`);
     const asistencia = await this.crearAsistenciaManual.execute(body);
+    this.logger.log(`✅ crearAsistenciaManual.execute() COMPLETADO`);
 
     // Construir respuesta estructurada
     const response: RegistroAsistenciaResponseManual = {
@@ -406,7 +411,18 @@ async updateAsistencia(
   async anularAsistenciaEndpoint(
     @Body() anularDto: AnularAsistenciaRequestDto
   ): Promise<AnularAsistenciaResponseDto> {
-    return await this.anularAsistencia.execute(anularDto);
+    this.logger.log(`🚀🚀🚀 ANULAR ASISTENCIA ENDPOINT LLAMADO 🚀🚀🚀`);
+    this.logger.log(`📝 Body recibido: ${JSON.stringify(anularDto, null, 2)}`);
+    
+    try {
+      const resultado = await this.anularAsistencia.execute(anularDto);
+      this.logger.log(`✅ Anulación exitosa: ${JSON.stringify(resultado, null, 2)}`);
+      return resultado;
+    } catch (error) {
+      this.logger.error(`❌ Error en anulación: ${error.message}`);
+      this.logger.error(`❌ Stack trace: ${error.stack}`);
+      throw error;
+    }
   }
 
 }

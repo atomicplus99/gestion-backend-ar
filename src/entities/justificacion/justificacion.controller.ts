@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CreateJustificacionDto } from './dto/create-justificacion.dto';
 import { CreateJustificacionResponseDto } from './dto/justificacion-response.dto';
@@ -6,6 +6,7 @@ import { CreateJustificacionUseCase } from './use-cases/create-justificacion.use
 import { ListJustificacionesUseCase } from './use-cases/list-justificaciones.usecase';
 import { GetJustificacionesByAlumnoUseCase } from './use-cases/get-justificaciones-by-alumno.usecase';
 import { UpdateEstadoJustificacionUseCase } from './use-cases/update-estado-justificacion.usecase';
+import { DeleteJustificacionUseCase } from './use-cases/delete-justificacion.usecase';
 import { ListJustificacionesQueryDto } from './dto/list-justificaciones.dto';
 import { JustificacionesResponseDto, JustificacionListResponseDto } from './dto/list-justificaciones-response.dto';
 import { UpdateEstadoJustificacionDto } from './dto/update-estado-justificacion.dto';
@@ -19,6 +20,7 @@ export class JustificacionController {
     private readonly listJustificacionesUseCase: ListJustificacionesUseCase,
     private readonly getJustificacionesByAlumnoUseCase: GetJustificacionesByAlumnoUseCase,
     private readonly updateEstadoJustificacionUseCase: UpdateEstadoJustificacionUseCase,
+    private readonly deleteJustificacionUseCase: DeleteJustificacionUseCase,
   ) {}
 
   @Post()
@@ -282,5 +284,51 @@ export class JustificacionController {
       message: 'Estado de justificación actualizado exitosamente',
       data: justificacionActualizada,
     };
+  }
+
+  @Delete(':id_justificacion')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Eliminar justificación',
+    description: 'Elimina una justificación específica del sistema por su ID. Esta acción es irreversible.'
+  })
+  @ApiParam({
+    name: 'id_justificacion',
+    description: 'ID único de la justificación a eliminar',
+    example: 'abc123-def456-ghi789'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Justificación eliminada exitosamente',
+    schema: {
+      type: 'object',
+      properties: {
+        success: {
+          type: 'boolean',
+          example: true
+        },
+        message: {
+          type: 'string',
+          example: 'Justificación eliminada exitosamente'
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Error en los datos proporcionados'
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Justificación no encontrada'
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor'
+  })
+  async deleteJustificacion(
+    @Param('id_justificacion') idJustificacion: string
+  ): Promise<{ success: boolean; message: string }> {
+    return await this.deleteJustificacionUseCase.execute(idJustificacion);
   }
 }

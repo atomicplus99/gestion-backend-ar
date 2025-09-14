@@ -1,6 +1,6 @@
 // src/entities/asistencia/domain/cases/crear-asistencia-manual.usecase.ts
 
-import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Asistencia } from '../asistencia.entity';
@@ -11,10 +11,13 @@ import { Administrador } from 'src/entities/administrador/administrador.entity';
 import { Director } from 'src/entities/director/director.entity';
 import { TelegramNotificationService } from 'src/entities/telegram/services/telegram-notification.service';
 import { CreateAsistenciaManualDto } from '../infraestructure/dto/CreateAsistencia.dto';
+import { EstadoAsistencia } from '../enums/estado-asistencia.enum';
 
 
 @Injectable()
 export class CrearAsistenciaManualUseCase {
+  private readonly logger = new Logger(CrearAsistenciaManualUseCase.name);
+
   constructor(
     @InjectRepository(Asistencia)
     private readonly asistenciaRepository: Repository<Asistencia>,
@@ -37,14 +40,19 @@ export class CrearAsistenciaManualUseCase {
 
   async execute(createDto: CreateAsistenciaManualDto) {
     try {
+      this.logger.log(`🚀 INICIANDO CrearAsistenciaManualUseCase para alumno ID: ${createDto.id_alumno}`);
+      
       // 1. Buscar al alumno
+      this.logger.log(`🔍 Buscando alumno con ID: ${createDto.id_alumno}`);
       const alumno = await this.alumnoRepository.findOne({
         where: { id_alumno: createDto.id_alumno },
       });
 
       if (!alumno) {
+        this.logger.log(`❌ Alumno NO encontrado con ID: ${createDto.id_alumno}`);
         throw new NotFoundException('Alumno no encontrado.');
       }
+      this.logger.log(`✅ Alumno encontrado: ${alumno.codigo} - ${alumno.nombre} ${alumno.apellido}`);
 
       // 2. Identificar actor (auxiliar/administrador/director) por id_auxiliar o id_usuario
       let actorAuxiliar: Auxiliar | null = null;
@@ -86,31 +94,76 @@ export class CrearAsistenciaManualUseCase {
         const utcMillis = Date.UTC(year, month - 1, day, 5, 0, 0, 0);
         fechaAsistencia = new Date(utcMillis);
       } else {
-        // Crear fecha actual en zona horaria de Perú (UTC-5)
+        // Crear fecha actual en zona horaria de Perú (UTC-5) con la hora actual
         const ahora = new Date();
-        const offsetPeru = -5 * 60; // UTC-5 en minutos
-        const fechaPeru = new Date(ahora.getTime() + (offsetPeru * 60 * 1000));
         
-        // Construir fecha a las 00:00:00 en hora local de Perú
-        fechaAsistencia = new Date(fechaPeru.getFullYear(), fechaPeru.getMonth(), fechaPeru.getDate(), 0, 0, 0, 0);
+        // Convertir a hora de Perú usando toLocaleString
+        const fechaPeru = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+        
+        this.logger.log(`🕐 Hora UTC: ${ahora.toISOString()}`);
+        this.logger.log(`🕐 Hora Perú: ${fechaPeru.toISOString()}`);
+        
+        // Usar la fecha y hora actual de Perú
+        fechaAsistencia = fechaPeru;
       }
       
       // Buscar asistencia existente usando query builder para evitar problemas de zona horaria
+      this.logger.log(`🔍 INICIANDO BÚSQUEDA DE ASISTENCIA EXISTENTE`);
       let asistenciaExistente: any = null;
       if (createDto.fecha) {
         const fechaFormato = createDto.fecha; // "2025-08-22"
+        this.logger.log(`🔍 Buscando asistencia existente para fecha específica: ${fechaFormato}`);
         asistenciaExistente = await this.asistenciaRepository
           .createQueryBuilder('asistencia')
           .leftJoinAndSelect('asistencia.alumno', 'alumno')
           .where('alumno.id_alumno = :alumnoId', { alumnoId: createDto.id_alumno })
           .andWhere('DATE(asistencia.fecha) = :fecha', { fecha: fechaFormato })
           .getOne();
+        this.logger.log(`🔍 Resultado búsqueda fecha específica: ${asistenciaExistente ? 'ENCONTRADA' : 'NO ENCONTRADA'}`);
+      } else {
+        // Si no se proporciona fecha, buscar para la fecha actual
+        const fechaActual = fechaAsistencia.toISOString().split('T')[0]; // "2025-01-XX"
+        this.logger.log(`🔍 Buscando asistencia existente para fecha actual: ${fechaActual}`);
+        this.logger.log(`🔍 ID del alumno: ${createDto.id_alumno}`);
+        
+        // Primero buscar TODAS las asistencias del alumno para debug
+        const todasLasAsistencias = await this.asistenciaRepository
+          .createQueryBuilder('asistencia')
+          .leftJoinAndSelect('asistencia.alumno', 'alumno')
+          .where('alumno.id_alumno = :alumnoId', { alumnoId: createDto.id_alumno })
+          .orderBy('asistencia.fecha', 'DESC')
+          .getMany();
+        
+        this.logger.log(`📊 Total de asistencias encontradas para el alumno: ${todasLasAsistencias.length}`);
+        todasLasAsistencias.forEach((asist, index) => {
+          this.logger.log(`📅 Asistencia ${index + 1}: Fecha=${asist.fecha.toISOString().split('T')[0]}, Estado=${asist.estado_asistencia}`);
+        });
+        
+        // Ahora buscar específicamente para la fecha
+        asistenciaExistente = await this.asistenciaRepository
+          .createQueryBuilder('asistencia')
+          .leftJoinAndSelect('asistencia.alumno', 'alumno')
+          .where('alumno.id_alumno = :alumnoId', { alumnoId: createDto.id_alumno })
+          .andWhere('DATE(asistencia.fecha) = :fecha', { fecha: fechaActual })
+          .getOne();
       }
 
       if (asistenciaExistente) {
-        throw new NotFoundException(
-          `Ya existe una asistencia registrada para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${createDto.fecha || fechaAsistencia.toISOString().split('T')[0]}`
-        );
+        this.logger.log(`🔍 Asistencia existente encontrada para ${alumno.codigo}`);
+        this.logger.log(`📊 Estado actual: "${asistenciaExistente.estado_asistencia}"`);
+        this.logger.log(`🔍 Comparando con EstadoAsistencia.ANULADO: "${EstadoAsistencia.ANULADO}"`);
+        
+        // Verificar si la asistencia existente está anulada
+        if (asistenciaExistente.estado_asistencia !== EstadoAsistencia.ANULADO) {
+          this.logger.log(`❌ Asistencia NO está anulada, bloqueando registro`);
+          throw new NotFoundException(
+            `Ya existe una asistencia registrada para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${createDto.fecha || fechaAsistencia.toISOString().split('T')[0]}`
+          );
+        }
+        // Si está anulada, permitir crear nueva asistencia
+        this.logger.log(`✅ Asistencia existente está ANULADA, permitiendo crear nueva asistencia para ${alumno.codigo}`);
+      } else {
+        this.logger.log(`ℹ️ No se encontró asistencia existente para ${alumno.codigo}, procediendo con registro normal`);
       }
       
       // 4. Crear asistencia

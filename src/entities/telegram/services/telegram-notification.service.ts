@@ -232,23 +232,29 @@ export class TelegramNotificationService {
       this.logger.log(`✅ Alumno ${alumno.codigo} tiene ${alumno.apoderados.length} apoderado(s)`);
 
       // Buscar si alguno de los apoderados está registrado en Telegram
-      // Buscamos por DNI del apoderado en el nombre del usuario (formato: "Apoderado_{DNI}")
+      // Buscamos por la relación directa con TelegramAccount
       for (const apoderado of alumno.apoderados) {
         if (apoderado.dni) {
           this.logger.log(`🔍 Verificando apoderado con DNI: ${apoderado.dni}`);
           
-          // Buscar usuario de Telegram que tenga el DNI en su nombre
-          const telegramUser = await this.telegramUserRepository.findOne({
-            where: { 
-              tipo_usuario: 'APODERADO',
-              activo: true,
-              first_name: `Apoderado_${apoderado.dni}`
-            }
-          });
+          // Buscar cuenta de Telegram del apoderado
+          const telegramAccount = await this.telegramAccountService.obtenerCuentaTelegram(apoderado.id_apoderado);
+          
+          if (telegramAccount) {
+            this.logger.log(`✅ Cuenta de Telegram encontrada para apoderado: ${apoderado.nombre} (DNI: ${apoderado.dni})`);
+            
+            // Buscar el usuario de Telegram activo
+            const telegramUser = await this.telegramUserRepository.findOne({
+              where: { 
+                activo: true,
+                sesion_iniciada: true
+              }
+            });
 
-          if (telegramUser) {
-            this.logger.log(`✅ Apoderado encontrado en Telegram: ${telegramUser.first_name} (DNI: ${apoderado.dni})`);
-            return telegramUser;
+            if (telegramUser) {
+              this.logger.log(`✅ Usuario de Telegram activo encontrado: ${telegramUser.first_name}`);
+              return telegramUser;
+            }
           }
         }
       }

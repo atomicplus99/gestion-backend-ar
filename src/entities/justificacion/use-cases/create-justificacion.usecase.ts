@@ -96,7 +96,14 @@ export class CreateJustificacionUseCase {
     // 3. Validar formato de fechas (DD-MM-YYYY)
     this.validarFormatoFechas(dto.fecha_de_justificacion);
 
-    // 4. Crear la justificación
+    // 4. Validar que no existan justificaciones duplicadas para las mismas fechas
+    await this.validarFechasNoDuplicadas(dto.id_alumno, dto.fecha_de_justificacion);
+
+    // 5. Crear la justificación
+    // Obtener fecha actual en hora de Perú (UTC-5)
+    const ahora = new Date();
+    const horaPeru = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+    
     const justificacionData: Partial<Justificacion> = {
       alumno,
       tipo_justificacion: dto.tipo_justificacion,
@@ -104,6 +111,8 @@ export class CreateJustificacionUseCase {
       fecha_de_justificacion: dto.fecha_de_justificacion,
       documentos_adjuntos: dto.documentos_adjuntos || [],
       estado: 'PENDIENTE' as any, // Estado inicial
+      fecha_creacion: horaPeru, // Fecha en hora de Perú
+      fecha_actualizacion: horaPeru, // Fecha en hora de Perú
     };
 
     // Agregar el actor correspondiente
@@ -186,5 +195,59 @@ export class CreateJustificacionUseCase {
       //   throw new BadRequestException(`No se puede justificar una fecha futura: ${fecha}`);
       // }
     }
+  }
+
+  private async validarFechasNoDuplicadas(idAlumno: string, fechasNuevas: string[]): Promise<void> {
+    console.log(`🔍 Validando fechas duplicadas para alumno: ${idAlumno}`);
+    console.log(`📅 Fechas a validar: ${fechasNuevas.join(', ')}`);
+
+    // Buscar todas las justificaciones existentes del alumno (excepto las anuladas)
+    const justificacionesExistentes = await this.justificacionRepository
+      .createQueryBuilder('justificacion')
+      .leftJoinAndSelect('justificacion.alumno', 'alumno')
+      .where('alumno.id_alumno = :idAlumno', { idAlumno })
+      .andWhere('justificacion.estado != :estadoAnulado', { estadoAnulado: 'ANULADO' })
+      .getMany();
+
+    console.log(`📊 Justificaciones existentes encontradas: ${justificacionesExistentes.length}`);
+
+    if (justificacionesExistentes.length === 0) {
+      console.log(`✅ No hay justificaciones existentes - PERMITIENDO crear nueva justificación`);
+      return;
+    }
+
+    // Crear un Set con todas las fechas ya justificadas
+    const fechasYaJustificadas = new Set<string>();
+    
+    for (const justificacion of justificacionesExistentes) {
+      if (justificacion.fecha_de_justificacion && justificacion.fecha_de_justificacion.length > 0) {
+        for (const fecha of justificacion.fecha_de_justificacion) {
+          fechasYaJustificadas.add(fecha);
+          console.log(`📅 Fecha ya justificada: ${fecha} (Justificación ID: ${justificacion.id_justificacion})`);
+        }
+      }
+    }
+
+    // Verificar si alguna de las fechas nuevas ya está justificada
+    const fechasDuplicadas: string[] = [];
+    
+    for (const fechaNueva of fechasNuevas) {
+      if (fechasYaJustificadas.has(fechaNueva)) {
+        fechasDuplicadas.push(fechaNueva);
+        console.log(`❌ Fecha duplicada encontrada: ${fechaNueva}`);
+      }
+    }
+
+    if (fechasDuplicadas.length > 0) {
+      const fechasDuplicadasStr = fechasDuplicadas.join(', ');
+      console.log(`🚫 BLOQUEANDO creación - Fechas duplicadas: ${fechasDuplicadasStr}`);
+      
+      throw new BadRequestException(
+        `No se puede crear la justificación. El alumno ya tiene justificaciones registradas para las siguientes fechas: ${fechasDuplicadasStr}. ` +
+        `Por favor, seleccione fechas diferentes que no estén ya justificadas.`
+      );
+    }
+
+    console.log(`✅ Todas las fechas son válidas - PERMITIENDO crear nueva justificación`);
   }
 }

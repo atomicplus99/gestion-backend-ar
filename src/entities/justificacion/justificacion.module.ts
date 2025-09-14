@@ -6,6 +6,7 @@ import { CreateJustificacionUseCase } from './use-cases/create-justificacion.use
 import { ListJustificacionesUseCase } from './use-cases/list-justificaciones.usecase';
 import { GetJustificacionesByAlumnoUseCase } from './use-cases/get-justificaciones-by-alumno.usecase';
 import { UpdateEstadoJustificacionUseCase } from './use-cases/update-estado-justificacion.usecase';
+import { DeleteJustificacionUseCase } from './use-cases/delete-justificacion.usecase';
 import { JustificacionRepository } from './justificacion.repository';
 import { JustificacionAsistenciaService } from './services/justificacion-asistencia.service';
 import { Alumno } from '../alumno/infraestructure/orm/entities/alumno.entity';
@@ -30,6 +31,7 @@ import { DirectorModule } from '../director/director.module';
     ListJustificacionesUseCase,
     GetJustificacionesByAlumnoUseCase,
     UpdateEstadoJustificacionUseCase,
+    DeleteJustificacionUseCase,
     JustificacionRepository,
     JustificacionAsistenciaService,
   ],
@@ -39,6 +41,7 @@ import { DirectorModule } from '../director/director.module';
     ListJustificacionesUseCase,
     GetJustificacionesByAlumnoUseCase,
     UpdateEstadoJustificacionUseCase,
+    DeleteJustificacionUseCase,
     JustificacionAsistenciaService,
   ],
 })

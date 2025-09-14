@@ -11,7 +11,7 @@ import * as crypto from 'crypto';
 export class TelegramAccountService {
   private readonly logger = new Logger(TelegramAccountService.name);
   private readonly passwordFilePath = path.join(process.cwd(), 'password-apoderados-tel.txt');
-  private readonly encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
+  private readonly encryptionKey = process.env.ENCRYPTION_KEY!;
 
   constructor(
     @InjectRepository(TelegramAccount)

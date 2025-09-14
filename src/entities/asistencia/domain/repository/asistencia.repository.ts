@@ -39,14 +39,28 @@ export class AsistenciaTypeOrmRepository {
     // Usar la misma lógica que en CreateAsistenciaManual para evitar problemas de zona horaria
     const fechaFormato = fecha.toISOString().split('T')[0]; // "2025-08-22"
     
-    return this.repo
+    console.log(`🔍 REPOSITORIO: Buscando asistencias para alumno ${id_alumno} y fecha ${fechaFormato}`);
+    
+    // Primero buscar TODAS las asistencias para esa fecha
+    const todasLasAsistencias = await this.repo
       .createQueryBuilder('asistencia')
       .leftJoinAndSelect('asistencia.alumno', 'alumno')
       .leftJoinAndSelect('alumno.turno', 'turno')
       .leftJoinAndSelect('alumno.usuario', 'usuario')
       .where('alumno.id_alumno = :alumnoId', { alumnoId: id_alumno })
       .andWhere('DATE(asistencia.fecha) = :fecha', { fecha: fechaFormato })
-      .getOne();
+      .orderBy('asistencia.fecha', 'DESC') // Ordenar por fecha completa descendente (incluye hora)
+      .getMany();
+    
+    console.log(`🔍 REPOSITORIO: Total asistencias encontradas: ${todasLasAsistencias.length}`);
+    todasLasAsistencias.forEach((asist, index) => {
+      console.log(`🔍 REPOSITORIO: Asistencia ${index + 1}: Fecha=${asist.fecha.toISOString()}, Estado=${asist.estado_asistencia}, ID=${asist.id_asistencia}`);
+    });
+    
+    const asistenciaMasReciente = todasLasAsistencias.length > 0 ? todasLasAsistencias[0] : null;
+    console.log(`🔍 REPOSITORIO: Devolviendo asistencia más reciente: ${asistenciaMasReciente ? `${asistenciaMasReciente.estado_asistencia} (${asistenciaMasReciente.id_asistencia})` : 'NINGUNA'}`);
+    
+    return asistenciaMasReciente;
   }
 
   async findByAlumnoAndDateAndEstado(
