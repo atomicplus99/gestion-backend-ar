@@ -9,6 +9,9 @@ import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity'
 import { Asistencia } from '../../asistencia/asistencia.entity';
 import { EstadoAsistencia } from '../../asistencia/enums/estado-asistencia.enum';
 import { TelegramApoderadoService } from './telegram-apoderado.service';
+import { TelegramAccountService } from './telegram-account.service';
+import { TelegramAuthService } from './telegram-auth.service';
+import { PdfGeneratorService } from './pdf-generator.service';
 
 @Injectable()
 export class TelegramNotificationService {
@@ -17,7 +20,7 @@ export class TelegramNotificationService {
   
      // Estado de registro de usuarios
    private usuariosEnRegistro = new Map<number, {
-     estado: 'INICIANDO' | 'CONFIRMANDO' | 'CONSULTANDO_ASISTENCIA';
+     estado: 'INICIANDO' | 'CONFIRMANDO' | 'CONSULTANDO_ASISTENCIA' | 'INICIANDO_SESION' | 'CAMBIANDO_CONTRASEÑA' | 'GENERANDO_REPORTE';
      dniApoderado?: string;
      apoderado?: {
        nombres: string;
@@ -33,6 +36,7 @@ export class TelegramNotificationService {
          seccion: string;
        }>;
      };
+     timeoutId?: NodeJS.Timeout;
    }>();
 
   constructor(
@@ -44,6 +48,9 @@ export class TelegramNotificationService {
     @InjectRepository(Alumno)
     private readonly alumnoRepository: Repository<Alumno>,
     private readonly telegramApoderadoService: TelegramApoderadoService,
+    private readonly telegramAccountService: TelegramAccountService,
+    private readonly telegramAuthService: TelegramAuthService,
+    private readonly pdfGeneratorService: PdfGeneratorService,
   ) {
     this.initializeBot();
   }
@@ -77,45 +84,54 @@ export class TelegramNotificationService {
    * Configura los comandos y manejadores del bot
    */
   private configurarComandos() {
-    // Comando /start - Bienvenida
-    this.bot.onText(/\/start/, (msg) => {
-      this.enviarMensajeBienvenida(msg.chat.id);
+    // Comando /start - Bienvenida (siempre disponible)
+    this.bot.onText(/\/start/, async (msg) => {
+      this.logger.log(`📨 Comando /start recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoStart(msg.chat.id, msg.from);
     });
 
-    this.logger.log('📱 Configurando comando /help...');
-    // Comando /help - Ayuda
-    this.bot.onText(/\/help/, (msg) => {
-      this.logger.log(`📨 Comando /help recibido de ${msg.from?.first_name}`);
-      this.enviarMensajeAyuda(msg.chat.id);
+    // Comando /entrar - Iniciar sesión (solo si no está autenticado)
+    this.bot.onText(/\/entrar/, async (msg) => {
+      this.logger.log(`📨 Comando /entrar recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoEntrar(msg.chat.id, msg.from);
     });
 
-    this.logger.log('📱 Configurando comando /info...');
-    // Comando /info - Información del sistema
-    this.bot.onText(/\/info/, (msg) => {
-      this.logger.log(`📨 Comando /info recibido de ${msg.from?.first_name}`);
-      this.enviarInformacionSistema(msg.chat.id);
+    // Comando /salir - Cerrar sesión (solo si está autenticado)
+    this.bot.onText(/\/salir/, async (msg) => {
+      this.logger.log(`📨 Comando /salir recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoSalir(msg.chat.id, msg.from);
     });
 
-         this.logger.log('📱 Configurando comando /registro...');
-     // Comando /registro - Registrarse como apoderado
-     this.bot.onText(/\/registro/, (msg) => {
-       this.logger.log(`📨 Comando /registro recibido de ${msg.from?.first_name}`);
-       this.iniciarRegistroApoderado(msg.chat.id, msg.from);
-     });
+    // Comando /registro - Registrarse como apoderado (solo si no está autenticado)
+    this.bot.onText(/\/registro/, async (msg) => {
+      this.logger.log(`📨 Comando /registro recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoRegistro(msg.chat.id, msg.from);
+    });
 
-     this.logger.log('📱 Configurando comando /asistencia...');
-     // Comando /asistencia - Ver asistencia de alumnos
-     this.bot.onText(/\/asistencia/, (msg) => {
-       this.logger.log(`📨 Comando /asistencia recibido de ${msg.from?.first_name}`);
-       this.iniciarConsultaAsistencia(msg.chat.id, msg.from);
-     });
 
-     this.logger.log('📱 Configurando comando /estado...');
-     // Comando /estado - Ver estado actual del usuario
-     this.bot.onText(/\/estado/, (msg) => {
-       this.logger.log(`📨 Comando /estado recibido de ${msg.from?.first_name}`);
-       this.verificarEstadoUsuario(msg.chat.id, msg.from);
-     });
+    // Comando /consultar - Consultar asistencia del día (solo si está autenticado)
+    this.bot.onText(/\/consultar/, async (msg) => {
+      this.logger.log(`📨 Comando /consultar recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoConsultar(msg.chat.id, msg.from);
+    });
+
+    // Comando /estado - Ver estado de notificaciones (solo si está autenticado)
+    this.bot.onText(/\/estado/, async (msg) => {
+      this.logger.log(`📨 Comando /estado recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoEstado(msg.chat.id, msg.from);
+    });
+
+    // Comando /contraseña - Cambiar contraseña (solo si está autenticado)
+    this.bot.onText(/\/contraseña/, async (msg) => {
+      this.logger.log(`📨 Comando /contraseña recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoContraseña(msg.chat.id, msg.from);
+    });
+
+    // Comando /reporte - Ver reporte general (solo si está autenticado)
+    this.bot.onText(/\/reporte/, async (msg) => {
+      this.logger.log(`📨 Comando /reporte recibido de ${msg.from?.first_name}`);
+      await this.manejarComandoReporte(msg.chat.id, msg.from);
+    });
 
     this.logger.log('📱 Configurando manejador de mensajes generales...');
     // Manejar mensajes de texto normales
@@ -124,6 +140,13 @@ export class TelegramNotificationService {
         this.logger.log(`💬 Mensaje recibido de ${msg.from?.first_name}: ${msg.text}`);
         this.procesarMensajeTexto(msg);
       }
+    });
+
+    this.logger.log('📱 Configurando manejador de stickers...');
+    // Manejar stickers para obtener file_id
+    this.bot.on('sticker', (msg) => {
+      this.logger.log(`🎭 Sticker recibido de ${msg.from?.first_name}`);
+      this.manejarStickerRecibido(msg);
     });
 
     // Manejar errores del bot
@@ -309,8 +332,7 @@ export class TelegramNotificationService {
       }
     }
 
-    return `
-${titulo}
+    return `${titulo}
 
 👤 <b>ALUMNO:</b> ${alumno.nombre} ${alumno.apellido}
 📅 <b>FECHA:</b> ${fecha}
@@ -318,18 +340,16 @@ ${titulo}
 ${estado} <b>ESTADO:</b> ${estadoTexto}
 
 📋 <b>DETALLES:</b>
-• Código: ${alumno.codigo}
-• Nivel: ${alumno.nivel || 'No especificado'}
-• Grado: ${alumno.grado || 'No especificado'}
-• Sección: ${alumno.seccion || 'No especificado'}
+📝 Código: ${alumno.codigo}
+🏫 Nivel: ${alumno.nivel || 'No especificado'}
+📚 Grado: ${alumno.grado || 'No especificado'}
+📖 Sección: ${alumno.seccion || 'No especificado'}
 
 ${asistencia.alumno.turno ? `🕐 <b>Horario del turno:</b> ${asistencia.alumno.turno.hora_inicio} - ${asistencia.alumno.turno.hora_fin}` : ''}
 📍 <b>Registrado por:</b> ${tipoRegistro}
 ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
 
----
-<i>Sistema de Gestión Académica</i>
-    `.trim();
+<i>Sistema de Gestión Académica</i>`;
   }
 
   /**
@@ -349,6 +369,26 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
         return '🚫';
       default:
         return '❓';
+    }
+  }
+
+  /**
+   * Obtiene la descripción del estado de asistencia
+   */
+  private obtenerDescripcionEstado(estado: EstadoAsistencia): string {
+    switch (estado) {
+      case EstadoAsistencia.PUNTUAL: 
+        return '✅ El alumno llegó a tiempo y asistió normalmente a clases.';
+      case EstadoAsistencia.TARDANZA: 
+        return '⚠️ El alumno llegó tarde pero asistió a clases.';
+      case EstadoAsistencia.AUSENTE: 
+        return '❌ El alumno no asistió a clases hoy.';
+      case EstadoAsistencia.JUSTIFICADO: 
+        return '📝 El alumno no asistió pero tiene una justificación válida.';
+      case EstadoAsistencia.ANULADO: 
+        return '🚫 Este registro de asistencia ha sido anulado.';
+      default: 
+        return '❓ Estado de asistencia no reconocido.';
     }
   }
 
@@ -377,26 +417,26 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
    */
   private async enviarMensajeBienvenida(chatId: number): Promise<void> {
     try {
-      const mensaje = `
-🎓 <b>¡Bienvenido al Sistema de Gestión Escolar!</b>
+      const mensaje = `🎓 <b>𝐁𝐎𝐓 𝐃𝐄 𝐍𝐎𝐓𝐈𝐅𝐈𝐂𝐀𝐂𝐈𝐎𝐍𝐄𝐒</b> 🎓
+🏫 <b>𝐈.𝐄.𝐏 𝐀𝐍𝐃𝐑𝐄𝐒 𝐃𝐄 𝐋𝐎𝐒 𝐑𝐄𝐘𝐄𝐒</b> 🏫
 
-👋 Hola, soy tu asistente virtual para el seguimiento académico.
+👋 <b>¡Hola!</b> Soy tu asistente personal encargado de notificarte sobre la asistencia de tus hijos.
 
-📱 <b>Comandos disponibles:</b>
-/start - Mostrar este mensaje de bienvenida
-/help - Mostrar ayuda y comandos
-/info - Información del sistema
-/registro - Registrarse como apoderado
-/asistencia - Consultar asistencia de alumnos
-/estado - Ver estado de tu cuenta
+📋 <b>COMANDOS DISPONIBLES</b>
 
-💡 <b>¿Qué puedo hacer?</b>
-• Notificarte sobre la asistencia de tus hijos
-• Proporcionar información académica
-• Mantenerte informado sobre eventos escolares
+🌟 <code>/start</code> - Mostrar bienvenida
+🌟 <code>/help</code> - Mostrar ayuda
+🌟 <code>/info</code> - Información del sistema
+🌟 <code>/registro</code> - Registrarse como apoderado
+🌟 <code>/estado</code> - Ver estado de cuenta
 
-🚀 <b>¡Comienza escribiendo /help para ver todas las opciones!</b>
-      `;
+💡 <b>FUNCIONALIDADES</b>
+
+🔔 Notificaciones en tiempo real
+📊 Reportes detallados
+📋 Consultas de asistencia
+
+🚀 <b>¡Escribe /help para comenzar!</b>`;
 
       await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
       this.logger.log(`✅ Mensaje de bienvenida enviado a chat ${chatId}`);
@@ -406,31 +446,132 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
   }
 
   /**
+   * Envía animación/GIF de bienvenida
+   */
+  private async enviarAnimacionBienvenida(chatId: number): Promise<void> {
+    try {
+      // URLs de GIFs animados populares para bienvenida
+      const animacionesBienvenida = [
+        'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif', // Celebración
+        'https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif', // Saludo
+        'https://media.giphy.com/media/26gspipWnu5Dz5Wly/giphy.gif', // Graduación
+        'https://media.giphy.com/media/3o7btPCcdNniyf0ArS/giphy.gif', // Cohete
+        'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif'  // Estrellas
+      ];
+
+      // Seleccionar animación aleatoria
+      const animacionAleatoria = animacionesBienvenida[Math.floor(Math.random() * animacionesBienvenida.length)];
+      
+      // Enviar animación usando sendAnimation
+      await this.bot.sendAnimation(chatId, animacionAleatoria, {
+        caption: '🎉 ¡Bienvenido! 🎉'
+      });
+      
+      this.logger.log(`✅ Animación de bienvenida enviada a chat ${chatId}`);
+    } catch (error) {
+      this.logger.warn(`⚠️ No se pudo enviar animación: ${error.message}`);
+      // Si falla la animación, enviar emoji animado como respaldo
+      await this.enviarEmojiAnimado(chatId);
+    }
+  }
+
+  /**
+   * Envía emoji animado de bienvenida
+   */
+  private async enviarEmojiAnimado(chatId: number): Promise<void> {
+    try {
+      // Emojis animados interactivos que se animan al tocarlos
+      const emojisAnimados = ['🎉', '👋', '🎓', '🚀', '⭐', '💫', '🌟'];
+      
+      // Seleccionar emoji aleatorio
+      const emojiAleatorio = emojisAnimados[Math.floor(Math.random() * emojisAnimados.length)];
+      
+      // Enviar emoji animado (se anima automáticamente en Telegram)
+      await this.bot.sendMessage(chatId, emojiAleatorio);
+      this.logger.log(`✅ Emoji animado ${emojiAleatorio} enviado a chat ${chatId}`);
+    } catch (error) {
+      this.logger.warn(`⚠️ No se pudo enviar emoji animado: ${error.message}`);
+      // Si falla el emoji, continuar con el mensaje normal
+    }
+  }
+
+  /**
+   * Envía efectos especiales con emojis animados
+   */
+  private async enviarEfectosEspeciales(chatId: number): Promise<void> {
+    try {
+      // Efectos especiales con emojis que tienen animaciones visuales
+      const efectosEspeciales = [
+        '✨✨✨', // Chispas múltiples
+        '🌟⭐💫', // Estrellas en secuencia
+        '🎉🎊🎈', // Celebración completa
+        '🚀💫⭐', // Cohete con estrellas
+        '🎓✨🌟', // Graduación con efectos
+        '👋🎉✨', // Saludo con celebración
+        '💫🌟✨', // Efectos de luz
+        '🎊🎈🎉'  // Confeti y globos
+      ];
+      
+      // Seleccionar efecto aleatorio
+      const efectoAleatorio = efectosEspeciales[Math.floor(Math.random() * efectosEspeciales.length)];
+      
+      // Enviar efecto especial
+      await this.bot.sendMessage(chatId, efectoAleatorio);
+      this.logger.log(`✅ Efecto especial ${efectoAleatorio} enviado a chat ${chatId}`);
+    } catch (error) {
+      this.logger.warn(`⚠️ No se pudo enviar efecto especial: ${error.message}`);
+    }
+  }
+
+  /**
+   * Envía sticker animado de bienvenida (método alternativo)
+   */
+  private async enviarStickerBienvenida(chatId: number): Promise<void> {
+    try {
+      // Stickers animados populares de bienvenida (usando stickers públicos de Telegram)
+      const stickersBienvenida = [
+        'CAACAgIAAxkBAAIBY2Y8QZqJQZqJQZqJQZqJQZqJQZqJ', // Sticker de saludo animado
+        'CAACAgIAAxkBAAIBZGY8QZqJQZqJQZqJQZqJQZqJQZqJ', // Sticker de celebración
+        'CAACAgIAAxkBAAIBZWY8QZqJQZqJQZqJQZqJQZqJQZqJ', // Sticker de escuela
+        'CAACAgIAAxkBAAIBZmY8QZqJQZqJQZqJQZqJQZqJQZqJ', // Sticker de robot
+        'CAACAgIAAxkBAAIBZ2Y8QZqJQZqJQZqJQZqJQZqJQZqJ'  // Sticker de notificación
+      ];
+
+      // Seleccionar sticker aleatorio
+      const stickerAleatorio = stickersBienvenida[Math.floor(Math.random() * stickersBienvenida.length)];
+      
+      await this.bot.sendSticker(chatId, stickerAleatorio);
+      this.logger.log(`✅ Sticker de bienvenida enviado a chat ${chatId}`);
+    } catch (error) {
+      this.logger.warn(`⚠️ No se pudo enviar sticker de bienvenida: ${error.message}`);
+      // Si falla el sticker, continuar con el mensaje normal
+    }
+  }
+
+  /**
    * Envía mensaje de ayuda con todos los comandos
    */
   private async enviarMensajeAyuda(chatId: number): Promise<void> {
     try {
-      const mensaje = `
-📚 <b>Comandos de Ayuda</b>
+      const mensaje = `📚 <b>COMANDOS DE AYUDA</b>
 
 🔹 <b>Comandos básicos:</b>
-/start - Mensaje de bienvenida
-/help - Mostrar esta ayuda
-/info - Información del sistema
+🌟 <code>/start</code> - Mensaje de bienvenida
+🌟 <code>/help</code> - Mostrar esta ayuda
+🌟 <code>/info</code> - Información del sistema
 
 🔹 <b>Gestión de apoderados:</b>
-/registro - Registrarse como apoderado del sistema
-/asistencia - Consultar asistencia de alumnos asignados
-/estado - Ver estado de tu cuenta
+🌟 <code>/registro</code> - Registrarse como apoderado del sistema
+ de alumnos asignados
+🌟 <code>/estado</code> - Ver estado de tu cuenta
 
 🔹 <b>Notificaciones automáticas:</b>
-• Recibirás notificaciones cuando se registre la asistencia de tus hijos
-• Las notificaciones incluyen: fecha, hora, estado de asistencia
+🔔 Recibirás notificaciones cuando se registre la asistencia de tus hijos
+📊 Las notificaciones incluyen: fecha, hora, estado de asistencia
 
-💡 <b>Tip:</b> Para recibir notificaciones, primero debes registrarte como apoderado usando /registro
+💡 <b>Tip:</b> Para recibir notificaciones, primero debes registrarte como apoderado usando <code>/registro</code>
 
-❓ <b>¿Necesitas más ayuda?</b> Contacta al administrador del sistema.
-      `;
+❓ <b>¿Necesitas más ayuda?</b> Contacta al administrador del sistema.`;
 
       await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
       this.logger.log(`✅ Mensaje de ayuda enviado a chat ${chatId}`);
@@ -444,26 +585,24 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
    */
   private async enviarInformacionSistema(chatId: number): Promise<void> {
     try {
-      const mensaje = `
-🏫 <b>Información del Sistema</b>
+      const mensaje = `🏫 <b>INFORMACIÓN DEL SISTEMA</b>
 
 📊 <b>Estado:</b> ✅ Activo
 🕐 <b>Última actualización:</b> ${new Date().toLocaleString('es-ES')}
 🌐 <b>Servidor:</b> Sistema de Gestión Escolar
 
 📱 <b>Funcionalidades:</b>
-• Registro automático de asistencia
-• Notificaciones en tiempo real
-• Gestión de apoderados
-• Seguimiento académico
+🔔 Registro automático de asistencia
+📊 Notificaciones en tiempo real
+👥 Gestión de apoderados
+📈 Seguimiento académico
 
 🔒 <b>Seguridad:</b>
-• Comunicación encriptada
-• Verificación de identidad
-• Protección de datos personales
+🔐 Comunicación encriptada
+✅ Verificación de identidad
+🛡️ Protección de datos personales
 
-📞 <b>Soporte:</b> Contacta al administrador para asistencia técnica.
-      `;
+📞 <b>Soporte:</b> Contacta al administrador para asistencia técnica.`;
 
       await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
       this.logger.log(`✅ Información del sistema enviada a chat ${chatId}`);
@@ -483,14 +622,12 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
        });
 
        if (!telegramUser) {
-         const mensaje = `
-❌ <b>No estás registrado</b>
+         const mensaje = `❌ <b>NO ESTÁS REGISTRADO</b>
 
 ⚠️ Tu cuenta no está activa en el sistema.
 
 💡 <b>Usa el comando:</b>
-/registro - Registrarte como apoderado
-         `;
+🌟 <code>/registro</code> - Registrarte como apoderado`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
          return;
        }
@@ -512,31 +649,26 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
              break;
          }
          
-         const mensaje = `
-📱 <b>ESTADO DE TU CUENTA</b>
+         const mensaje = `📱 <b>ESTADO DE TU CUENTA</b>
 
 ✅ <b>Registro:</b> Activo en Telegram
 ${mensajeEstado}
 
 💡 <b>Comandos disponibles:</b>
-/asistencia - Consultar asistencia
-/start - Volver al inicio
-/help - Ver ayuda
-         `;
+🌟 <code>/start</code> - Volver al inicio
+🌟 <code>/help</code> - Ver ayuda`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
        } else {
-         const mensaje = `
-✅ <b>ESTADO DE TU CUENTA</b>
+         const mensaje = `✅ <b>ESTADO DE TU CUENTA</b>
 
 ✅ <b>Registro:</b> Activo en Telegram
 ✅ <b>Estado:</b> Sin procesos activos
 
 💡 <b>Comandos disponibles:</b>
-/asistencia - Consultar asistencia de alumnos
-/start - Ver bienvenida
-/help - Ver ayuda
-/info - Información del sistema
-         `;
+ de alumnos
+🌟 <code>/start</code> - Ver bienvenida
+🌟 <code>/help</code> - Ver ayuda
+🌟 <code>/info</code> - Información del sistema`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
        }
 
@@ -557,24 +689,27 @@ ${mensajeEstado}
        });
 
        if (!telegramUser) {
-         const mensaje = `
-❌ <b>No estás registrado</b>
+         const mensaje = `❌ <b>NO ESTÁS REGISTRADO</b>
 
 ⚠️ Para consultar la asistencia de tus alumnos, primero debes registrarte.
 
 💡 <b>Usa el comando:</b>
-/registro - Registrarte como apoderado
-         `;
+🌟 <code>/registro</code> - Registrarte como apoderado`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
          return;
        }
 
-       // Verificar si ya está en proceso de consulta
-       const estadoUsuario = this.usuariosEnRegistro.get(user.id);
-       if (estadoUsuario?.estado === 'CONSULTANDO_ASISTENCIA') {
-         await this.bot.sendMessage(chatId, '⚠️ Ya tienes una consulta de asistencia en proceso. Envía el DNI, nombre o apellido del alumno.');
-         return;
-       }
+      // Limpiar cualquier proceso anterior de consulta
+      const estadoUsuario = this.usuariosEnRegistro.get(user.id);
+      if (estadoUsuario?.estado === 'CONSULTANDO_ASISTENCIA') {
+        // Limpiar timeout si existe
+        if (estadoUsuario.timeoutId) {
+          clearTimeout(estadoUsuario.timeoutId);
+        }
+        // Limpiar el estado anterior
+        this.usuariosEnRegistro.delete(user.id);
+        this.logger.log(`🔄 Limpiando proceso anterior de consulta para usuario ${user.id}`);
+      }
 
                // Buscar apoderado y sus alumnos
         this.logger.log(`🔍 Buscando apoderado para usuario Telegram ID: ${user.id}`);
@@ -582,14 +717,12 @@ ${mensajeEstado}
         
         if (!apoderado) {
           this.logger.log(`❌ No se pudo obtener información del apoderado para usuario ${user.id}`);
-          const mensaje = `
-❌ <b>Error en la consulta</b>
+          const mensaje = `❌ <b>ERROR EN LA CONSULTA</b>
 
 ⚠️ No se pudo obtener tu información de apoderado.
 
 💡 <b>Intenta:</b>
-/registro - Volver a registrarte
-          `;
+🌟 <code>/registro</code> - Volver a registrarte`;
           await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
           return;
         }
@@ -603,27 +736,25 @@ ${mensajeEstado}
          apoderado: apoderado
        });
 
-       const mensaje = `
-📊 <b>CONSULTA DE ASISTENCIA</b>
+       const mensaje = `📊 <b>CONSULTA DE ASISTENCIA</b>
 
 👤 <b>Apoderado:</b> ${apoderado.nombres} ${apoderado.apellidos}
 👥 <b>Alumnos asignados:</b> ${apoderado.alumnos.length}
 
 ${apoderado.alumnos.length === 1 ? 
   `📋 <b>Para ver la asistencia de ${apoderado.alumnos[0].nombres} ${apoderado.alumnos[0].apellidos}, envía:</b>
-• Su DNI: ${apoderado.alumnos[0].dni}
-• O su nombre: ${apoderado.alumnos[0].nombres}
-• O su apellido: ${apoderado.alumnos[0].apellidos}` :
+🔢 Su DNI completo
+👤 O su nombre: ${apoderado.alumnos[0].nombres}
+👤 O su apellido: ${apoderado.alumnos[0].apellidos}` :
   `📋 <b>Para ver la asistencia de un alumno específico, envía:</b>
-• Su DNI (ej: ${apoderado.alumnos[0].dni})
-• O su nombre (ej: ${apoderado.alumnos[0].nombres})
-• O su apellido (ej: ${apoderado.alumnos[0].apellidos})
+🔢 Su DNI completo
+👤 O su nombre (ej: ${apoderado.alumnos[0].nombres})
+👤 O su apellido (ej: ${apoderado.alumnos[0].apellidos})
 
 💡 <b>Tip:</b> Si solo tienes un alumno, se mostrará automáticamente.`
 }
 
-⏳ <b>Estado:</b> Esperando identificación del alumno...
-       `;
+⏳ <b>Estado:</b> Esperando identificación del alumno...`;
 
        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
        this.logger.log(`✅ Consulta de asistencia iniciada para usuario ${user.id}`);
@@ -645,51 +776,151 @@ ${apoderado.alumnos.length === 1 ?
        });
 
        if (telegramUser) {
-         const mensaje = `
-✅ <b>¡Ya estás registrado!</b>
+         const mensaje = `✅ <b>¡YA ESTÁS REGISTRADO!</b>
 
 👤 Tu cuenta de apoderado ya está activa en Telegram.
 
 💡 <b>Comandos disponibles:</b>
-/asistencia - Consultar asistencia de tus alumnos
-/start - Ver bienvenida
-/help - Ver ayuda
-/info - Información del sistema
-         `;
+ de tus alumnos
+🌟 <code>/start</code> - Ver bienvenida
+🌟 <code>/help</code> - Ver ayuda
+🌟 <code>/info</code> - Información del sistema`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
          return;
        }
 
-       // Verificar si ya está en proceso de registro
-       const estadoUsuario = this.usuariosEnRegistro.get(user.id);
-       if (estadoUsuario?.estado === 'INICIANDO' || estadoUsuario?.estado === 'CONFIRMANDO') {
-         await this.bot.sendMessage(chatId, '⚠️ Ya tienes un registro en proceso. Completa el proceso actual o espera a que termine.');
-         return;
-       }
+      // Limpiar cualquier proceso anterior de registro
+      const estadoUsuario = this.usuariosEnRegistro.get(user.id);
+      if (estadoUsuario?.estado === 'INICIANDO' || estadoUsuario?.estado === 'CONFIRMANDO') {
+        // Limpiar timeout si existe
+        if (estadoUsuario.timeoutId) {
+          clearTimeout(estadoUsuario.timeoutId);
+        }
+        // Limpiar el estado anterior
+        this.usuariosEnRegistro.delete(user.id);
+        this.logger.log(`🔄 Limpiando proceso anterior de registro para usuario ${user.id}`);
+      }
 
        // Inicializar estado de registro
        this.usuariosEnRegistro.set(user.id, { estado: 'INICIANDO' });
 
-      const mensaje = `
-📝 <b>REGISTRO DE APODERADO</b>
+      const mensaje = `📝 <b>REGISTRO DE APODERADO</b>
 
 👋 Hola ${user.first_name}, vamos a registrarte como apoderado.
 
 📋 <b>PASO 1:</b> Envía tu DNI de apoderado
-• Solo números (8 dígitos)
-• Ejemplo: 12345678
+🔢 Solo números (8 dígitos)
+📝 Ejemplo: 12345678
 
 💡 <b>Tip:</b> Este DNI debe estar registrado en el sistema escolar.
 
 ⏳ <b>Estado:</b> Esperando tu DNI...
-      `;
+⏰ <b>Tiempo límite:</b> 20 segundos
+
+⚠️ <b>Importante:</b> Si no envías tu DNI en 20 segundos, la operación se cancelará automáticamente.`;
 
       await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
-      this.logger.log(`✅ Proceso de registro iniciado para usuario ${user.id}`);
+      
+      // Configurar timeout de 20 segundos
+      const timeoutId = setTimeout(async () => {
+        await this.cancelarRegistroPorTimeout(user.id, chatId);
+      }, 20000); // 20 segundos
+      
+      // Actualizar el estado con el timeout
+      const estadoActual = this.usuariosEnRegistro.get(user.id);
+      if (estadoActual) {
+        estadoActual.timeoutId = timeoutId;
+        this.usuariosEnRegistro.set(user.id, estadoActual);
+      }
+      
+      this.logger.log(`✅ Proceso de registro iniciado para usuario ${user.id} con timeout de 20 segundos`);
     } catch (error) {
       this.logger.error(`❌ Error iniciando registro: ${error.message}`);
     }
   }
+
+
+  /**
+   * Cancela el registro por timeout
+   */
+  private async cancelarRegistroPorTimeout(userId: number, chatId: number): Promise<void> {
+    try {
+      const estadoUsuario = this.usuariosEnRegistro.get(userId);
+      
+      if (estadoUsuario && (estadoUsuario.estado === 'INICIANDO' || estadoUsuario.estado === 'CONFIRMANDO')) {
+        // Limpiar el estado del usuario
+        this.usuariosEnRegistro.delete(userId);
+        
+        let mensaje = '';
+        if (estadoUsuario.estado === 'INICIANDO') {
+          mensaje = `⏰ <b>REGISTRO CANCELADO POR TIMEOUT</b>
+
+⚠️ No se recibió tu DNI en el tiempo límite de 20 segundos.
+
+🔄 <b>Para intentar nuevamente:</b>
+🌟 <code>/registro</code> - Iniciar nuevo registro`;
+        } else if (estadoUsuario.estado === 'CONFIRMANDO') {
+          mensaje = `⏰ <b>REGISTRO CANCELADO POR TIMEOUT</b>
+
+⚠️ No se recibieron los DNIs de tus alumnos en el tiempo límite de 20 segundos.
+
+🔄 <b>Para intentar nuevamente:</b>
+🌟 <code>/registro</code> - Iniciar nuevo registro`;
+        }
+        
+        mensaje += `
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver bienvenida
+🌟 <code>/help</code> - Ver ayuda
+🌟 <code>/info</code> - Información del sistema`;
+
+        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+        this.logger.log(`⏰ Registro cancelado por timeout para usuario ${userId} en estado ${estadoUsuario.estado}`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error cancelando registro por timeout: ${error.message}`);
+    }
+  }
+
+
+
+  /**
+   * Elimina la relación entre apoderado y alumnos
+   */
+  private async eliminarRelacionApoderadoAlumnos(dniApoderado: string): Promise<void> {
+    try {
+      this.logger.log(`🗑️ Eliminando relación para apoderado DNI: ${dniApoderado}`);
+      
+      // Buscar el apoderado con sus relaciones
+      const apoderado = await this.alumnoRepository.manager
+        .getRepository('Apoderado')
+        .findOne({
+          where: { dni: dniApoderado },
+          relations: ['pupilos']
+        });
+
+      if (apoderado && apoderado.pupilos) {
+        // Eliminar todas las relaciones de pupilos
+        for (const pupilo of apoderado.pupilos) {
+          await this.alumnoRepository.manager
+            .getRepository('Pupilo')
+            .delete({ 
+              id_apoderado: apoderado.id_apoderado,
+              dni_alumno: pupilo.dni_alumno
+            });
+        }
+        
+        this.logger.log(`✅ Relaciones eliminadas para apoderado ${dniApoderado}: ${apoderado.pupilos.length} alumnos`);
+      } else {
+        this.logger.log(`⚠️ No se encontraron relaciones para apoderado ${dniApoderado}`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error eliminando relación apoderado-alumnos: ${error.message}`);
+      throw error;
+    }
+  }
+
 
   /**
    * Procesa mensajes de texto según el estado del usuario
@@ -709,8 +940,14 @@ ${apoderado.alumnos.length === 1 ?
          await this.procesarConfirmacionAlumnos(userId, chatId, texto);
        } else if (estadoUsuario?.estado === 'CONSULTANDO_ASISTENCIA') {
          await this.procesarConsultaAsistencia(userId, chatId, texto);
+       } else if (estadoUsuario?.estado === 'INICIANDO_SESION') {
+         await this.procesarInicioSesion(userId, chatId, texto);
+       } else if (estadoUsuario?.estado === 'CAMBIANDO_CONTRASEÑA') {
+         await this.procesarCambioContraseña(userId, chatId, texto);
+       } else if (estadoUsuario?.estado === 'GENERANDO_REPORTE') {
+         await this.procesarGeneracionReporte(userId, chatId, texto);
        } else {
-         // Usuario no está registrando, enviar respuesta normal
+         // Usuario no está en ningún proceso, enviar respuesta normal
          await this.enviarMensajeRespuesta(chatId);
        }
     } catch (error) {
@@ -723,16 +960,21 @@ ${apoderado.alumnos.length === 1 ?
    */
   private async procesarDNIApoderado(userId: number, chatId: number, dni: string): Promise<void> {
     try {
+      // Limpiar timeout si existe
+      const estadoUsuario = this.usuariosEnRegistro.get(userId);
+      if (estadoUsuario?.timeoutId) {
+        clearTimeout(estadoUsuario.timeoutId);
+        delete estadoUsuario.timeoutId;
+      }
+      
       // Validar formato del DNI
       if (!/^\d{8}$/.test(dni)) {
-        const mensaje = `
-❌ <b>DNI Inválido</b>
+        const mensaje = `❌ <b>DNI INVÁLIDO</b>
 
 ⚠️ El DNI debe tener exactamente 8 dígitos numéricos.
 📝 Ejemplo: 12345678
 
-🔄 <b>Intenta nuevamente:</b>
-      `;
+🔄 <b>Intenta nuevamente:</b>`;
         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
         return;
       }
@@ -749,40 +991,51 @@ ${apoderado.alumnos.length === 1 ?
         });
 
                  // Mostrar información del apoderado y alumnos
-         const mensaje = `
-✅ <b>APODERADO ENCONTRADO</b>
+         const mensaje = `✅ <b>APODERADO ENCONTRADO</b>
 
 👤 <b>Datos del Apoderado:</b>
-• DNI: ${resultado.apoderado.dni}
-• Nombres: ${resultado.apoderado.nombres}
-• Apellidos: ${resultado.apoderado.apellidos}
+🔢 DNI: ${resultado.apoderado.dni}
+👤 Nombres: ${resultado.apoderado.nombres}
+👤 Apellidos: ${resultado.apoderado.apellidos}
 
 👥 <b>Alumnos Asignados:</b> ${resultado.apoderado.alumnos.length} alumno(s)
 
 📋 <b>PASO 2:</b> Confirma los DNIs de tus alumnos
-• Envía los DNIs separados por comas
-• Ejemplo: ${resultado.apoderado.alumnos.map(a => a.dni).join(', ')}
+🔢 Envía los DNIs separados por comas
+📝 Ejemplo: 12345678, 87654321
 
 ⏳ <b>Estado:</b> Esperando confirmación de DNIs...
-       `;
+⏰ <b>Tiempo límite:</b> 20 segundos
+
+⚠️ <b>Importante:</b> Si no envías los DNIs en 20 segundos, la operación se cancelará automáticamente.`;
 
         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+        
+        // Configurar timeout de 20 segundos para confirmación
+        const timeoutId = setTimeout(async () => {
+          await this.cancelarRegistroPorTimeout(userId, chatId);
+        }, 20000); // 20 segundos
+        
+        // Actualizar el estado con el timeout
+        const estadoActual = this.usuariosEnRegistro.get(userId);
+        if (estadoActual) {
+          estadoActual.timeoutId = timeoutId;
+          this.usuariosEnRegistro.set(userId, estadoActual);
+        }
       } else {
         // Error en el registro
-        const mensaje = `
-❌ <b>Error en el Registro</b>
+        const mensaje = `❌ <b>ERROR EN EL REGISTRO</b>
 
 ⚠️ ${resultado.message}
 ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
 
 🔄 <b>Intenta nuevamente:</b>
-• Verifica que tu DNI esté registrado en el sistema
-• Contacta al administrador si tienes problemas
+✅ Verifica que tu DNI esté registrado en el sistema
+📞 Contacta al administrador si tienes problemas
 
 💡 <b>Comandos disponibles:</b>
-/start - Volver al inicio
-/help - Ver ayuda
-      `;
+🌟 <code>/start</code> - Volver al inicio
+🌟 <code>/help</code> - Ver ayuda`;
 
         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
         
@@ -802,8 +1055,15 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
      try {
        const estadoUsuario = this.usuariosEnRegistro.get(userId);
        if (!estadoUsuario || !estadoUsuario.apoderado) {
-         await this.bot.sendMessage(chatId, '❌ Error: Estado de consulta no válido. Usa /asistencia para comenzar.');
+         await this.bot.sendMessage(chatId, '❌ Error: Estado de consulta no válido. Usa /consultar para comenzar.');
          return;
+       }
+
+       // Limpiar timeout si existe (antes de procesar la consulta)
+       if (estadoUsuario.timeoutId) {
+         clearTimeout(estadoUsuario.timeoutId);
+         delete estadoUsuario.timeoutId;
+         this.logger.log(`🔄 Timeout limpiado para usuario ${userId} en consulta de asistencia`);
        }
 
        // Buscar alumno por DNI, nombre o apellido
@@ -814,8 +1074,7 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
        );
 
        if (!alumnoEncontrado) {
-         const mensaje = `
-❌ <b>Alumno no encontrado</b>
+         const mensaje = `❌ <b>ALUMNO NO ENCONTRADO</b>
 
 ⚠️ No se encontró ningún alumno con: "${texto}"
 
@@ -825,48 +1084,211 @@ ${estadoUsuario.apoderado.alumnos.map((alumno, index) =>
 ).join('\n')}
 
 💡 <b>Intenta con:</b>
-• DNI exacto (ej: ${estadoUsuario.apoderado.alumnos[0].dni})
-• Nombre (ej: ${estadoUsuario.apoderado.alumnos[0].nombres})
-• Apellido (ej: ${estadoUsuario.apoderado.alumnos[0].apellidos})
-         `;
+🔢 DNI exacto (ej: 12345678)
+👤 Nombre (ej: ${estadoUsuario.apoderado.alumnos[0].nombres})
+👤 Apellido (ej: ${estadoUsuario.apoderado.alumnos[0].apellidos})`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+         
+         // No limpiar el estado aquí, permitir que el usuario intente nuevamente
+         // pero sí limpiar el timeout para evitar mensajes de timeout
+         if (estadoUsuario.timeoutId) {
+           clearTimeout(estadoUsuario.timeoutId);
+           delete estadoUsuario.timeoutId;
+         }
          return;
        }
 
-       // Obtener asistencia del alumno
+       // Obtener asistencia del alumno (solo del día actual para /consultar)
        this.logger.log(`🔍 Obteniendo asistencia para alumno: ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos} (ID: ${alumnoEncontrado.id_alumno})`);
-       const asistencia = await this.obtenerAsistenciaAlumno(alumnoEncontrado.id_alumno);
+       const asistencia = await this.obtenerAsistenciaAlumno(alumnoEncontrado.id_alumno, true);
        
        this.logger.log(`📊 Asistencias obtenidas: ${asistencia?.length || 0}`);
        
        if (!asistencia || asistencia.length === 0) {
-         const mensaje = `
-📊 <b>ASISTENCIA DE ${alumnoEncontrado.nombres.toUpperCase()} ${alumnoEncontrado.apellidos.toUpperCase()}</b>
+         const mensaje = `📊 <b>REPORTE DE ASISTENCIA</b>
 
-👤 <b>Alumno:</b> ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos}
-📝 <b>Código:</b> ${alumnoEncontrado.codigo}
-🏫 <b>Nivel:</b> ${alumnoEncontrado.nivel} - Grado ${alumnoEncontrado.grado}° - Sección ${alumnoEncontrado.seccion}
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
 
-❌ <b>No hay registros de asistencia</b>
+👶 <b>INFORMACIÓN DEL ALUMNO</b>
+👤 <b>Nombre completo:</b> ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos}
+📝 <b>Código estudiantil:</b> ${alumnoEncontrado.codigo}
+🏫 <b>Nivel educativo:</b> ${alumnoEncontrado.nivel}
+📚 <b>Grado y sección:</b> ${alumnoEncontrado.grado}° ${alumnoEncontrado.seccion}
 
-💡 <b>Posibles razones:</b>
-• El alumno aún no ha asistido a clases
-• No se han registrado asistencias en el sistema
-• El alumno es nuevo en la institución
-         `;
+📊 <b>ESTADO DE ASISTENCIA</b>
+❌ <b>No hay registros de asistencia disponibles</b>
+
+💡 <b>POSIBLES RAZONES:</b>
+📚 El alumno aún no ha asistido a clases
+📋 No se han registrado asistencias en el sistema
+🆕 El alumno es nuevo en la institución
+📅 Las asistencias se registran a partir de hoy
+
+💡 <b>COMANDOS DISPONIBLES</b>
+🌟 <code>/start</code> - Volver al inicio
+🌟 <code>/help</code> - Ver ayuda
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+         
+         // Limpiar estado del usuario después de mostrar el resultado
+         this.usuariosEnRegistro.delete(userId);
          return;
        }
 
-       // Mostrar resumen de asistencia
-       const resumen = this.generarResumenAsistencia(alumnoEncontrado, asistencia);
-       await this.bot.sendMessage(chatId, resumen, { parse_mode: 'HTML' });
+      // Mostrar resumen de asistencia del día actual
+      const resumen = this.generarResumenAsistenciaDia(alumnoEncontrado, asistencia);
+      await this.bot.sendMessage(chatId, resumen, { parse_mode: 'HTML' });
+
+      // Limpiar estado del usuario
+      this.usuariosEnRegistro.delete(userId);
+
+     } catch (error) {
+       this.logger.error(`❌ Error procesando consulta de asistencia: ${error.message}`);
+       await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intenta nuevamente.');
+     }
+   }
+
+   /**
+    * Procesa la generación de reporte PDF
+    */
+   private async procesarGeneracionReporte(userId: number, chatId: number, texto: string): Promise<void> {
+     try {
+       const estadoUsuario = this.usuariosEnRegistro.get(userId);
+       if (!estadoUsuario || !estadoUsuario.apoderado) {
+         await this.bot.sendMessage(chatId, '❌ Error: Estado de reporte no válido. Usa /reporte para comenzar.');
+         return;
+       }
+
+       // Limpiar timeout si existe (antes de procesar el reporte)
+       if (estadoUsuario.timeoutId) {
+         clearTimeout(estadoUsuario.timeoutId);
+         delete estadoUsuario.timeoutId;
+         this.logger.log(`🔄 Timeout limpiado para usuario ${userId} en generación de reporte`);
+       }
+
+       // Buscar alumno por DNI, nombre o apellido
+       const alumnoEncontrado = estadoUsuario.apoderado.alumnos.find(alumno => 
+         alumno.dni === texto ||
+         alumno.nombres.toLowerCase().includes(texto.toLowerCase()) ||
+         alumno.apellidos.toLowerCase().includes(texto.toLowerCase())
+       );
+
+       if (!alumnoEncontrado) {
+         const mensaje = `❌ <b>ALUMNO NO ENCONTRADO</b>
+
+⚠️ No se encontró ningún alumno con: "${texto}"
+
+📋 <b>Alumnos disponibles:</b>
+${estadoUsuario.apoderado.alumnos.map((alumno, index) => 
+  `${index + 1}. 👶 ${alumno.nombres} ${alumno.apellidos} (DNI: ${alumno.dni})`
+).join('\n')}
+
+💡 <b>Intenta con:</b>
+🔢 DNI exacto (ej: 12345678)
+👤 Nombre (ej: ${estadoUsuario.apoderado.alumnos[0].nombres})
+👤 Apellido (ej: ${estadoUsuario.apoderado.alumnos[0].apellidos})`;
+         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+         
+         // No limpiar el estado aquí, permitir que el usuario intente nuevamente
+         // pero sí limpiar el timeout para evitar mensajes de timeout
+         if (estadoUsuario.timeoutId) {
+           clearTimeout(estadoUsuario.timeoutId);
+           delete estadoUsuario.timeoutId;
+         }
+         return;
+       }
+
+       // Enviar mensaje de procesamiento
+       await this.bot.sendMessage(chatId, `📄 <b>GENERANDO REPORTE PDF</b>
+
+👶 <b>Alumno:</b> ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos}
+📊 <b>Procesando asistencia general...</b>
+
+⏳ Por favor espere, esto puede tomar unos segundos.`, { parse_mode: 'HTML' });
+
+       // Obtener asistencia general del alumno (sin filtro de fecha)
+       this.logger.log(`🔍 Obteniendo asistencia general para reporte: ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos} (ID: ${alumnoEncontrado.id_alumno})`);
+       const asistencia = await this.obtenerAsistenciaAlumno(alumnoEncontrado.id_alumno, false);
+       
+       this.logger.log(`📊 Asistencias obtenidas para reporte: ${asistencia?.length || 0}`);
+
+       if (!asistencia || asistencia.length === 0) {
+         const mensaje = `📊 <b>REPORTE DE ASISTENCIA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+👶 <b>INFORMACIÓN DEL ALUMNO</b>
+👤 <b>Nombre completo:</b> ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos}
+📝 <b>Código estudiantil:</b> ${alumnoEncontrado.codigo}
+🏫 <b>Nivel educativo:</b> ${alumnoEncontrado.nivel}
+📚 <b>Grado y sección:</b> ${alumnoEncontrado.grado}° ${alumnoEncontrado.seccion}
+
+📊 <b>ESTADO DE ASISTENCIA</b>
+❌ <b>No hay registros de asistencia disponibles</b>
+
+💡 <b>POSIBLES RAZONES:</b>
+📚 El alumno aún no ha asistido a clases
+📋 No se han registrado asistencias en el sistema
+🆕 El alumno es nuevo en la institución
+
+💡 <b>COMANDOS DISPONIBLES</b>
+🌟 <code>/reporte</code> - Generar reporte de otro alumno
+🌟 <code>/consultar</code> - Consultar asistencia del día
+🌟 <code>/estado</code> - Ver estado de su cuenta
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+         
+         // Limpiar estado del usuario después de mostrar el resultado
+         this.usuariosEnRegistro.delete(userId);
+         return;
+       }
+
+       // Generar PDF
+       try {
+         this.logger.log(`📄 Generando PDF para alumno: ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos}`);
+         const pdfPath = await this.pdfGeneratorService.generarReporteAsistencia(alumnoEncontrado, asistencia);
+         
+         // Enviar el PDF al usuario
+         await this.bot.sendDocument(chatId, pdfPath, {
+           caption: `📄 <b>REPORTE DE ASISTENCIA GENERADO</b>
+
+👶 <b>Alumno:</b> ${alumnoEncontrado.nombres} ${alumnoEncontrado.apellidos}
+📊 <b>Total de registros:</b> ${asistencia.length} días
+📅 <b>Fecha de generación:</b> ${new Date().toLocaleDateString('es-ES')}
+
+✅ <b>El reporte PDF ha sido generado exitosamente</b>
+
+💡 <b>COMANDOS DISPONIBLES</b>
+🌟 <code>/reporte</code> - Generar reporte de otro alumno
+🌟 <code>/consultar</code> - Consultar asistencia del día
+🌟 <code>/estado</code> - Ver estado de su cuenta
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`,
+           parse_mode: 'HTML'
+         });
+
+         this.logger.log(`✅ PDF enviado exitosamente: ${pdfPath}`);
+
+       } catch (pdfError) {
+         this.logger.error(`❌ Error generando PDF: ${pdfError.message}`);
+         await this.bot.sendMessage(chatId, `❌ <b>ERROR AL GENERAR PDF</b>
+
+⚠️ No se pudo generar el reporte PDF.
+
+💡 <b>Intenta:</b>
+🌟 <code>/reporte</code> - Generar reporte nuevamente
+🌟 <code>/consultar</code> - Consultar asistencia del día
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`, { parse_mode: 'HTML' });
+       }
 
        // Limpiar estado del usuario
        this.usuariosEnRegistro.delete(userId);
 
      } catch (error) {
-       this.logger.error(`❌ Error procesando consulta de asistencia: ${error.message}`);
+       this.logger.error(`❌ Error procesando generación de reporte: ${error.message}`);
        await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intenta nuevamente.');
      }
    }
@@ -881,19 +1303,23 @@ ${estadoUsuario.apoderado.alumnos.map((alumno, index) =>
         await this.bot.sendMessage(chatId, '❌ Error: Estado de registro no válido. Usa /registro para comenzar.');
         return;
       }
+      
+      // Limpiar timeout si existe
+      if (estadoUsuario.timeoutId) {
+        clearTimeout(estadoUsuario.timeoutId);
+        delete estadoUsuario.timeoutId;
+      }
 
               // Parsear DNIs de alumnos
         const dniAlumnos = texto.split(',').map(dni => dni.trim()).filter(dni => dni.length > 0);
 
         if (dniAlumnos.length === 0) {
-          await this.bot.sendMessage(chatId, `
-❌ <b>Formato Inválido</b>
+          await this.bot.sendMessage(chatId, `❌ <b>FORMATO INVÁLIDO</b>
 
 ⚠️ Debes enviar los DNIs de tus alumnos separados por comas.
-📝 Ejemplo: ${estadoUsuario.apoderado?.alumnos.map(a => a.dni).join(', ') || 'No disponibles'}
+📝 Ejemplo: 12345678, 87654321
 
-🔄 <b>Intenta nuevamente:</b>
-          `, { parse_mode: 'HTML' });
+🔄 <b>Intenta nuevamente:</b>`, { parse_mode: 'HTML' });
           return;
         }
 
@@ -913,26 +1339,49 @@ ${estadoUsuario.apoderado.alumnos.map((alumno, index) =>
 
       if (resultado.success) {
         // Registro exitoso
-        const mensaje = `
-🎉 <b>¡REGISTRO COMPLETADO EXITOSAMENTE!</b>
+        const alumnosLista = estadoUsuario.apoderado?.alumnos.map((alumno, index) => 
+          `${index + 1}. 👶 ${alumno.nombres} ${alumno.apellidos} (${alumno.nivel} - ${alumno.grado}° ${alumno.seccion})`
+        ).join('\n') || 'No hay alumnos asignados';
 
-✅ Tu cuenta de apoderado ha sido activada en Telegram.
+        let mensaje = `🎉 <b>¡REGISTRO COMPLETADO EXITOSAMENTE!</b>
 
-👤 <b>Apoderado:</b> ${estadoUsuario.apoderado?.nombres} ${estadoUsuario.apoderado?.apellidos}
-👥 <b>Alumnos:</b> ${estadoUsuario.apoderado?.alumnos.length || 0} asignados
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
 
-🔔 <b>Notificaciones:</b> Ahora recibirás notificaciones automáticas cuando:
-• Se registre la asistencia de tus alumnos
-• Se actualice su estado académico
-• Se generen reportes importantes
+✅ Su cuenta de apoderado ha sido activada correctamente en nuestro sistema de notificaciones.
+
+👤 <b>Apoderado registrado:</b> ${estadoUsuario.apoderado?.nombres} ${estadoUsuario.apoderado?.apellidos}
+
+👶 <b>Sus hijos(as) asignados:</b>
+${alumnosLista}`;
+
+        // Agregar información de la cuenta de Telegram si se creó exitosamente
+        if (resultado.telegramAccount) {
+          mensaje += `
+
+🔐 <b>CUENTA DE TELEGRAM CREADA</b>
+👤 <b>Usuario:</b> <code>${resultado.telegramAccount.username}</code>
+🔑 <b>Contraseña:</b> <code>${resultado.telegramAccount.password}</code>
+
+⚠️ <b>IMPORTANTE:</b> Guarde estas credenciales en un lugar seguro. Las necesitará para acceder a su cuenta de Telegram.`;
+        }
+
+        mensaje += `
+
+🔔 <b>Notificaciones que recibirá:</b>
+📊 Cuando se registre la asistencia de sus hijos
+⏰ Hora de llegada y estado (puntual, tardanza, ausente)
+📈 Actualizaciones del estado académico
+📋 Reportes importantes de la institución
 
 💡 <b>Comandos disponibles:</b>
-/start - Ver bienvenida
-/help - Ver ayuda
-/info - Información del sistema
+🌟 <code>/start</code> - Ver bienvenida
+🌟 <code>/help</code> - Ver ayuda
+ de sus hijos
+🌟 <code>/estado</code> - Ver estado de su cuenta
 
-📱 <b>¡Tu bot está listo para usar!</b>
-        `;
+📱 <b>¡Su bot está listo para mantenerlo informado sobre sus hijos!</b>
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
 
         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
         
@@ -940,18 +1389,16 @@ ${estadoUsuario.apoderado.alumnos.map((alumno, index) =>
         this.usuariosEnRegistro.delete(userId);
       } else {
         // Error en la confirmación
-        const mensaje = `
-❌ <b>Error en la Confirmación</b>
+        const mensaje = `❌ <b>ERROR EN LA CONFIRMACIÓN</b>
 
 ⚠️ ${resultado.message}
 ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
 
 🔄 <b>Intenta nuevamente:</b>
-• Verifica que los DNIs sean correctos
-• Asegúrate de que coincidan con tus alumnos asignados
+✅ Verifica que los DNIs sean correctos
+✅ Asegúrate de que coincidan con tus alumnos asignados
 
-📝 <b>DNIs esperados:</b> ${estadoUsuario.apoderado?.alumnos.map(a => a.dni).join(', ') || 'No disponibles'}
-        `;
+📝 <b>DNIs esperados:</b> ${estadoUsuario.apoderado?.alumnos.length || 0} DNI(s) de tus alumnos asignados`;
 
         await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
       }
@@ -966,20 +1413,17 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
    */
   private async enviarMensajeRespuesta(chatId: number): Promise<void> {
     try {
-      const mensaje = `
-💬 <b>Mensaje recibido</b>
+      const mensaje = `💬 <b>MENSAJE RECIBIDO</b>
 
 📝 He recibido tu mensaje. Para interactuar conmigo, usa los comandos disponibles:
 
-🔹 /start - Bienvenida
-🔹 /help - Ayuda
-🔹 /info - Información del sistema
-🔹 /registro - Registrarse como apoderado
-🔹 /asistencia - Consultar asistencia
-🔹 /estado - Ver estado de cuenta
+🔹 <code>/start</code> - Bienvenida
+🔹 <code>/help</code> - Ayuda
+🔹 <code>/info</code> - Información del sistema
+🔹 <code>/registro</code> - Registrarse como apoderado
+🔹 <code>/estado</code> - Ver estado de cuenta
 
-💡 <b>Tip:</b> Escribe /help para ver todos los comandos disponibles.
-      `;
+💡 <b>Tip:</b> Escribe <code>/help</code> para ver todos los comandos disponibles.`;
 
       await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
       this.logger.log(`✅ Respuesta automática enviada a chat ${chatId}`);
@@ -991,12 +1435,33 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
      /**
     * Obtiene la asistencia de un alumno específico
     */
-   private async obtenerAsistenciaAlumno(idAlumno: string): Promise<Asistencia[]> {
+   private async obtenerAsistenciaAlumno(idAlumno: string, soloHoy: boolean = false): Promise<Asistencia[]> {
      try {
-       this.logger.log(`🔍 Buscando asistencia para alumno ID: ${idAlumno}`);
+       this.logger.log(`🔍 Buscando asistencia para alumno ID: ${idAlumno}${soloHoy ? ' (solo hoy)' : ''}`);
        
        // Buscar asistencias directamente por ID del alumno usando el repositorio de Asistencia
        const asistenciaRepository = this.alumnoRepository.manager.getRepository(Asistencia);
+       
+       if (soloHoy) {
+         // Filtrar solo por el día actual
+         const hoy = new Date();
+         const inicioDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+         const finDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1);
+         
+         this.logger.log(`📅 Buscando asistencia del día: ${inicioDia.toLocaleDateString('es-ES')}`);
+         
+         const asistenciasHoy = await asistenciaRepository
+           .createQueryBuilder('asistencia')
+           .leftJoinAndSelect('asistencia.alumno', 'alumno')
+           .where('alumno.id_alumno = :idAlumno', { idAlumno })
+           .andWhere('asistencia.fecha >= :inicioDia', { inicioDia })
+           .andWhere('asistencia.fecha < :finDia', { finDia })
+           .orderBy('asistencia.fecha', 'DESC')
+           .getMany();
+         
+         this.logger.log(`📊 Asistencias encontradas para hoy: ${asistenciasHoy.length}`);
+         return asistenciasHoy;
+       }
        
        // Primero intentar sin filtro de fecha para ver si hay asistencias
        const todasLasAsistencias = await asistenciaRepository.find({
@@ -1040,6 +1505,72 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
    }
 
    /**
+    * Genera un resumen de asistencia del día actual para un alumno
+    */
+   private generarResumenAsistenciaDia(alumno: any, asistencias: Asistencia[]): string {
+     const hoy = new Date().toLocaleDateString('es-ES');
+     
+     if (!asistencias || asistencias.length === 0) {
+       return `📊 <b>ASISTENCIA DEL DÍA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+👶 <b>INFORMACIÓN DEL ALUMNO</b>
+👤 <b>Nombre completo:</b> ${alumno.nombres} ${alumno.apellidos}
+📝 <b>Código estudiantil:</b> ${alumno.codigo}
+🏫 <b>Nivel educativo:</b> ${alumno.nivel}
+📚 <b>Grado y sección:</b> ${alumno.grado}° ${alumno.seccion}
+
+📅 <b>ASISTENCIA DEL DÍA: ${hoy}</b>
+❌ <b>No hay registro de asistencia para hoy</b>
+
+💡 <b>POSIBLES RAZONES:</b>
+📚 El alumno no asistió a clases hoy
+📋 Aún no se ha registrado la asistencia del día
+🕐 La asistencia se registra durante el horario escolar
+📅 Es posible que sea un día no lectivo
+
+💡 <b>COMANDOS DISPONIBLES</b>
+🌟 <code>/consultar</code> - Consultar otro alumno
+🌟 <code>/reporte</code> - Ver reporte general de asistencia
+🌟 <code>/estado</code> - Ver estado de su cuenta
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+     }
+
+     const asistenciaHoy = asistencias[0]; // La más reciente del día
+     const estado = this.obtenerEmojiEstado(asistenciaHoy.estado_asistencia);
+     const hora = new Date(asistenciaHoy.fecha).toLocaleTimeString('es-ES', { 
+       hour: '2-digit', 
+       minute: '2-digit' 
+     });
+
+     return `📊 <b>ASISTENCIA DEL DÍA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+👶 <b>INFORMACIÓN DEL ALUMNO</b>
+👤 <b>Nombre completo:</b> ${alumno.nombres} ${alumno.apellidos}
+📝 <b>Código estudiantil:</b> ${alumno.codigo}
+🏫 <b>Nivel educativo:</b> ${alumno.nivel}
+📚 <b>Grado y sección:</b> ${alumno.grado}° ${alumno.seccion}
+
+📅 <b>ASISTENCIA DEL DÍA: ${hoy}</b>
+${estado} <b>Estado:</b> ${asistenciaHoy.estado_asistencia}
+🕐 <b>Hora de registro:</b> ${hora}
+
+💡 <b>DESCRIPCIÓN DEL ESTADO:</b>
+${this.obtenerDescripcionEstado(asistenciaHoy.estado_asistencia)}
+
+💡 <b>COMANDOS DISPONIBLES</b>
+🌟 <code>/consultar</code> - Consultar otro alumno
+🌟 <code>/reporte</code> - Ver reporte general de asistencia
+🌟 <code>/estado</code> - Ver estado de su cuenta
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+   }
+
+   /**
     * Genera un resumen de asistencia para un alumno
     */
    private generarResumenAsistencia(alumno: any, asistencias: Asistencia[]): string {
@@ -1058,32 +1589,53 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
        return `• ${fecha}: ${estado} ${a.estado_asistencia}`;
      }).join('\n');
 
-     return `
-📊 <b>RESUMEN DE ASISTENCIA</b>
+     // Determinar el estado general de asistencia
+     let estadoGeneral = '';
+     let emojiEstado = '';
+     if (porcentajeAsistencia >= 90) {
+       estadoGeneral = 'EXCELENTE';
+       emojiEstado = '🏆';
+     } else if (porcentajeAsistencia >= 80) {
+       estadoGeneral = 'BUENO';
+       emojiEstado = '👍';
+     } else if (porcentajeAsistencia >= 70) {
+       estadoGeneral = 'REGULAR';
+       emojiEstado = '⚠️';
+     } else {
+       estadoGeneral = 'NECESITA MEJORAR';
+       emojiEstado = '📉';
+     }
 
-👤 <b>Alumno:</b> ${alumno.nombres} ${alumno.apellidos}
-📝 <b>Código:</b> ${alumno.codigo}
-🏫 <b>Nivel:</b> ${alumno.nivel} - Grado ${alumno.grado}° - Sección ${alumno.seccion}
+     return `📊 <b>REPORTE DE ASISTENCIA</b>
 
-📈 <b>Estadísticas Generales:</b>
-• Total de días registrados: ${totalDias}
-• Porcentaje de asistencia: ${porcentajeAsistencia}%
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
 
-📋 <b>Desglose por Estado:</b>
-✅ Puntual: ${puntual} días
-⚠️ Tardanza: ${tardanza} días
-❌ Ausente: ${ausente} días
-📝 Justificado: ${justificado} días
-🚫 Anulado: ${anulado} días
+👶 <b>INFORMACIÓN DEL ALUMNO</b>
+👤 <b>Nombre completo:</b> ${alumno.nombres} ${alumno.apellidos}
+📝 <b>Código estudiantil:</b> ${alumno.codigo}
+🏫 <b>Nivel educativo:</b> ${alumno.nivel}
+📚 <b>Grado y sección:</b> ${alumno.grado}° ${alumno.seccion}
 
-📅 <b>Últimas 5 Asistencias:</b>
+📈 <b>ESTADÍSTICAS GENERALES</b>
+📊 <b>Total de días registrados:</b> ${totalDias} días
+📈 <b>Porcentaje de asistencia:</b> ${porcentajeAsistencia}%
+${emojiEstado} <b>Estado general:</b> ${estadoGeneral}
+
+📋 <b>DESGLOSE DETALLADO POR ESTADO</b>
+✅ <b>Puntual:</b> ${puntual} días (${totalDias > 0 ? Math.round((puntual/totalDias)*100) : 0}%)
+⚠️ <b>Tardanza:</b> ${tardanza} días (${totalDias > 0 ? Math.round((tardanza/totalDias)*100) : 0}%)
+❌ <b>Ausente:</b> ${ausente} días (${totalDias > 0 ? Math.round((ausente/totalDias)*100) : 0}%)
+📝 <b>Justificado:</b> ${justificado} días (${totalDias > 0 ? Math.round((justificado/totalDias)*100) : 0}%)
+🚫 <b>Anulado:</b> ${anulado} días (${totalDias > 0 ? Math.round((anulado/totalDias)*100) : 0}%)
+
+📅 <b>ÚLTIMAS 5 ASISTENCIAS REGISTRADAS</b>
 ${ultimasAsistencias}
 
-💡 <b>Comandos disponibles:</b>
-/asistencia - Consultar otro alumno
-/start - Volver al inicio
-/help - Ver ayuda
-     `.trim();
+💡 <b>COMANDOS DISPONIBLES</b>
+🌟 <code>/start</code> - Volver al inicio
+🌟 <code>/help</code> - Ver ayuda
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
    }
 
    /**
@@ -1116,6 +1668,761 @@ ${ultimasAsistencias}
         message: `Error: ${error.message}`,
         botStatus: 'ERROR'
       };
+    }
+  }
+
+  /**
+   * Maneja stickers recibidos para obtener file_id
+   */
+  private async manejarStickerRecibido(msg: any): Promise<void> {
+    try {
+      const sticker = msg.sticker;
+      const fileId = sticker.file_id;
+      const emoji = sticker.emoji;
+      const setName = sticker.set_name;
+      
+      this.logger.log(`🎭 Sticker recibido:`);
+      this.logger.log(`   📁 File ID: ${fileId}`);
+      this.logger.log(`   😀 Emoji: ${emoji}`);
+      this.logger.log(`   📦 Set: ${setName}`);
+      
+      // Enviar información del sticker al usuario
+      const respuesta = `🎭 <b>STICKER RECIBIDO!</b>
+
+📁 <b>File ID:</b> <code>${fileId}</code>
+😀 <b>Emoji:</b> ${emoji}
+📦 <b>Set:</b> ${setName}
+
+💡 <b>Para usar este sticker en el bot:</b>
+Copia el File ID y reemplázalo en el código del bot.`;
+
+      await this.bot.sendMessage(msg.chat.id, respuesta, { parse_mode: 'HTML' });
+      
+    } catch (error) {
+      this.logger.error(`❌ Error manejando sticker: ${error.message}`);
+    }
+  }
+
+  // ==================== NUEVOS MÉTODOS DE AUTENTICACIÓN ====================
+
+  /**
+   * Maneja el comando /start según el estado de autenticación
+   */
+  private async manejarComandoStart(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (tieneSesion) {
+        // Usuario autenticado - No mostrar nada, ya está en el menú principal
+        await this.bot.sendMessage(chatId, `✅ <b>YA ESTÁ EN EL MENÚ PRINCIPAL</b>
+
+👤 Ya se encuentra autenticado en el sistema.
+💡 Use los comandos disponibles directamente:
+🌟 <code>/consultar</code> - Consultar asistencia del día
+🌟 <code>/reporte</code> - Ver reporte general de asistencia
+🌟 <code>/estado</code> - Ver estado de su cuenta
+🌟 <code>/contraseña</code> - Cambiar contraseña
+🌟 <code>/salir</code> - Cerrar sesión
+`, { parse_mode: 'HTML' });
+      } else {
+        // Usuario no autenticado - Mostrar bienvenida inicial
+        await this.enviarBienvenidaInicial(chatId);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando start: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja el comando /entrar - Iniciar sesión
+   */
+  private async manejarComandoEntrar(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (tieneSesion) {
+        await this.bot.sendMessage(chatId, `✅ <b>YA TIENE SESIÓN INICIADA</b>
+
+👤 Ya se encuentra autenticado en el sistema.
+💡 Use <code>/start</code> para ver el menú principal.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Iniciar proceso de login
+      this.usuariosEnRegistro.set(user.id, {
+        estado: 'INICIANDO_SESION'
+      });
+
+      const mensaje = `🔐 <b>INICIAR SESIÓN</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+Para acceder a su cuenta, necesitamos verificar sus credenciales.
+
+📝 <b>PASO 1:</b> Envíe su nombre de usuario
+👤 Formato: <code>apoderado_12345678</code>
+
+⏳ <b>Estado:</b> Esperando nombre de usuario...
+⏰ <b>Tiempo límite:</b> 30 segundos
+
+⚠️ <b>Importante:</b> Si no envía el usuario en 30 segundos, la operación se cancelará automáticamente.`;
+
+      await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+      // Configurar timeout
+      const timeoutId = setTimeout(async () => {
+        await this.cancelarOperacionPorTimeout(user.id, chatId, 'INICIANDO_SESION');
+      }, 30000);
+
+      const estadoActual = this.usuariosEnRegistro.get(user.id);
+      if (estadoActual) {
+        estadoActual.timeoutId = timeoutId;
+        this.usuariosEnRegistro.set(user.id, estadoActual);
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando entrar: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja el comando /salir - Cerrar sesión
+   */
+  private async manejarComandoSalir(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (!tieneSesion) {
+        await this.bot.sendMessage(chatId, `❌ <b>NO TIENE SESIÓN INICIADA</b>
+
+👤 No se encuentra autenticado en el sistema.
+💡 Use <code>/entrar</code> para iniciar sesión.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Cerrar sesión
+      const resultado = await this.telegramAuthService.cerrarSesion(user.id);
+      
+      if (resultado.success) {
+        const mensaje = `🔓 <b>SESIÓN CERRADA EXITOSAMENTE</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+✅ Su sesión ha sido cerrada correctamente.
+
+🚨 <b>CONFIRMACIÓN:</b>
+❌ Ya no recibirá notificaciones de asistencia
+❌ No podrá consultar información de sus hijos
+❌ Ha perdido acceso a todos los servicios del bot
+
+🔄 <b>Para volver a usar el sistema:</b>
+🌟 <code>/entrar</code> - Iniciar sesión nuevamente
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+
+        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+      } else {
+        await this.bot.sendMessage(chatId, `❌ <b>ERROR AL CERRAR SESIÓN</b>
+
+⚠️ ${resultado.message}`, { parse_mode: 'HTML' });
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando salir: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja el comando /registro - Solo si no está autenticado
+   */
+  private async manejarComandoRegistro(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (tieneSesion) {
+        await this.bot.sendMessage(chatId, `✅ <b>YA ESTÁ REGISTRADO</b>
+
+👤 Ya se encuentra registrado y autenticado en el sistema.
+💡 Use <code>/start</code> para ver el menú principal.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Proceder con el registro normal
+      await this.iniciarRegistroApoderado(chatId, user);
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando registro: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+
+  /**
+   * Maneja el comando /consultar - Solo si está autenticado
+   */
+  private async manejarComandoConsultar(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (!tieneSesion) {
+        await this.bot.sendMessage(chatId, `❌ <b>DEBE INICIAR SESIÓN PRIMERO</b>
+
+👤 No se encuentra autenticado en el sistema.
+💡 Use <code>/entrar</code> para iniciar sesión.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Obtener información del apoderado autenticado
+      const infoApoderado = await this.telegramAuthService.obtenerApoderadoAutenticado(user.id);
+      
+      if (!infoApoderado.apoderado || !infoApoderado.alumnos) {
+        await this.bot.sendMessage(chatId, `❌ <b>ERROR AL OBTENER INFORMACIÓN</b>
+
+⚠️ No se pudo obtener la información de su cuenta.
+💡 Intente iniciar sesión nuevamente con <code>/entrar</code>.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Mostrar opciones de consulta
+      const alumnosLista = infoApoderado.alumnos.map((alumno, index) => 
+        `${index + 1}. 👶 ${alumno.nombres} ${alumno.apellidos} (DNI: ${alumno.dni})`
+      ).join('\n');
+
+      const mensaje = `📊 <b>CONSULTAR ASISTENCIA DEL DÍA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+👤 <b>Apoderado:</b> ${infoApoderado.apoderado.nombres} ${infoApoderado.apoderado.apellidos}
+
+👶 <b>Seleccione el alumno a consultar:</b>
+${alumnosLista}
+
+📝 <b>PASO 1:</b> Envíe el DNI, código o nombre del alumno
+🔍 Ejemplo: <code>12345678</code> o <code>Juan Carlos</code>
+
+⏳ <b>Estado:</b> Esperando identificación del alumno...
+⏰ <b>Tiempo límite:</b> 30 segundos
+
+⚠️ <b>Importante:</b> Si no envía la información en 30 segundos, la operación se cancelará automáticamente.`;
+
+      // Configurar estado para consulta
+      this.usuariosEnRegistro.set(user.id, {
+        estado: 'CONSULTANDO_ASISTENCIA',
+        apoderado: {
+          nombres: infoApoderado.apoderado.nombres,
+          apellidos: infoApoderado.apoderado.apellidos,
+          alumnos: infoApoderado.alumnos
+        }
+      });
+
+      await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+      // Configurar timeout
+      const timeoutId = setTimeout(async () => {
+        await this.cancelarOperacionPorTimeout(user.id, chatId, 'CONSULTANDO_ASISTENCIA');
+      }, 30000);
+
+      const estadoActual = this.usuariosEnRegistro.get(user.id);
+      if (estadoActual) {
+        estadoActual.timeoutId = timeoutId;
+        this.usuariosEnRegistro.set(user.id, estadoActual);
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando consultar: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja el comando /estado - Solo si está autenticado
+   */
+  private async manejarComandoEstado(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (!tieneSesion) {
+        await this.bot.sendMessage(chatId, `❌ <b>DEBE INICIAR SESIÓN PRIMERO</b>
+
+👤 No se encuentra autenticado en el sistema.
+💡 Use <code>/entrar</code> para iniciar sesión.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Obtener información del apoderado autenticado
+      const infoApoderado = await this.telegramAuthService.obtenerApoderadoAutenticado(user.id);
+      
+      if (!infoApoderado.apoderado || !infoApoderado.alumnos) {
+        await this.bot.sendMessage(chatId, `❌ <b>ERROR AL OBTENER INFORMACIÓN</b>
+
+⚠️ No se pudo obtener la información de su cuenta.
+💡 Intente iniciar sesión nuevamente con <code>/entrar</code>.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Usar el método unificado para mostrar el menú de estado
+      await this.enviarMenuEstado(chatId, user.id);
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando estado: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja el comando /contraseña - Solo si está autenticado
+   */
+  private async manejarComandoContraseña(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (!tieneSesion) {
+        await this.bot.sendMessage(chatId, `❌ <b>DEBE INICIAR SESIÓN PRIMERO</b>
+
+👤 No se encuentra autenticado en el sistema.
+💡 Use <code>/entrar</code> para iniciar sesión.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Iniciar proceso de cambio de contraseña
+      this.usuariosEnRegistro.set(user.id, {
+        estado: 'CAMBIANDO_CONTRASEÑA'
+      });
+
+      const mensaje = `🔑 <b>CAMBIAR CONTRASEÑA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+Para cambiar su contraseña, necesitamos verificar su identidad.
+
+📝 <b>PASO 1:</b> Envíe su nueva contraseña
+🔐 Debe tener al menos 8 caracteres
+🔐 Incluya letras, números y símbolos
+
+⏳ <b>Estado:</b> Esperando nueva contraseña...
+⏰ <b>Tiempo límite:</b> 30 segundos
+
+⚠️ <b>Importante:</b> Si no envía la contraseña en 30 segundos, la operación se cancelará automáticamente.`;
+
+      await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+      // Configurar timeout
+      const timeoutId = setTimeout(async () => {
+        await this.cancelarOperacionPorTimeout(user.id, chatId, 'CAMBIANDO_CONTRASEÑA');
+      }, 30000);
+
+      const estadoActual = this.usuariosEnRegistro.get(user.id);
+      if (estadoActual) {
+        estadoActual.timeoutId = timeoutId;
+        this.usuariosEnRegistro.set(user.id, estadoActual);
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando contraseña: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Maneja el comando /reporte - Solo si está autenticado
+   */
+  private async manejarComandoReporte(chatId: number, user: any): Promise<void> {
+    try {
+      const tieneSesion = await this.telegramAuthService.tieneSesionIniciada(user.id);
+      
+      if (!tieneSesion) {
+        await this.bot.sendMessage(chatId, `❌ <b>DEBE INICIAR SESIÓN PRIMERO</b>
+
+👤 No se encuentra autenticado en el sistema.
+💡 Use <code>/entrar</code> para iniciar sesión.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Obtener información del apoderado autenticado
+      const infoApoderado = await this.telegramAuthService.obtenerApoderadoAutenticado(user.id);
+      
+      if (!infoApoderado.apoderado || !infoApoderado.alumnos) {
+        await this.bot.sendMessage(chatId, `❌ <b>ERROR AL OBTENER INFORMACIÓN</b>
+
+⚠️ No se pudo obtener la información de su cuenta.
+💡 Intente iniciar sesión nuevamente con <code>/entrar</code>.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Mostrar opciones de reporte
+      const alumnosLista = infoApoderado.alumnos.map((alumno, index) => 
+        `${index + 1}. 👶 ${alumno.nombres} ${alumno.apellidos} (DNI: ${alumno.dni})`
+      ).join('\n');
+
+      const mensaje = `📊 <b>REPORTE GENERAL DE ASISTENCIA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+👤 <b>Apoderado:</b> ${infoApoderado.apoderado.nombres} ${infoApoderado.apoderado.apellidos}
+
+👶 <b>Seleccione el alumno para el reporte:</b>
+${alumnosLista}
+
+📝 <b>PASO 1:</b> Envíe el DNI, código o nombre del alumno
+🔍 Ejemplo: <code>12345678</code> o <code>Juan Carlos</code>
+
+⏳ <b>Estado:</b> Esperando identificación del alumno...
+⏰ <b>Tiempo límite:</b> 30 segundos
+
+⚠️ <b>Importante:</b> Si no envía la información en 30 segundos, la operación se cancelará automáticamente.`;
+
+      // Configurar estado para reporte
+      this.usuariosEnRegistro.set(user.id, {
+        estado: 'GENERANDO_REPORTE',
+        apoderado: {
+          nombres: infoApoderado.apoderado.nombres,
+          apellidos: infoApoderado.apoderado.apellidos,
+          alumnos: infoApoderado.alumnos
+        }
+      });
+
+      await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+      // Configurar timeout
+      const timeoutId = setTimeout(async () => {
+        await this.cancelarOperacionPorTimeout(user.id, chatId, 'CONSULTANDO_ASISTENCIA');
+      }, 30000);
+
+      const estadoActual = this.usuariosEnRegistro.get(user.id);
+      if (estadoActual) {
+        estadoActual.timeoutId = timeoutId;
+        this.usuariosEnRegistro.set(user.id, estadoActual);
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error manejando comando reporte: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Envía mensaje de bienvenida inicial (usuario no autenticado)
+   */
+  private async enviarBienvenidaInicial(chatId: number): Promise<void> {
+    const mensaje = `🎉 <b>BIENVENIDO AL SISTEMA DE NOTIFICACIONES</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+Bienvenido al sistema de notificaciones de la Institución Educativa Pública "Andrés de los Reyes".
+
+📱 <b>Este bot le permitirá:</b>
+🔔 Recibir notificaciones de asistencia de sus hijos
+📊 Consultar el estado de asistencia en tiempo real
+📈 Ver reportes detallados de asistencia
+🔐 Acceder de forma segura con sus credenciales
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver este menú
+🌟 <code>/entrar</code> - Iniciar sesión con sus credenciales
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+
+    await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Envía menú de estado (usuario autenticado) - Menú principal
+   */
+  private async enviarMenuEstado(chatId: number, userId: number): Promise<void> {
+    try {
+      // Obtener información del apoderado autenticado
+      const infoApoderado = await this.telegramAuthService.obtenerApoderadoAutenticado(userId);
+      
+      if (!infoApoderado.apoderado || !infoApoderado.alumnos) {
+        await this.bot.sendMessage(chatId, `❌ <b>ERROR AL OBTENER INFORMACIÓN</b>
+
+⚠️ No se pudo obtener la información de su cuenta.
+💡 Intente iniciar sesión nuevamente con <code>/entrar</code>.`, { parse_mode: 'HTML' });
+        return;
+      }
+
+      const alumnosLista = infoApoderado.alumnos.map((alumno, index) => 
+        `${index + 1}. 👶 ${alumno.nombres} ${alumno.apellidos} (${alumno.nivel} - ${alumno.grado}° ${alumno.seccion})`
+      ).join('\n');
+
+      const mensaje = `📊 <b>ESTADO DE SU CUENTA</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+✅ <b>Sesión iniciada correctamente</b>
+
+👤 <b>Apoderado:</b> ${infoApoderado.apoderado.nombres} ${infoApoderado.apoderado.apellidos}
+🔢 <b>DNI:</b> ${infoApoderado.apoderado.dni}
+
+📊 <b>Estado de notificaciones:</b> ✅ <b>ACTIVO</b>
+🔔 <b>Recibe notificaciones:</b> ✅ <b>SÍ</b>
+
+👶 <b>Sus hijos(as) asignados:</b>
+${alumnosLista}
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/consultar</code> - Consultar asistencia del día
+🌟 <code>/reporte</code> - Ver reporte general de asistencia
+🌟 <code>/estado</code> - Ver estado de su cuenta
+🌟 <code>/contraseña</code> - Cambiar contraseña
+🌟 <code>/salir</code> - Cerrar sesión
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+
+      await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+    } catch (error) {
+      this.logger.error(`❌ Error enviando menú principal: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Cancela operación por timeout
+   */
+  private async cancelarOperacionPorTimeout(userId: number, chatId: number, estado: string): Promise<void> {
+    try {
+      this.usuariosEnRegistro.delete(userId);
+      
+      let mensaje = '';
+      switch (estado) {
+        case 'INICIANDO_SESION':
+          mensaje = `⏰ <b>OPERACIÓN CANCELADA POR TIMEOUT</b>
+
+⚠️ No se recibió respuesta en el tiempo límite.
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/entrar</code> - Intentar iniciar sesión nuevamente`;
+          break;
+        case 'CAMBIANDO_CONTRASEÑA':
+          mensaje = `⏰ <b>OPERACIÓN CANCELADA POR TIMEOUT</b>
+
+⚠️ No se recibió la nueva contraseña en el tiempo límite.
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/contraseña</code> - Intentar cambiar contraseña nuevamente`;
+          break;
+        case 'CONSULTANDO_ASISTENCIA':
+          mensaje = `⏰ <b>OPERACIÓN CANCELADA POR TIMEOUT</b>
+
+⚠️ No se recibió la información del alumno en el tiempo límite.
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/consultar</code> - Intentar consultar asistencia nuevamente`;
+          break;
+        case 'GENERANDO_REPORTE':
+          mensaje = `⏰ <b>OPERACIÓN CANCELADA POR TIMEOUT</b>
+
+⚠️ No se recibió la información del alumno en el tiempo límite.
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/reporte</code> - Intentar generar reporte nuevamente`;
+          break;
+        default:
+          mensaje = `⏰ <b>OPERACIÓN CANCELADA POR TIMEOUT</b>
+
+⚠️ No se recibió respuesta en el tiempo límite.
+
+💡 Use <code>/start</code> para ver el menú principal.`;
+      }
+
+      await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+    } catch (error) {
+      this.logger.error(`❌ Error cancelando operación por timeout: ${error.message}`);
+    }
+  }
+
+  /**
+   * Procesa el inicio de sesión del usuario
+   */
+  private async procesarInicioSesion(userId: number, chatId: number, texto: string): Promise<void> {
+    try {
+      const estadoUsuario = this.usuariosEnRegistro.get(userId);
+      if (!estadoUsuario) {
+        await this.bot.sendMessage(chatId, '❌ Error: Estado de sesión no válido. Use /entrar para comenzar.');
+        return;
+      }
+
+      // Limpiar timeout si existe
+      if (estadoUsuario.timeoutId) {
+        clearTimeout(estadoUsuario.timeoutId);
+        delete estadoUsuario.timeoutId;
+      }
+
+      // Si no hay username almacenado, este es el username
+      if (!estadoUsuario.dniApoderado) {
+        // Validar formato del username (nombre_dni)
+        if (!texto.includes('_') || texto.length < 8) {
+          const mensaje = `❌ <b>USUARIO INVÁLIDO</b>
+
+⚠️ El nombre de usuario debe tener el formato: <code>nombre_dni</code>
+📝 Ejemplo: <code>abel_77164942</code>
+
+🔄 <b>Intenta nuevamente:</b>`;
+          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+          return;
+        }
+
+        // Almacenar username y pedir contraseña
+        estadoUsuario.dniApoderado = texto;
+        this.usuariosEnRegistro.set(userId, estadoUsuario);
+
+        const mensaje = `🔐 <b>INICIAR SESIÓN</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+✅ Usuario recibido: <code>${texto}</code>
+
+📝 <b>PASO 2:</b> Envíe su contraseña
+🔑 Ingrese la contraseña de su cuenta
+
+⏳ <b>Estado:</b> Esperando contraseña...
+⏰ <b>Tiempo límite:</b> 30 segundos
+
+⚠️ <b>Importante:</b> Si no envía la contraseña en 30 segundos, la operación se cancelará automáticamente.`;
+
+        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+
+        // Configurar timeout
+        const timeoutId = setTimeout(async () => {
+          await this.cancelarOperacionPorTimeout(userId, chatId, 'INICIANDO_SESION');
+        }, 30000);
+
+        estadoUsuario.timeoutId = timeoutId;
+        this.usuariosEnRegistro.set(userId, estadoUsuario);
+
+      } else {
+        // Este es el password, intentar iniciar sesión
+        const resultado = await this.telegramAuthService.iniciarSesion(userId, chatId, estadoUsuario.dniApoderado, texto);
+
+        if (resultado.success) {
+          // Sesión iniciada exitosamente
+          const alumnosLista = resultado.alumnos?.map((alumno, index) => 
+            `${index + 1}. 👶 ${alumno.nombres} ${alumno.apellidos} (${alumno.nivel} - ${alumno.grado}° ${alumno.seccion})`
+          ).join('\n') || 'No hay alumnos asignados';
+
+          const mensaje = `🎉 <b>¡SESIÓN INICIADA EXITOSAMENTE!</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+✅ Bienvenido de vuelta al sistema de notificaciones.
+
+👤 <b>Apoderado:</b> ${resultado.apoderado?.nombres} ${resultado.apoderado?.apellidos}
+🔢 <b>DNI:</b> ${resultado.apoderado?.dni}
+
+👶 <b>Sus hijos(as) asignados:</b>
+${alumnosLista}
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/consultar</code> - Consultar asistencia del día
+🌟 <code>/reporte</code> - Ver reporte general de asistencia
+🌟 <code>/estado</code> - Ver estado de su cuenta
+🌟 <code>/contraseña</code> - Cambiar contraseña
+🌟 <code>/salir</code> - Cerrar sesión
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+
+          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+        } else {
+          // Error en el inicio de sesión
+          const mensaje = `❌ <b>ERROR AL INICIAR SESIÓN</b>
+
+⚠️ ${resultado.message}
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/entrar</code> - Intentar iniciar sesión nuevamente`;
+
+          await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+        }
+
+        // Limpiar estado del usuario
+        this.usuariosEnRegistro.delete(userId);
+      }
+
+    } catch (error) {
+      this.logger.error(`❌ Error procesando inicio de sesión: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
+    }
+  }
+
+  /**
+   * Procesa el cambio de contraseña del usuario
+   */
+  private async procesarCambioContraseña(userId: number, chatId: number, texto: string): Promise<void> {
+    try {
+      const estadoUsuario = this.usuariosEnRegistro.get(userId);
+      if (!estadoUsuario) {
+        await this.bot.sendMessage(chatId, '❌ Error: Estado no válido. Use /contraseña para comenzar.');
+        return;
+      }
+
+      // Limpiar timeout si existe
+      if (estadoUsuario.timeoutId) {
+        clearTimeout(estadoUsuario.timeoutId);
+        delete estadoUsuario.timeoutId;
+      }
+
+      // Validar contraseña
+      if (texto.length < 8) {
+        const mensaje = `❌ <b>CONTRASEÑA INVÁLIDA</b>
+
+⚠️ La contraseña debe tener al menos 8 caracteres.
+🔐 Incluya letras, números y símbolos para mayor seguridad.
+
+🔄 <b>Intenta nuevamente:</b>`;
+        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+        return;
+      }
+
+      // Cambiar contraseña
+      const resultado = await this.telegramAuthService.cambiarContraseña(userId, texto);
+
+      if (resultado.success) {
+        const mensaje = `✅ <b>CONTRASEÑA ACTUALIZADA EXITOSAMENTE</b>
+
+👨‍👩‍👧‍👦 <b>Estimado(a) padre/madre de familia:</b>
+
+🔑 Su contraseña ha sido actualizada correctamente.
+
+⚠️ <b>IMPORTANTE:</b> 
+📝 Guarde su nueva contraseña en un lugar seguro
+🔐 La necesitará para futuros inicios de sesión
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/estado</code> - Ver estado de su cuenta
+
+🏫 <i>Institucion Educativa Publica "Andrés de los Reyes"</i>`;
+
+        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+      } else {
+        const mensaje = `❌ <b>ERROR AL CAMBIAR CONTRASEÑA</b>
+
+⚠️ ${resultado.message}
+
+💡 <b>Comandos disponibles:</b>
+🌟 <code>/start</code> - Ver menú principal
+🌟 <code>/contraseña</code> - Intentar cambiar contraseña nuevamente`;
+
+        await this.bot.sendMessage(chatId, mensaje, { parse_mode: 'HTML' });
+      }
+
+      // Limpiar estado del usuario
+      this.usuariosEnRegistro.delete(userId);
+
+    } catch (error) {
+      this.logger.error(`❌ Error procesando cambio de contraseña: ${error.message}`);
+      await this.bot.sendMessage(chatId, '❌ Error interno del sistema. Intente nuevamente.');
     }
   }
 }

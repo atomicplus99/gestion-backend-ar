@@ -27,6 +27,12 @@ export class TelegramUser {
   @Column({ type: 'varchar', length: 50, default: 'APODERADO' })
   tipo_usuario: string;
 
+  @Column({ type: 'boolean', default: false })
+  sesion_iniciada: boolean;
+
+  @Column({ type: 'datetime', nullable: true })
+  ultima_sesion: Date;
+
   @CreateDateColumn()
   fecha_registro: Date;
 

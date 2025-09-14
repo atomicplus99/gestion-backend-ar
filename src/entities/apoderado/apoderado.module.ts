@@ -13,10 +13,12 @@ import { DeleteApoderadoUseCase } from './domain/ports/inbound/cases/delete-apod
 import { AssignStudentsUseCase } from './domain/ports/inbound/cases/assign-students.usecase';
 import { RemoveStudentsUseCase } from './domain/ports/inbound/cases/remove-students.usecase';
 import { APODERADO_REPOSITORY_PORT } from './domain/ports/outbound/ApoderadoRepository.interface';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ApoderadoORM, Alumno]),
+    TelegramModule,
   ],
   controllers: [ApoderadoController],
   providers: [

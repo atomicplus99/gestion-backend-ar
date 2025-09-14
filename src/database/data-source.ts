@@ -13,6 +13,7 @@ import { Justificacion } from '../entities/justificacion/justificacion.entity';
 import { AusenciasMasivasLog } from '../entities/asistencia/entities/ausencias-masivas-log.entity';
 import { TelegramUser } from '../entities/telegram/telegram-user.entity';
 import { TelegramChat } from '../entities/telegram/telegram-chat.entity';
+import { TelegramAccount } from '../entities/telegram/entities/telegram-account.entity';
 import { Administrador } from '../entities/administrador/administrador.entity';
 import { Director } from '../entities/director/director.entity';
 import { Notificacion } from '../entities/notificacion/notificacion.entity';
@@ -30,7 +31,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion, AusenciasMasivasLog, TelegramUser, TelegramChat, Administrador, Director, Notificacion, AusenciasMasivasProgramadas, TurnoExtra, AsistenciaExtra],
+  entities: [Usuario, Turno, Alumno, Auxiliar, Asistencia, EstadoAlumno, ActualizacionesAsistencia, Apoderado, Justificacion, AusenciasMasivasLog, TelegramUser, TelegramChat, TelegramAccount, Administrador, Director, Notificacion, AusenciasMasivasProgramadas, TurnoExtra, AsistenciaExtra],
   migrations: ['dist/database/migrations/*.ts'],
   synchronize: false,
 });

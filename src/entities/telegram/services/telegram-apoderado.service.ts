@@ -5,6 +5,7 @@ import { Apoderado } from '../../apoderado/infraestructure/orm/entities/apoderad
 import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity';
 import { TelegramUser } from '../telegram-user.entity';
 import { TelegramChat } from '../telegram-chat.entity';
+import { TelegramAccountService } from './telegram-account.service';
 import { IniciarRegistroDto, ConfirmarRegistroDto, ApoderadoRegistradoDto, AlumnoAsignadoDto } from '../dto/registro-apoderado.dto';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class TelegramApoderadoService {
     private readonly telegramUserRepository: Repository<TelegramUser>,
     @InjectRepository(TelegramChat)
     private readonly telegramChatRepository: Repository<TelegramChat>,
+    private readonly telegramAccountService: TelegramAccountService,
   ) {}
 
   /**
@@ -109,8 +111,14 @@ export class TelegramApoderadoService {
     success: boolean;
     message: string;
     error?: string;
+    telegramAccount?: {
+      username: string;
+      password: string;
+    };
   }> {
     try {
+      this.logger.log(`🔄 INICIANDO confirmarRegistro para DNI: ${datos.dni_apoderado}`);
+      this.logger.log(`🔄 Chat ID: ${chatId}, Telegram User ID: ${telegramUserId}`);
 
       // Verificar que el apoderado existe y tiene esos alumnos
       const apoderado = await this.apoderadoRepository.findOne({
@@ -144,31 +152,90 @@ export class TelegramApoderadoService {
         };
       }
 
-      // Crear usuario de Telegram
-      const telegramUser = this.telegramUserRepository.create({
-        telegram_id: telegramUserId,
-        first_name: `Apoderado_${datos.dni_apoderado}`,
-        tipo_usuario: 'APODERADO',
-        activo: true,
-        fecha_registro: new Date()
+      // Verificar si ya existe un usuario desactivado
+      let telegramUser = await this.telegramUserRepository.findOne({
+        where: { 
+          telegram_id: telegramUserId,
+          tipo_usuario: 'APODERADO'
+        }
       });
 
-      await this.telegramUserRepository.save(telegramUser);
+      if (telegramUser) {
+        // Reactivar usuario existente
+        telegramUser.activo = true;
+        telegramUser.first_name = `Apoderado_${datos.dni_apoderado}`;
+        telegramUser.fecha_registro = new Date();
+        await this.telegramUserRepository.save(telegramUser);
+        this.logger.log(`✅ Usuario reactivado: ${telegramUser.id_telegram_user}`);
+      } else {
+        // Crear nuevo usuario de Telegram
+        telegramUser = this.telegramUserRepository.create({
+          telegram_id: telegramUserId,
+          first_name: `Apoderado_${datos.dni_apoderado}`,
+          tipo_usuario: 'APODERADO',
+          activo: true,
+          fecha_registro: new Date()
+        });
+        await this.telegramUserRepository.save(telegramUser);
+        this.logger.log(`✅ Nuevo usuario creado: ${telegramUser.id_telegram_user}`);
+      }
 
-      // Crear chat de Telegram
-      const telegramChat = this.telegramChatRepository.create({
-        id_telegram_user: telegramUser.id_telegram_user,
-        chat_id: chatId,
-        activo: true,
-        fecha_registro: new Date()
+      // Verificar si ya existe un chat desactivado
+      let telegramChat = await this.telegramChatRepository.findOne({
+        where: { 
+          id_telegram_user: telegramUser.id_telegram_user,
+          chat_id: chatId
+        }
       });
 
-      await this.telegramChatRepository.save(telegramChat);
+      if (telegramChat) {
+        // Reactivar chat existente
+        telegramChat.activo = true;
+        telegramChat.fecha_registro = new Date();
+        await this.telegramChatRepository.save(telegramChat);
+        this.logger.log(`✅ Chat reactivado: ${telegramChat.id_chat}`);
+      } else {
+        // Crear nuevo chat de Telegram
+        telegramChat = this.telegramChatRepository.create({
+          id_telegram_user: telegramUser.id_telegram_user,
+          chat_id: chatId,
+          activo: true,
+          fecha_registro: new Date()
+        });
+        await this.telegramChatRepository.save(telegramChat);
+        this.logger.log(`✅ Nuevo chat creado: ${telegramChat.id_chat}`);
+      }
 
+      // Crear cuenta de Telegram para el apoderado
+      this.logger.log(`🔄 Iniciando creación de cuenta Telegram para apoderado: ${apoderado.dni}`);
+      this.logger.log(`🔄 Apoderado ID: ${apoderado.id_apoderado}`);
+      this.logger.log(`🔄 Servicio de cuentas disponible: ${!!this.telegramAccountService}`);
+      
+      let resultadoCuenta;
+      try {
+        resultadoCuenta = await this.telegramAccountService.crearCuentaTelegram(apoderado);
+        this.logger.log(`🔄 Resultado de creación de cuenta: ${JSON.stringify(resultadoCuenta)}`);
+      } catch (error) {
+        this.logger.error(`❌ Error al crear cuenta Telegram: ${error.message}`);
+        this.logger.error(`❌ Stack trace: ${error.stack}`);
+        throw error;
+      }
+      
+      if (!resultadoCuenta.success) {
+        this.logger.warn(`⚠️ No se pudo crear cuenta Telegram: ${resultadoCuenta.message}`);
+        // Continuar con el registro aunque falle la creación de la cuenta
+      } else {
+        this.logger.log(`✅ Cuenta Telegram creada: ${resultadoCuenta.username}`);
+        this.logger.log(`✅ Contraseña generada: ${resultadoCuenta.password}`);
+      }
 
       return {
         success: true,
-        message: 'Registro completado exitosamente. Ahora recibirás notificaciones de tus alumnos.'
+        message: 'Registro completado exitosamente. Ahora recibirás notificaciones de tus alumnos.',
+        telegramAccount: resultadoCuenta.success ? {
+          username: resultadoCuenta.username!,
+          password: resultadoCuenta.password!
+        } : undefined
       };
 
     } catch (error) {

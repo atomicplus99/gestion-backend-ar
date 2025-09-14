@@ -27,6 +27,10 @@ import { ApoderadoMapper } from '../../../mappers/apoderado.mapper';
 import { ApoderadoCreateResponseDto } from '../../../../domain/dtos/response/ApoderadoCreateResponse.dto';
 import { ApoderadoErrorResponseDto } from '../../../../domain/dtos/response/ApoderadoErrorResponse.dto';
 import { SuccessResponseDto, ErrorResponseDto } from '../../../../../alumno/domain/dtos/response/SuccessResponse.dto';
+import { TelegramAccountService } from '../../../../../telegram/services/telegram-account.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Apoderado as ApoderadoORM } from '../../../orm/entities/apoderado.entity';
 
 @ApiTags('Apoderados')
 @Controller('apoderados')
@@ -40,6 +44,9 @@ export class ApoderadoController {
     private readonly deleteApoderadoUseCase: DeleteApoderadoUseCase,
     private readonly assignStudentsUseCase: AssignStudentsUseCase,
     private readonly removeStudentsUseCase: RemoveStudentsUseCase,
+    private readonly telegramAccountService: TelegramAccountService,
+    @InjectRepository(ApoderadoORM)
+    private apoderadoRepository: Repository<ApoderadoORM>,
   ) {}
 
   @Post()
@@ -84,6 +91,32 @@ export class ApoderadoController {
           },
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
+      }
+
+      // Crear cuenta de Telegram para el apoderado
+      console.log(`🔄 Creando cuenta Telegram para apoderado: ${apoderado.dni}`);
+      try {
+        // Obtener el apoderado de la base de datos (entidad ORM) para pasarlo al servicio
+        const apoderadoORM = await this.apoderadoRepository.findOne({
+          where: { id_apoderado: apoderado.id_apoderado },
+          relations: ['pupilos']
+        });
+        
+        if (apoderadoORM) {
+          const resultadoCuenta = await this.telegramAccountService.crearCuentaTelegram(apoderadoORM);
+          
+          if (resultadoCuenta.success) {
+            console.log(`✅ Cuenta Telegram creada: ${resultadoCuenta.username}`);
+            console.log(`✅ Contraseña generada: ${resultadoCuenta.password}`);
+          } else {
+            console.warn(`⚠️ No se pudo crear cuenta Telegram: ${resultadoCuenta.message}`);
+          }
+        } else {
+          console.warn(`⚠️ No se encontró el apoderado en la base de datos: ${apoderado.id_apoderado}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error al crear cuenta Telegram: ${error.message}`);
+        // Continuar con la respuesta aunque falle la creación de la cuenta
       }
 
       const response: ApoderadoCreateResponseDto = {
