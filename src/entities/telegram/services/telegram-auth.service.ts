@@ -235,7 +235,7 @@ export class TelegramAuthService {
           dni: apoderado.dni
         },
         alumnos: alumnos.map(alumno => ({
-          id: alumno.id_alumno,
+          id_alumno: alumno.id_alumno,
           nombres: alumno.nombre,
           apellidos: alumno.apellido,
           dni: alumno.dni_alumno,

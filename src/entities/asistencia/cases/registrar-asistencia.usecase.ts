@@ -281,9 +281,29 @@ export class RegistrarAsistenciaDesdeQRUseCase {
       // Si no tiene turno extra, manejar asistencia regular
       // 🔒 VALIDACIÓN CRÍTICA: Verificar que no tenga estados conflictivos
       if (asistencia.estado_asistencia === EstadoAsistencia.AUSENTE) {
-        throw new BadRequestException(
-          `No se puede registrar asistencia. El alumno ya tiene estado AUSENTE para el día de hoy.`
+        // ✅ PERMITIR actualizar ausencia a asistencia cuando se escanea QR
+        console.log(`🔄 [RegistrarAsistencia] Actualizando ausencia a asistencia para ${alumno.codigo}`);
+        
+        // Actualizar la asistencia existente de AUSENTE a PUNTUAL/TARDANZA
+        const horaLimite = alumno.turno?.hora_limite;
+        const estadoNuevo = horaLimite && horaActual > horaLimite 
+          ? EstadoAsistencia.TARDANZA 
+          : EstadoAsistencia.PUNTUAL;
+        
+        asistencia.estado_asistencia = estadoNuevo;
+        asistencia.hora_de_llegada = horaActual;
+        asistencia.fecha = new Date(ahoraPeru); // Actualizar fecha con hora real
+        
+        const asistenciaActualizada = await this.asistenciaRepo.save(asistencia);
+        
+        // Enviar notificación de actualización
+        await this.telegramNotificationService.notificarAsistenciaApoderado(
+          asistenciaActualizada,
+          `ACTUALIZACIÓN: Ausencia cambiada a ${estadoNuevo}`,
+          'ACTUALIZACION'
         );
+        
+        return asistenciaActualizada;
       }
 
       if (asistencia.estado_asistencia === EstadoAsistencia.JUSTIFICADO) {

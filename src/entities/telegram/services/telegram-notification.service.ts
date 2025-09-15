@@ -307,7 +307,7 @@ export class TelegramNotificationService {
 
     // Determinar el título y tipo de registro según la operación
     let titulo = '🔄 <b>NOTIFICACIÓN DE ASISTENCIA</b>';
-    let tipoRegistro = 'Sistema QR';
+    let tipoRegistro = 'Colegio Andres de los Reyes - Huaral';
     
     if (tipoOperacion) {
       switch (tipoOperacion) {
@@ -355,7 +355,7 @@ ${asistencia.alumno.turno ? `🕐 <b>Horario del turno:</b> ${asistencia.alumno.
 📍 <b>Registrado por:</b> ${tipoRegistro}
 ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
 
-<i>Sistema de Gestión Académica</i>`;
+<i>Sistema de control de asistencia I.E.P Andres de los Reyes</i>`;
   }
 
   /**
@@ -595,7 +595,7 @@ ${motivo ? `📝 <b>MOTIVO:</b> ${motivo}` : ''}
 
 📊 <b>Estado:</b> ✅ Activo
 🕐 <b>Última actualización:</b> ${new Date().toLocaleString('es-ES')}
-🌐 <b>Servidor:</b> Sistema de Gestión Escolar
+🌐 <b>Servidor:</b> Sistema de control de asistencia I.E.P Andres de los Reyes
 
 📱 <b>Funcionalidades:</b>
 🔔 Registro automático de asistencia
@@ -1218,6 +1218,14 @@ ${estadoUsuario.apoderado.alumnos.map((alumno, index) =>
        const asistencia = await this.obtenerAsistenciaAlumno(alumnoEncontrado.id_alumno, false);
        
        this.logger.log(`📊 Asistencias obtenidas para reporte: ${asistencia?.length || 0}`);
+       
+       // Debug: Mostrar las primeras 5 asistencias para verificar que son del alumno correcto
+       if (asistencia && asistencia.length > 0) {
+         this.logger.log(`🔍 DEBUG - Primeras 5 asistencias del reporte:`);
+         asistencia.slice(0, 5).forEach((a, index) => {
+           this.logger.log(`  ${index + 1}. Fecha: ${new Date(a.fecha).toLocaleDateString('es-ES')}, Estado: ${a.estado_asistencia}, Alumno ID: ${a.alumno?.id_alumno || 'N/A'}`);
+         });
+       }
 
        if (!asistencia || asistencia.length === 0) {
          const mensaje = `📊 <b>REPORTE DE ASISTENCIA</b>
@@ -1469,14 +1477,13 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
          return asistenciasHoy;
        }
        
-       // Primero intentar sin filtro de fecha para ver si hay asistencias
-       const todasLasAsistencias = await asistenciaRepository.find({
-         where: { 
-           alumno: { id_alumno: idAlumno }
-         },
-         order: { fecha: 'DESC' },
-         relations: ['alumno']
-       });
+       // Buscar asistencias del alumno específico usando createQueryBuilder para ser más explícito
+       const todasLasAsistencias = await asistenciaRepository
+         .createQueryBuilder('asistencia')
+         .leftJoinAndSelect('asistencia.alumno', 'alumno')
+         .where('alumno.id_alumno = :idAlumno', { idAlumno })
+         .orderBy('asistencia.fecha', 'DESC')
+         .getMany();
        
        this.logger.log(`📊 Total de asistencias encontradas (sin filtro de fecha): ${todasLasAsistencias.length}`);
        
@@ -1486,6 +1493,11 @@ ${resultado.error ? `\n🔍 <b>Detalle:</b> ${resultado.error}` : ''}
            new Date(a.fecha).toLocaleDateString('es-ES')
          );
          this.logger.log(`📅 Fechas de ejemplo: ${fechasEjemplo.join(', ')}`);
+         
+         // Verificar que todas las asistencias son del alumno correcto
+         const alumnosUnicos = [...new Set(todasLasAsistencias.map(a => a.alumno?.id_alumno))];
+         this.logger.log(`🔍 IDs de alumnos únicos en las asistencias: ${alumnosUnicos.join(', ')}`);
+         this.logger.log(`🎯 ID del alumno buscado: ${idAlumno}`);
        }
        
        // Filtrar por año actual (más flexible)

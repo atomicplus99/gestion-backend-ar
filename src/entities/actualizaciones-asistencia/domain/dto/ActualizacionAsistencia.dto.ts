@@ -17,4 +17,8 @@ export class CreateActualizacionAsistenciaDto {
   @IsString()
   @IsNotEmpty()
   motivo: string;
+
+  @IsString()
+  @IsNotEmpty()
+  accion_realizada: string;
 }

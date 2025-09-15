@@ -42,6 +42,9 @@ export class ActualizacionesAsistencia {
   @Column({ type: 'text' })
   motivo: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  accion_realizada: string;
+
   @CreateDateColumn({ name: 'fecha_actualizacion' })
   fechaActualizacion: Date;
 }

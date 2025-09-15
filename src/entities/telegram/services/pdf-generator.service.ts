@@ -10,6 +10,15 @@ export class PdfGeneratorService {
   async generarReporteAsistencia(alumno: any, asistencias: any[]): Promise<string> {
     try {
       this.logger.log(`📄 Generando PDF para alumno: ${alumno.nombres} ${alumno.apellidos}`);
+      this.logger.log(`📊 Total de asistencias recibidas para PDF: ${asistencias?.length || 0}`);
+      
+      // Debug: Mostrar las primeras 5 asistencias para verificar que son del alumno correcto
+      if (asistencias && asistencias.length > 0) {
+        this.logger.log(`🔍 DEBUG PDF - Primeras 5 asistencias recibidas:`);
+        asistencias.slice(0, 5).forEach((a, index) => {
+          this.logger.log(`  ${index + 1}. Fecha: ${new Date(a.fecha).toLocaleDateString('es-ES')}, Estado: ${a.estado_asistencia}, Alumno ID: ${a.alumno?.id_alumno || 'N/A'}`);
+        });
+      }
 
       // Crear directorio de reportes si no existe
       const reportsDir = path.join(process.cwd(), 'reports');
@@ -348,7 +357,7 @@ export class PdfGeneratorService {
 
         <div class="footer">
             <div class="logo">🏫 I.E.P. "Andrés de los Reyes"</div>
-            <p>Sistema de Gestión Académica - Reporte generado automáticamente</p>
+            <p>Sistema de control de asistencia I.E.P Andres de los Reyes - Reporte generado automáticamente</p>
             <p>Este documento es confidencial y está destinado únicamente al apoderado del alumno.</p>
         </div>
     </div>

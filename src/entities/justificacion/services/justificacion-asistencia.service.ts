@@ -5,6 +5,8 @@ import { Justificacion } from '../justificacion.entity';
 import { Asistencia } from '../../asistencia/asistencia.entity';
 import { Alumno } from '../../alumno/infraestructure/orm/entities/alumno.entity';
 import { EstadoAsistencia } from '../../asistencia/enums/estado-asistencia.enum';
+import { ActualizacionesAsistencia } from '../../actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
+import { TelegramNotificationService } from '../../telegram/services/telegram-notification.service';
 
 @Injectable()
 export class JustificacionAsistenciaService {
@@ -15,6 +17,9 @@ export class JustificacionAsistenciaService {
     private readonly asistenciaRepository: Repository<Asistencia>,
     @InjectRepository(Alumno)
     private readonly alumnoRepository: Repository<Alumno>,
+    @InjectRepository(ActualizacionesAsistencia)
+    private readonly actualizacionesRepository: Repository<ActualizacionesAsistencia>,
+    private readonly telegramNotificationService: TelegramNotificationService,
   ) {}
 
   /**
@@ -85,8 +90,32 @@ export class JustificacionAsistenciaService {
     asistencia.estado_asistencia = EstadoAsistencia.JUSTIFICADO;
     
     // Guardar la entidad modificada (misma estrategia que ANULADO)
-    await this.asistenciaRepository.save(asistencia);
+    const asistenciaActualizada = await this.asistenciaRepository.save(asistencia);
     
+    // Crear registro de actualización
+    const actualizacion = new ActualizacionesAsistencia();
+    actualizacion.asistencia = asistenciaActualizada;
+    actualizacion.alumno = justificacion.alumno;
+    actualizacion.motivo = `JUSTIFICACIÓN APROBADA: ${justificacion.motivo}`;
+    actualizacion.accion_realizada = 'APROBAR_JUSTIFICACION';
+    
+    // Asignar el actor según el tipo de justificación
+    if (justificacion.auxiliar) {
+      actualizacion.auxiliar = justificacion.auxiliar;
+    } else if (justificacion.administrador) {
+      actualizacion.administrador = justificacion.administrador;
+    } else if (justificacion.director) {
+      actualizacion.director = justificacion.director;
+    }
+    
+    await this.actualizacionesRepository.save(actualizacion);
+    
+    // Enviar notificación por Telegram
+    await this.telegramNotificationService.notificarAsistenciaApoderado(
+      asistenciaActualizada,
+      `JUSTIFICACIÓN APROBADA: ${justificacion.motivo}`,
+      'JUSTIFICACION'
+    );
   }
 
   /**
@@ -102,5 +131,30 @@ export class JustificacionAsistenciaService {
     });
 
     const asistenciaGuardada = await this.asistenciaRepository.save(nuevaAsistencia);
+    
+    // Crear registro de actualización
+    const actualizacion = new ActualizacionesAsistencia();
+    actualizacion.asistencia = asistenciaGuardada;
+    actualizacion.alumno = justificacion.alumno;
+    actualizacion.motivo = `JUSTIFICACIÓN APROBADA: ${justificacion.motivo}`;
+    actualizacion.accion_realizada = 'CREAR_ASISTENCIA_JUSTIFICADA';
+    
+    // Asignar el actor según el tipo de justificación
+    if (justificacion.auxiliar) {
+      actualizacion.auxiliar = justificacion.auxiliar;
+    } else if (justificacion.administrador) {
+      actualizacion.administrador = justificacion.administrador;
+    } else if (justificacion.director) {
+      actualizacion.director = justificacion.director;
+    }
+    
+    await this.actualizacionesRepository.save(actualizacion);
+    
+    // Enviar notificación por Telegram
+    await this.telegramNotificationService.notificarAsistenciaApoderado(
+      asistenciaGuardada,
+      `JUSTIFICACIÓN APROBADA: ${justificacion.motivo}`,
+      'JUSTIFICACION'
+    );
   }
 }

@@ -281,6 +281,19 @@ export class TelegramApoderadoService {
       }
 
 
+      // Debug: Verificar los datos de los alumnos
+      this.logger.log(`🔍 DEBUG - Apoderado encontrado: ${apoderado.nombre} ${apoderado.apellido}`);
+      this.logger.log(`🔍 DEBUG - Total de pupilos: ${apoderado.pupilos.length}`);
+      
+      // Debug: Verificar la estructura completa del primer alumno
+      if (apoderado.pupilos.length > 0) {
+        this.logger.log(`🔍 DEBUG - Estructura del primer alumno:`, JSON.stringify(apoderado.pupilos[0], null, 2));
+      }
+      
+      apoderado.pupilos.forEach((alumno, index) => {
+        this.logger.log(`🔍 DEBUG - Alumno ${index + 1}: ID=${alumno.id_alumno}, DNI=${alumno.dni_alumno}, Nombre=${alumno.nombre} ${alumno.apellido}`);
+      });
+
       const apoderadoDto = {
         id_apoderado: apoderado.id_apoderado,
         dni: apoderado.dni || '',

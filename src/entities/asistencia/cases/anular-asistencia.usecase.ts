@@ -257,7 +257,9 @@ export class AnularAsistenciaUseCase {
     }
     
     actualizacion.motivo = `ANULACIÓN: ${dto.motivo}`;
+    actualizacion.accion_realizada = 'ANULAR_ASISTENCIA';
     console.log(`📄 Motivo de anulación: ${actualizacion.motivo}`);
+    console.log(`🎯 Acción realizada: ${actualizacion.accion_realizada}`);
 
     console.log(`💾 Guardando registro de actualización en base de datos...`);
     await this.actualizacionesRepository.save(actualizacion);

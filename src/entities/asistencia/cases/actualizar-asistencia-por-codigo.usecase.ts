@@ -99,8 +99,8 @@ export class ActualizarAsistenciaPorCodigoUseCase {
       throw new BadRequestException('Debe enviar id_auxiliar o id_usuario');
     }
 
-    // 4. Validar la actualización de hora_salida
-    if (updateDto.hora_salida && asistencia.hora_salida === null) {
+    // 4. Validar la actualización de hora_salida (solo para asistencias que no sean AUSENTE)
+    if (updateDto.hora_salida && asistencia.hora_salida === null && asistencia.estado_asistencia !== EstadoAsistencia.AUSENTE) {
       throw new BadRequestException(
         'No se puede actualizar la hora de salida cuando no hay un registro previo. Utilice el endpoint de registro de salida.'
       );
@@ -117,8 +117,8 @@ export class ActualizarAsistenciaPorCodigoUseCase {
       dataToUpdate.estado_asistencia = updateDto.estado_asistencia;
     }
 
-    // Solo actualizar hora_salida si ya existe un valor previo
-    if (asistencia.hora_salida !== null && updateDto.hora_salida) {
+    // Actualizar hora_salida si se proporciona
+    if (updateDto.hora_salida) {
       dataToUpdate.hora_salida = updateDto.hora_salida;
     }
 
@@ -143,6 +143,7 @@ export class ActualizarAsistenciaPorCodigoUseCase {
     if (actorAdmin) (actualizacion as any).administrador = actorAdmin as any;
     if (actorDirector) (actualizacion as any).director = actorDirector as any;
     actualizacion.motivo = updateDto.motivo;
+    actualizacion.accion_realizada = 'ACTUALIZAR_ASISTENCIA';
 
     await this.actualizacionesRepository.save(actualizacion);
 

@@ -103,24 +103,38 @@ export class CrearAusenciaAlumnoUseCase {
     }
 
     if (asistenciaExistente) {
-      // Verificar si ya existe específicamente una AUSENCIA
-      if (asistenciaExistente.estado_asistencia === EstadoAsistencia.AUSENTE) {
+      console.log(`🔍 [CrearAusenciaAlumnoUseCase] Asistencia existente encontrada para ${alumno.codigo}`);
+      console.log(`📊 Estado actual: "${asistenciaExistente.estado_asistencia}"`);
+      console.log(`🔍 Comparando con EstadoAsistencia.ANULADO: "${EstadoAsistencia.ANULADO}"`);
+      
+      // Verificar si la asistencia existente está anulada
+      if (asistenciaExistente.estado_asistencia === EstadoAsistencia.ANULADO) {
+        console.log(`✅ Asistencia existente está ANULADA, permitiendo registrar ausencia para ${alumno.codigo}`);
+        // Si está anulada, permitir registrar ausencia
+      } else if (asistenciaExistente.estado_asistencia === EstadoAsistencia.AUSENTE) {
+        console.log(`❌ Ya existe una AUSENCIA registrada, bloqueando registro`);
         throw new ConflictException(
           `Ya existe un registro de AUSENCIA para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${dto.fecha || fechaAusencia.toISOString().split('T')[0]}`
         );
       } else {
-        // Si existe otro tipo de asistencia (PUNTUAL, TARDANZA), también impedir
+        console.log(`❌ Asistencia NO está anulada, bloqueando registro de ausencia`);
+        // Si existe otro tipo de asistencia (PUNTUAL, TARDANZA, JUSTIFICADO), impedir
         throw new ConflictException(
-          `Ya existe un registro de asistencia (${asistenciaExistente.estado_asistencia}) para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${dto.fecha || fechaAusencia.toISOString().split('T')[0]}`
+          `Ya existe un registro de asistencia (${asistenciaExistente.estado_asistencia}) para el alumno ${alumno.nombre} ${alumno.apellido} en la fecha ${dto.fecha || fechaAusencia.toISOString().split('T')[0]}. Solo se puede registrar ausencia si la asistencia está anulada.`
         );
       }
     } else {
+      console.log(`ℹ️ No se encontró asistencia existente para ${alumno.codigo}, procediendo con registro de ausencia`);
     }
 
     // 4. Crear el registro de ausencia
+    // Obtener fecha y hora actual de Perú para el registro
+    const ahora = new Date();
+    const fechaHoraRegistro = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+    
     const ausencia = this.asistenciaRepository.create({
       alumno: alumno,
-      fecha: fechaAusencia,
+      fecha: fechaHoraRegistro, // Usar fecha y hora real de registro
       estado_asistencia: EstadoAsistencia.AUSENTE,
       hora_de_llegada: '', // Ausente no tiene hora de llegada
       hora_salida: null,   // Ausente no tiene hora de salida

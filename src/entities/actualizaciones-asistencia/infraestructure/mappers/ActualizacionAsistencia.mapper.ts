@@ -19,6 +19,7 @@ export class ActualizacionAsistenciaMapper {
     entity.auxiliar.id_auxiliar = dto.id_auxiliar;
 
     entity.motivo = dto.motivo;
+    entity.accion_realizada = dto.accion_realizada;
 
     return entity;
   }

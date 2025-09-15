@@ -14,13 +14,14 @@ import { Auxiliar } from '../auxiliar/auxiliar.entity';
 import { Administrador } from '../administrador/administrador.entity';
 import { Director } from '../director/director.entity';
 import { Asistencia } from '../asistencia/asistencia.entity';
+import { ActualizacionesAsistencia } from '../actualizaciones-asistencia/infraestructure/orm/actualizaciones-asistencia.entity';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AdministradorModule } from '../administrador/administrador.module';
 import { DirectorModule } from '../director/director.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar, Administrador, Director, Asistencia]),
+    TypeOrmModule.forFeature([Justificacion, Alumno, Auxiliar, Administrador, Director, Asistencia, ActualizacionesAsistencia]),
     TelegramModule,
     AdministradorModule,
     DirectorModule,

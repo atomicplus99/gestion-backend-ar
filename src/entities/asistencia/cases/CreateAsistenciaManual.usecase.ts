@@ -192,6 +192,7 @@ export class CrearAsistenciaManualUseCase {
       if (actorAdmin) historial.administrador = actorAdmin as any;
       if (actorDirector) historial.director = actorDirector as any;
       historial.motivo = createDto.motivo;
+      historial.accion_realizada = 'CREAR_ASISTENCIA_MANUAL';
 
       await this.actualizacionesRepository.save(historial);
 

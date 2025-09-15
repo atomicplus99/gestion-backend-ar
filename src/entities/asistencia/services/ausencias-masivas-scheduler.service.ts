@@ -42,8 +42,10 @@ export class AusenciasMasivasSchedulerService {
   @Cron(CronExpression.EVERY_MINUTE)
   async verificarAusenciasProgramadas() {
     try {
+      this.logger.log(`🕐 [SCHEDULER] Iniciando verificación de ausencias programadas - ${new Date().toLocaleString("en-US", {timeZone: "America/Lima"})}`);
       
       const ahora = new Date();
+      this.logger.log(`⏰ [SCHEDULER] Hora actual del sistema: ${ahora.toLocaleString("en-US", {timeZone: "America/Lima"})}`);
 
       // Buscar TODAS las ausencias programadas
       const ausenciasProgramadas = await this.ausenciasMasivasProgramadasRepository
@@ -52,11 +54,21 @@ export class AusenciasMasivasSchedulerService {
         .where('programada.estado = :estado', { estado: 'PROGRAMADA' })
         .getMany();
 
+      this.logger.log(`📋 [SCHEDULER] Ausencias programadas encontradas: ${ausenciasProgramadas.length}`);
+      
+      if (ausenciasProgramadas.length > 0) {
+        ausenciasProgramadas.forEach((ausencia, index) => {
+          this.logger.log(`📅 [SCHEDULER] Ausencia ${index + 1}: ID=${ausencia.id}, Fecha=${ausencia.fecha_ejecucion}, Hora=${ausencia.hora_programada}, Turnos=${ausencia.turnos_procesar}`);
+        });
+      }
+
       // Filtrar las que están en el minuto exacto programado
       const ausenciasParaEjecutar = ausenciasProgramadas.filter(log => {
         // Obtener la fecha actual del sistema (no de la BD)
         const ahora = new Date();
         const [horas, minutos, segundos] = log.hora_programada.split(':').map(Number);
+        
+        this.logger.log(`🔍 [SCHEDULER] Analizando ausencia ID=${log.id}: Hora programada=${log.hora_programada} (${horas}:${minutos}:${segundos})`);
         
         // Crear fecha programada usando la fecha actual del sistema
         const fechaProgramada = new Date(
@@ -83,61 +95,46 @@ export class AusenciasMasivasSchedulerService {
           0
         );
         
+        this.logger.log(`⏰ [SCHEDULER] Comparación: Hora actual=${ahoraHoraMinuto.toLocaleString("en-US", {timeZone: "America/Lima"})} vs Hora programada=${fechaProgramadaHoraMinuto.toLocaleString("en-US", {timeZone: "America/Lima"})}`);
         
         // Ejecutar si estamos en la hora y minuto programados (ignorar segundos)
-        const debeEjecutar = fechaProgramadaHoraMinuto.getTime() === ahoraHoraMinuto.getTime();
+        // También ejecutar si ya pasó el minuto programado (para casos donde el scheduler se ejecutó tarde)
+        const debeEjecutar = fechaProgramadaHoraMinuto.getTime() === ahoraHoraMinuto.getTime() || 
+                            (ahoraHoraMinuto.getTime() > fechaProgramadaHoraMinuto.getTime() && 
+                             ahoraHoraMinuto.getTime() - fechaProgramadaHoraMinuto.getTime() <= 60000); // Máximo 1 minuto de diferencia
         
+        const diferenciaTiempo = ahoraHoraMinuto.getTime() - fechaProgramadaHoraMinuto.getTime();
+        const diferenciaSegundos = Math.floor(diferenciaTiempo / 1000);
+        
+        this.logger.log(`✅ [SCHEDULER] ¿Debe ejecutar? ${debeEjecutar} (Diferencia: ${diferenciaSegundos} segundos)`);
+        this.logger.log(`📊 [SCHEDULER] Tiempo actual=${ahoraHoraMinuto.getTime()}, Tiempo programado=${fechaProgramadaHoraMinuto.getTime()}`);
         
         return debeEjecutar;
       });
 
+      this.logger.log(`🎯 [SCHEDULER] Ausencias para ejecutar: ${ausenciasParaEjecutar.length}`);
+      
       if (ausenciasParaEjecutar.length === 0) {
+        this.logger.log(`⏭️ [SCHEDULER] No hay ausencias programadas para ejecutar en este momento`);
         return;
       }
+
+      this.logger.log(`🚀 [SCHEDULER] Iniciando ejecución de ${ausenciasParaEjecutar.length} ausencia(s) programada(s)`);
 
 
       for (const ausenciaProgramada of ausenciasParaEjecutar) {
         try {
+          this.logger.log(`🔄 [SCHEDULER] Procesando ausencia programada ID=${ausenciaProgramada.id}`);
+          
           // Extraer turnos del string almacenado
           const turnos = ausenciaProgramada.turnos_procesar.split(', ').map(t => t.trim());
+          this.logger.log(`📋 [SCHEDULER] Turnos a procesar: ${turnos.join(', ')}`);
           
           // Usar la fecha actual del sistema (no la fecha de la BD)
           const fechaActual = new Date();
+          this.logger.log(`📅 [SCHEDULER] Fecha de ejecución: ${fechaActual.toLocaleString("en-US", {timeZone: "America/Lima"})}`);
 
-          // Verificar si ya existen ausencias para estos alumnos en esta fecha
-          const verificacion = await this.ausenciasMasivasService.verificarAusenciasExistentes(fechaActual, turnos);
-          
-          if (verificacion.existenAusencias) {
-            
-            // Actualizar estado a CANCELADA por ausencias existentes
-            await this.ausenciasMasivasProgramadasRepository.update(
-              { id: ausenciaProgramada.id },
-              {
-                estado: 'CANCELADA',
-                observaciones: `Cancelada: Ya existen ausencias registradas. ${verificacion.detalles.join(', ')}`
-              }
-            );
-
-            // Crear notificación específica de cancelación
-            try {
-              const infoPersonal = await this.obtenerInformacionPersonalUsuario(ausenciaProgramada.usuario_id);
-              const notificacion = await this.notificacionService.createCancelacionNotification({
-                programacion_id: ausenciaProgramada.id,
-                fecha_programada: fechaActual.toDateString(),
-                hora_programada: ausenciaProgramada.hora_programada,
-                turnos: turnos,
-                motivo: `Ya existen ${verificacion.detalles.join(', ')}`,
-                usuario_programador: infoPersonal
-              });
-
-              // Enviar notificación por WebSocket
-              await this.notificacionGateway.broadcastNotification(notificacion);
-              
-            } catch (notifError) {
-            }
-
-            continue; // Saltar a la siguiente ausencia programada
-          }
+          this.logger.log(`🚀 [SCHEDULER] Ejecutando ausencia masiva - El servicio manejará individualmente a cada alumno`);
 
           // Ejecutar la ausencia programada
           const resultado = await this.ausenciasMasivasService.ejecutarProgramaAusencias(
@@ -145,6 +142,8 @@ export class AusenciasMasivasSchedulerService {
             ausenciaProgramada.hora_programada,
             turnos
           );
+
+          this.logger.log(`📊 [SCHEDULER] Resultado de ejecución: ${resultado.ausenciasCreadas} ausencias creadas, ${resultado.alumnosConAsistencia} alumnos ya tenían asistencia`);
 
           // Actualizar estado a EJECUTADA
           await this.ausenciasMasivasProgramadasRepository.update(
@@ -206,6 +205,8 @@ export class AusenciasMasivasSchedulerService {
       }
 
     } catch (error) {
+      this.logger.error(`❌ [SCHEDULER] Error en verificarAusenciasProgramadas: ${error.message}`);
+      this.logger.error(`📊 [SCHEDULER] Stack trace: ${error.stack}`);
     }
   }
 

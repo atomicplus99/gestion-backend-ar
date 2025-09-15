@@ -1,8 +1,11 @@
 import { Controller, Post, Body, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { CreateActualizacionAsistenciaCase } from './infraestructure/cases/CreateActualizacionAsistencia.usecase';
+import { GetActualizacionesAsistenciaUseCase } from './infraestructure/cases/GetActualizacionesAsistencia.usecase';
 import { CreateActualizacionAsistenciaDto } from './domain/dto/ActualizacionAsistencia.dto';
+import { ActualizacionAsistenciaResponseDto } from './domain/dto/actualizacion-asistencia-response.dto';
 import { ActualizacionesAsistenciaRepository } from './domain/repository/actualizaciones-asistencia.repository';
+import { getAllAcciones } from './constants/acciones-asistencia.constants';
 
 @ApiTags('Actualizaciones de Asistencia')
 @Controller('actualizaciones-asistencia')
@@ -10,6 +13,7 @@ import { ActualizacionesAsistenciaRepository } from './domain/repository/actuali
 export class ActualizacionAsistenciaController {
   constructor(
     private readonly createCase: CreateActualizacionAsistenciaCase,
+    private readonly getActualizacionesUseCase: GetActualizacionesAsistenciaUseCase,
     private readonly actualizacionesRepository: ActualizacionesAsistenciaRepository
   ) {}
 
@@ -26,19 +30,47 @@ export class ActualizacionAsistenciaController {
   @Get()
   @ApiOperation({ 
     summary: 'Obtener todas las actualizaciones de asistencia',
-    description: 'Retorna todas las actualizaciones de asistencia con información detallada de alumnos, auxiliares y asistencias'
+    description: 'Retorna todas las actualizaciones de asistencia con información detallada de alumnos, auxiliares y asistencias, incluyendo textos amigables para las acciones'
   })
   @ApiResponse({ 
     status: 200, 
-    description: 'Lista de actualizaciones obtenida exitosamente'
+    description: 'Lista de actualizaciones obtenida exitosamente',
+    type: [ActualizacionAsistenciaResponseDto]
   })
   async getAllActualizaciones() {
-    const actualizaciones = await this.actualizacionesRepository.findAll();
+    const actualizaciones = await this.getActualizacionesUseCase.getAllActualizaciones();
     return {
       success: true,
       message: 'Actualizaciones obtenidas exitosamente',
       data: actualizaciones,
       count: actualizaciones.length
+    };
+  }
+
+  @Get('acciones')
+  @ApiOperation({ 
+    summary: 'Obtener todas las acciones disponibles',
+    description: 'Retorna un mapeo de todas las acciones técnicas con sus textos amigables para el usuario'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Acciones obtenidas exitosamente',
+    schema: {
+      type: 'object',
+      example: {
+        'CREAR_ASISTENCIA_MANUAL': 'Registro Manual de Asistencia',
+        'ANULAR_ASISTENCIA': 'Anulación de Asistencia',
+        'ACTUALIZAR_ASISTENCIA': 'Actualización de Asistencia'
+      }
+    }
+  })
+  async getAccionesDisponibles() {
+    const acciones = getAllAcciones();
+    return {
+      success: true,
+      message: 'Acciones disponibles obtenidas exitosamente',
+      data: acciones,
+      count: Object.keys(acciones).length
     };
   }
 

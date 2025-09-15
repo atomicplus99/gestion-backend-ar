@@ -255,16 +255,32 @@ export class AusenciasMasivasService {
         };
       }
 
-      // 2. Verificar si ya tiene asistencia para esta fecha (cualquier estado)
+      // 2. Verificar si ya tiene asistencia para esta fecha
       const asistenciaExistente = await this.buscarAsistenciaExistente(alumno.id_alumno, fecha);
 
       if (asistenciaExistente) {
-        // Ya tiene asistencia registrada (PUNTUAL, AUSENTE, ANULADO, JUSTIFICADO, TARDANZA)
         const estadoActual = asistenciaExistente.estado_asistencia;
-        return { 
-          ausenciaCreada: false, 
-          motivo: `Ya tiene asistencia registrada con estado: ${estadoActual}` 
-        };
+        
+        // Si la asistencia existente está anulada, permitir registrar ausencia
+        if (estadoActual === EstadoAsistencia.ANULADO) {
+          this.logger.log(`✅ [AusenciasMasivas] Asistencia anulada encontrada para ${alumno.codigo}, permitiendo registrar ausencia`);
+          // Continuar con el proceso de creación de ausencia
+        } else {
+          // Si tiene cualquier otro estado (PUNTUAL, AUSENTE, JUSTIFICADO, TARDANZA), no crear ausencia
+          if (estadoActual === EstadoAsistencia.AUSENTE) {
+            this.logger.log(`🚫 [AusenciasMasivas] AUSENCIA DUPLICADA detectada para ${alumno.codigo}, evitando duplicado`);
+            return { 
+              ausenciaCreada: false, 
+              motivo: `Ya tiene ausencia registrada - evitando duplicado` 
+            };
+          } else {
+            this.logger.log(`❌ [AusenciasMasivas] Asistencia existente con estado ${estadoActual} para ${alumno.codigo}, no se registra ausencia`);
+            return { 
+              ausenciaCreada: false, 
+              motivo: `Ya tiene asistencia registrada con estado: ${estadoActual}` 
+            };
+          }
+        }
       }
 
       // 3. Verificar si el alumno tiene turno asignado
@@ -282,9 +298,13 @@ export class AusenciasMasivasService {
       // }
 
       // Crear ausencia solo si no tiene ninguna asistencia registrada
+      // Obtener fecha y hora actual de Perú para el registro
+      const ahora = new Date();
+      const fechaHoraRegistro = new Date(ahora.toLocaleString("en-US", {timeZone: "America/Lima"}));
+      
       const nuevaAusencia = this.asistenciaRepository.create({
         alumno,
-        fecha: fechaProcesada,
+        fecha: fechaHoraRegistro, // Usar fecha y hora real de registro
         estado_asistencia: EstadoAsistencia.AUSENTE,
         hora_de_llegada: null, // Para ausencias no hay hora de llegada
         hora_salida: null,
