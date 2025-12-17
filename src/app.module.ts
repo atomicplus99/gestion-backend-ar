@@ -10,7 +10,6 @@ import { TurnoModule } from './entities/turno/turno.module';
 import { AsistenciaModule } from './entities/asistencia/asistencia.module';
 import * as dotenv from 'dotenv';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { typeOrmConfig } from './config/typeorm.config';
 import { SeederModule } from './database/seeder.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -28,12 +27,9 @@ import { TurnoExtraModule } from './entities/turno-extra/turno-extra.module';
 import { AsistenciaExtraModule } from './entities/asistencia-extra/asistencia-extra.module';
 import { ConfigModule } from '@nestjs/config';
 import { BackupModule } from './common/modules/backup.module';
-
-
-
+import { AppDataSource } from './config/data-source.config';
 
 dotenv.config();
-
 
 @Module({
   imports: [
@@ -53,13 +49,13 @@ dotenv.config();
       rootPath: join(__dirname, '..', 'public/profiles/usuarios'),
       serveRoot: '/profiles/usuarios',
     }),
-    TypeOrmModule.forRoot(typeOrmConfig),
+    TypeOrmModule.forRoot(AppDataSource.options),
     ScheduleModule.forRoot(),
     AuthModule,
     UsuarioModule,
     AlumnoModule,
     AuxiliarModule,
-    TurnoModule, 
+    TurnoModule,
     AsistenciaModule,
     SeederModule,
     EstadoAlumnoModule,
@@ -72,9 +68,9 @@ dotenv.config();
     NotificacionModule,
     TurnoExtraModule,
     AsistenciaExtraModule,
-    BackupModule
+    BackupModule,
   ],
-  controllers: [AppController], 
-  providers: [AppService],       
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
