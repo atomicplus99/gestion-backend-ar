@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { DataSource } from 'typeorm';  // Importa DataSource
+import { DataSource } from 'typeorm'; // Importa DataSource
 import { ValidationPipe, Logger } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -18,28 +18,28 @@ if (typeof globalThis.crypto === 'undefined') {
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  
+
   try {
     let app;
-    
+
     // Configuración HTTPS si el protocolo es https
     if (process.env.PROTOCOL === 'https') {
       const httpsOptions = {
         key: fs.readFileSync('./ssl/server.key'),
         cert: fs.readFileSync('./ssl/server.crt'),
       };
-      
+
       app = await NestFactory.create(AppModule, {
         httpsOptions,
       });
-      
+
       logger.log('🔒 HTTPS habilitado con certificado autofirmado');
     } else {
       app = await NestFactory.create(AppModule);
       logger.log('🔓 HTTP habilitado (sin HTTPS)');
     }
     useContainer(app.select(AppModule), { fallbackOnErrors: true });
-    
+
     const config = new DocumentBuilder()
       .setTitle('API Colegio')
       .setDescription('Descripcion de los endpoints de colegio en general')
@@ -48,20 +48,25 @@ async function bootstrap() {
       .addTag('turno')
       .addTag('usuario')
       .build();
-    
+
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api', app, document);
 
-    
     app.enableCors({
       origin: '*', // Permite explícitamente todos los orígenes
       credentials: false, // Cambiado a false cuando origin es '*'
-      allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'user-id', 'X-Requested-With'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Origin',
+        'Accept',
+        'user-id',
+        'X-Requested-With',
+      ],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
       preflightContinue: false,
-      optionsSuccessStatus: 204
+      optionsSuccessStatus: 204,
     });
-    
 
     app.use(cookieParser());
 
@@ -70,31 +75,35 @@ async function bootstrap() {
       next();
     });
 
-    app.useGlobalPipes(new ValidationPipe({ 
-      whitelist: true, 
-      forbidNonWhitelisted: true,
-      transform: true,
-      skipMissingProperties: true,
-      skipNullProperties: true,
-      skipUndefinedProperties: true
-    })); 
-    
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        skipMissingProperties: true,
+        skipNullProperties: true,
+        skipUndefinedProperties: true,
+      }),
+    );
+
     // Aplicar filtro global de excepciones
     app.useGlobalFilters(new HttpExceptionFilter());
-    
+
     // Aplicar interceptor global de transformación de respuestas
     app.useGlobalInterceptors(new ResponseTransformInterceptor());
-    
-    const port = process.env.PORT;
+
+    const port = process.env.PORT_SERVER;
     const host = process.env.HOST;
     const protocol = process.env.PROTOCOL;
-    
+
     if (!port || !host || !protocol) {
-      throw new Error('PORT, HOST y PROTOCOL deben estar configurados en las variables de entorno');
+      throw new Error(
+        'PORT, HOST y PROTOCOL deben estar configurados en las variables de entorno',
+      );
     }
-    
+
     await app.listen(port, host);
-    
+
     // Log de inicialización exitosa
     logger.log('==========================================');
     logger.log('SERVIDOR INICIADO EXITOSAMENTE');
@@ -110,7 +119,6 @@ async function bootstrap() {
     logger.log(`Validación: Habilitada (class-validator)`);
     logger.log(`Swagger: Configurado en /api`);
     logger.log('==========================================');
-    
   } catch (error) {
     logger.error('Error al inicializar el servidor:', error);
     process.exit(1);

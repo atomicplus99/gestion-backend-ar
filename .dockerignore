@@ -1,0 +1,78 @@
+# Ignorar dependencias
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Ignorar archivos de desarrollo
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Ignorar archivos de build y cache
+dist/
+build/
+.cache/
+.temp/
+.tmp/
+
+# Ignorar archivos de testing
+coverage/
+.nyc_output/
+*.test.ts
+*.spec.ts
+test/
+
+# Ignorar archivos de configuración local
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+env.docker
+
+# Ignorar logs
+logs/
+*.log
+
+# Ignorar archivos temporales
+*.pid
+*.seed
+*.pid.lock
+
+# Ignorar backups
+backups/
+
+# Ignorar certificados SSL (usar volumen)
+ssl/
+
+# Ignorar archivos de usuario (usar volumen)
+public/profiles/usuarios/*
+uploads/*
+
+# Ignorar documentación y archivos de texto
+README.md
+CHANGELOG.md
+LICENSE
+*.txt
+docs/
+
+# Ignorar scripts de Docker (no necesarios en imagen)
+docker-*.sh
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Ignorar configuración de CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Ignorar archivos del sistema operativo
+.DS_Store
+Thumbs.db

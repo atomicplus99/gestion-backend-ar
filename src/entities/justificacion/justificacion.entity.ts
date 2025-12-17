@@ -89,14 +89,11 @@ export class Justificacion {
 
   @CreateDateColumn({
     type: 'datetime',
-    default: () => 'CURRENT_TIMESTAMP',
   })
   fecha_creacion: Date;
 
   @UpdateDateColumn({
     type: 'datetime',
-    default: () => 'CURRENT_TIMESTAMP',
-    onUpdate: 'CURRENT_TIMESTAMP',
   })
   fecha_actualizacion: Date;
 }

@@ -1,5 +1,6 @@
-import path from 'path';
+import * as path from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
+import 'dotenv/config';
 
 /**
  * Configuración maestra de la Base de Datos.
@@ -12,16 +13,16 @@ class DatabaseConfigFactory {
   static createOptions(): DataSourceOptions {
     const isProduction = process.env.NODE_ENV === 'production';
     return {
-      type: 'postgres',
+      type: 'mysql',
       host: process.env.DB_HOST,
       port: Number(process.env.DB_PORT),
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      synchronize: !isProduction,
-      logging: !isProduction,
-      entities: [path.join(__dirname, '**/*.entity{.ts,.js}')],
-      migrations: [path.join(__dirname, 'migrations/*{.ts,.js}')],
+      synchronize: false,
+      logging: false,
+      entities: [path.join(__dirname, '../entities/**/*.entity{.ts,.js}')],
+      migrations: [path.join(__dirname, '../database/migrations/*{.ts,.js}')],
     };
   }
 }
