@@ -3,7 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 
 /**
  * Configuración maestra de la Base de Datos.
- * Aquí definimos las reglas de conexión y sincronización.
+ * Aquí definimos las reglas de conexión y sincronización del datasource.
  * * @note synchronize: FALSE en producción siempre.
  * @note migrations: Apuntar a DIST en producción.
  */
