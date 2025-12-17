@@ -41,6 +41,5 @@ Remove-Item "ssl\temp.pfx" -Force
 
 Export-Certificate -Cert $cert -FilePath "ssl\colegio-certificado.cer" | Out-Null
 
-Write-Host "Certificados PEM generados en: ssl/" -ForegroundColor Green
-Write-Host "Archivos: certificate.pem, private-key.pem, colegio-certificado.cer" -ForegroundColor Cyan
+Write-Host "Certificados generados en: ssl/" -ForegroundColor Green
 Write-Host "Servidor IP: $serverIP" -ForegroundColor Cyan
