@@ -55,6 +55,9 @@ backups/
 public/profiles/usuarios/*
 uploads/*
 
+# Ignorar frontend (usar volumen)
+frontend/
+
 # Ignorar documentación y archivos de texto
 README.md
 CHANGELOG.md
