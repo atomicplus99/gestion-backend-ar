@@ -22,7 +22,7 @@ while ($retries -lt 10) {
     $retries++
 }
 
-docker compose run --rm app npm run migration:run
+docker compose run --rm app npm run migration:run:prod
 docker compose run --rm app npm run seed:run
 docker compose up -d app
 

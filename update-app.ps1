@@ -78,7 +78,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Ejecutar migraciones nuevas
 Write-Host "`n🚀 Ejecutando migraciones..." -ForegroundColor Yellow
-docker compose run --rm app npm run migration:run
+docker compose run --rm app npm run migration:run:prod
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️ Advertencia: Problema con migraciones" -ForegroundColor Yellow
 }
