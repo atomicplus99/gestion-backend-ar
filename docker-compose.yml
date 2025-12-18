@@ -51,6 +51,7 @@ services:
       - ./logs:/app/logs
       - ./ssl:/app/ssl
       - ./public:/app/public
+      - ./frontend:/app/frontend
     depends_on:
       - mysql
     networks:
