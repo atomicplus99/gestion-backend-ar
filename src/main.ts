@@ -22,18 +22,21 @@ async function bootstrap() {
   try {
     let app;
 
-    // Configuración HTTPS si el protocolo es https
-    if (process.env.PROTOCOL === 'https') {
+    // Configuración HTTPS si está habilitado
+    const httpsEnabled = process.env.HTTPS_ENABLED === 'true';
+    const protocolConfig = process.env.PROTOCOL || 'http';
+
+    if (httpsEnabled && protocolConfig === 'https') {
       const httpsOptions = {
-        key: fs.readFileSync('./ssl/server.key'),
-        cert: fs.readFileSync('./ssl/server.crt'),
+        key: fs.readFileSync('./ssl/private-key.pem'),
+        cert: fs.readFileSync('./ssl/certificate.pem'),
       };
 
       app = await NestFactory.create(AppModule, {
         httpsOptions,
       });
 
-      logger.log('🔒 HTTPS habilitado con certificado autofirmado');
+      logger.log('🔒 HTTPS habilitado con certificado SSL');
     } else {
       app = await NestFactory.create(AppModule);
       logger.log('🔓 HTTP habilitado (sin HTTPS)');
