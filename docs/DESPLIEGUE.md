@@ -967,6 +967,163 @@ docker compose logs --tail=100
 
 ---
 
+## Solución de Problemas Comunes
+
+### Problema: Migraciones Incompletas o con Errores
+
+**Síntoma**: La migración falla con errores como "Table doesn't exist" al intentar hacer ALTER TABLE.
+
+**Causa**: La migración se generó desde una base de datos que ya tenía algunas tablas creadas, por lo que TypeORM solo generó ALTER TABLE en lugar de CREATE TABLE completos.
+
+**Solución**:
+
+#### 1. Regenerar Migración Desde DB Limpia
+
+**En tu PC de desarrollo:**
+
+```powershell
+cd C:\Users\abela\OneDrive\Escritorio\Proyecto-Colegio-Registro-Asistencia\gestion-backend-ar
+
+# 1. Eliminar migración problemática
+Remove-Item src\database\migrations\*Migration.ts
+
+# 2. Asegurarse que Docker MySQL esté corriendo
+docker compose down
+docker volume rm gestion-backend-ar_mysql_data
+docker compose up -d mysql
+
+# 3. Esperar a que MySQL inicie
+Start-Sleep -Seconds 15
+
+# 4. Generar nueva migración desde DB vacía
+npm run migration:generate
+
+# 5. Commit y push
+git add .
+git commit -m "Migración completa desde DB limpia"
+git push origin master
+```
+
+**En el servidor:**
+
+```powershell
+cd C:\Apps\gestion-backend-ar
+
+# 1. Eliminar base de datos actual
+docker compose down
+docker volume rm gestion-backend-ar_mysql_data
+
+# 2. Actualizar código
+git pull origin master
+
+# 3. Redesplegar con nueva migración
+.\deploy-windows.ps1
+```
+
+> [!IMPORTANT] > **SIEMPRE** genera migraciones desde una base de datos completamente vacía para asegurar que TypeORM genere todos los CREATE TABLE necesarios.
+
+### Problema: Build de Docker Tarda Más de 60 Minutos
+
+**Síntoma**: El comando `docker compose build` tarda 60+ minutos, especialmente en la etapa de `chown -R`.
+
+**Causa**: El servidor usa un HDD (disco duro mecánico) en lugar de SSD. El paso `chown -R node_modules` procesa miles de archivos pequeños, lo cual es extremadamente lento en HDD.
+
+**Mitigación**:
+
+1. **Verificar que `.dockerignore` esté optimizado:**
+
+```powershell
+# En el servidor
+cat .dockerignore | Select-String "frontend"
+```
+
+Debe mostrar:
+
+```
+# Ignorar frontend (usar volumen)
+frontend/
+```
+
+2. **Para cambios solo en código frontend (Angular):**
+
+```powershell
+# NO hacer rebuild, solo actualizar archivos
+cd C:\Apps\gestion-backend-ar
+git pull origin master
+docker compose restart app
+```
+
+Tiempo: ~30 segundos
+
+3. **Para cambios en código backend (TypeScript):**
+
+```powershell
+# Rebuild completo (inevitable con HDD)
+docker compose down
+docker compose build
+docker compose up -d
+```
+
+Tiempo: ~60 minutos en HDD
+
+> [!CAUTION] > **Solución definitiva**: Migrar el servidor a un SSD. Esto reducirá el tiempo de build de 60 minutos a 2-3 minutos.
+
+### Problema: Panel Admin No Carga (Ruta Incorrecta)
+
+**Síntoma**: Al acceder a `/admin` o `/panel` se muestra JSON de la API en lugar del frontend Angular.
+
+**Causa**: Desajuste entre la ruta compilada en Angular (`--base-href`) y la configuración de NestJS (`serveRoot`).
+
+**Solución**:
+
+1. **Verificar configuración de NestJS:**
+
+```typescript
+// src/app.module.ts
+ServeStaticModule.forRoot({
+  rootPath: join(__dirname, '..', 'frontend', 'admin'),
+  serveRoot: '/panel',  // Debe coincidir con --base-href
+}),
+```
+
+2. **Verificar compilación de Angular:**
+
+```powershell
+# El build debe usar el mismo base-href
+ng build --configuration production --base-href /panel/
+```
+
+3. **Si cambiaste la ruta en NestJS:**
+
+```powershell
+# En tu PC
+git add src/app.module.ts
+git commit -m "Cambiar ruta de frontend"
+git push origin master
+
+# En el servidor
+git pull origin master
+docker compose down
+docker compose build
+docker compose up -d
+```
+
+### Problema: Errores de Foreign Key al Ejecutar Migraciones
+
+**Síntoma**: Error "Foreign key constraint is incorrectly formed" al ejecutar migraciones.
+
+**Causa**: Las foreign keys intentan referenciar tablas que aún no existen, o hay un problema en el orden de creación de tablas.
+
+**Solución**:
+
+TypeORM debe crear las tablas en el orden correcto automáticamente. Si falla:
+
+1. Verifica que todas las entities estén correctamente registradas en sus módulos
+2. Regenera la migración desde DB limpia (ver solución anterior)
+3. Como último recurso, las foreign keys se pueden omitir temporalmente (la aplicación funcionará igual gracias a TypeORM)
+
+---
+
 ## Contacto y Soporte
 
 **Repositorio**: https://github.com/atomicplus99/gestion-backend-ar
@@ -981,5 +1138,5 @@ docker compose logs --tail=100
 ---
 
 **Última Actualización**: 2025-12-18  
-**Versión**: 3.1  
+**Versión**: 3.2  
 **Autor**: Sistema de Control de Asistencia -AR
