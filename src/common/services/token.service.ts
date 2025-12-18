@@ -13,12 +13,12 @@ export class TokenService {
         sub: userId,
         email: email,
         type: 'password_reset',
-        iat: Math.floor(Date.now() / 1000)
+        iat: Math.floor(Date.now() / 1000),
       };
 
       const token = this.jwtService.sign(payload, {
-        expiresIn: process.env.JWT_RESET_EXPIRES_IN || '1h',
-        secret: process.env.JWT_SECRET
+        expiresIn: (process.env.JWT_RESET_EXPIRES_IN || '1h') as any,
+        secret: process.env.JWT_SECRET,
       });
 
       return token;
@@ -27,10 +27,14 @@ export class TokenService {
     }
   }
 
-  verifyPasswordResetToken(token: string): { userId: string; email: string; valid: boolean } {
+  verifyPasswordResetToken(token: string): {
+    userId: string;
+    email: string;
+    valid: boolean;
+  } {
     try {
       const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET
+        secret: process.env.JWT_SECRET,
       });
 
       if (payload.type !== 'password_reset') {
@@ -46,8 +50,8 @@ export class TokenService {
   generateAuthToken(payload: any): string {
     try {
       return this.jwtService.sign(payload, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '1h',
-        secret: process.env.JWT_SECRET
+        expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any,
+        secret: process.env.JWT_SECRET,
       });
     } catch (error) {
       throw error;
