@@ -13,7 +13,8 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 New-Item -ItemType Directory -Path "ssl" -Force | Out-Null
 
 $serverIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
-    $_.IPAddress -match "^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)"
+    $_.IPAddress -match "^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)" -and
+    $_.InterfaceAlias -notmatch "WSL|Hyper-V|vEthernet|Loopback"
 }).IPAddress | Select-Object -First 1
 
 if (-not $serverIP) { $serverIP = "127.0.0.1" }
