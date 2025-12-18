@@ -322,7 +322,276 @@ curl https://IP_SERVIDOR:443/api -k
 
 ---
 
-## Distribuir Certificado SSL a PCs Cliente
+## PASO 10: Desplegar Frontend Angular
+
+### 10.1 Compilar Aplicaciones Angular
+
+En tu PC de desarrollo, compila las aplicaciones Angular para producción:
+
+```powershell
+# Panel Administrador
+cd ruta-al-proyecto-admin
+ng build --configuration production
+
+# App Scanner (si ya está lista)
+cd ruta-al-proyecto-scanner
+ng build --configuration production
+```
+
+Esto genera carpetas `dist/` con los archivos compilados.
+
+### 10.2 Crear Estructura de Carpetas en el Servidor
+
+```powershell
+# En el servidor
+cd C:\Apps\gestion-backend-ar
+
+# Crear carpetas para frontend
+mkdir frontend
+mkdir frontend\admin
+mkdir frontend\scanner
+```
+
+### 10.3 Copiar Archivos Compilados
+
+**Copiar desde tu PC al servidor (elegir un método):**
+
+**Método A - Via RDP:**
+
+1. Conectar al servidor via Remote Desktop
+2. Copiar contenido de `dist/nombre-proyecto/browser/*` a `C:\Apps\gestion-backend-ar\frontend\admin\`
+
+**Método B - Via USB:**
+
+1. Copiar carpeta `dist/` a USB
+2. Insertar USB en servidor
+3. Copiar a `C:\Apps\gestion-backend-ar\frontend\admin\`
+
+**Método C - Via Red Compartida:**
+
+```powershell
+# Compartir carpeta en servidor primero, luego desde tu PC:
+xcopy /s /e "dist\proyecto\browser\*" "\\IP_SERVIDOR\compartido\frontend\admin\"
+```
+
+### 10.4 Verificar Estructura
+
+Debe quedar:
+
+```
+C:\Apps\gestion-backend-ar\
+├── frontend/
+│   ├── admin/
+│   │   ├── index.html          ← IMPORTANTE
+│   │   ├── main-[hash].js
+│   │   ├── styles-[hash].css
+│   │   └── assets/
+│   └── scanner/
+│       ├── index.html
+│       └── ...
+```
+
+### 10.5 Configurar Angular para Producción
+
+En tu proyecto Angular, actualizar `environment.prod.ts`:
+
+```typescript
+export const environment = {
+  production: true,
+  apiUrl: '/api', // Ruta relativa (mismo servidor)
+  wsUrl: 'wss://192.168.1.103:443', // Tu IP del servidor
+};
+```
+
+**IMPORTANTE**: Si cambias `environment.prod.ts`, debes recompilar con `ng build --configuration production`.
+
+### 10.6 Redesplegar Backend
+
+```powershell
+# En el servidor
+cd C:\Apps\gestion-backend-ar
+
+# Pull de cambios (si modificaste app.module.ts)
+git pull origin master
+
+# Redesplegar
+docker compose down
+docker compose build
+docker compose up -d
+```
+
+### 10.7 Acceder a las Aplicaciones
+
+**Panel Administrador:**
+
+```
+https://192.168.1.103:443/
+```
+
+**App Scanner:**
+
+```
+https://192.168.1.103:443/scanner
+```
+
+**API (Swagger):**
+
+```
+https://192.168.1.103:443/api
+```
+
+---
+
+## Mantenimiento y Actualizaciones
+
+### Actualizar Solo el Backend
+
+Cuando cambias código del backend (NestJS, TypeScript, etc.):
+
+#### En tu PC de Desarrollo
+
+```powershell
+cd C:\Users\abela\OneDrive\Escritorio\Proyecto-Colegio-Registro-Asistencia\gestion-backend-ar
+
+# Hacer cambios en el código
+# Probar localmente
+
+# Commit y push
+git add .
+git commit -m "Descripción de los cambios"
+git push origin master
+```
+
+#### En el Servidor
+
+```powershell
+cd C:\Apps\gestion-backend-ar
+
+# Ejecutar script de actualización
+.\update-app.ps1
+```
+
+**El script automáticamente:**
+
+1. Crea un backup de la base de datos
+2. Hace `git pull` de los cambios
+3. Detiene la aplicación (mantiene MySQL)
+4. Reconstruye la imagen Docker
+5. Ejecuta nuevas migraciones
+6. Reinicia la aplicación
+7. Muestra los logs
+
+### Actualizar Solo el Frontend
+
+Cuando cambias código del frontend Angular (componentes, servicios, etc.):
+
+#### En tu PC de Desarrollo
+
+```powershell
+# 1. Modificar código Angular
+# 2. Probar localmente con ng serve
+# 3. Compilar para producción
+cd ruta-proyecto-angular
+ng build --configuration production
+
+# 4. Copiar archivos al servidor
+# Via RDP, USB o red compartida:
+# De: dist/proyecto/browser/*
+# A: C:\Apps\gestion-backend-ar\frontend\admin\
+```
+
+#### En el Servidor
+
+```powershell
+# Reiniciar solo la aplicación (sin rebuild)
+cd C:\Apps\gestion-backend-ar
+docker compose restart app
+```
+
+**NOTA:** No necesitas hacer `git pull` ni rebuild si solo cambias frontend, a menos que también hayas modificado `app.module.ts`.
+
+### Actualizar Backend Y Frontend
+
+Cuando cambias ambos:
+
+#### En tu PC de Desarrollo
+
+```powershell
+# 1. Cambios en Backend
+cd C:\Users\abela\OneDrive\Escritorio\Proyecto-Colegio-Registro-Asistencia\gestion-backend-ar
+git add .
+git commit -m "Cambios backend"
+git push origin master
+
+# 2. Cambios en Frontend
+cd ruta-proyecto-angular
+ng build --configuration production
+# Copiar archivos compilados al servidor
+```
+
+#### En el Servidor
+
+```powershell
+cd C:\Apps\gestion-backend-ar
+
+# Actualizar backend
+.\update-app.ps1
+
+# Frontend ya está copiado, solo reiniciar
+docker compose restart app
+```
+
+### Actualizar Solo Configuración (.env)
+
+Si solo cambias variables de entorno:
+
+```powershell
+# En el servidor
+cd C:\Apps\gestion-backend-ar
+notepad .env
+
+# Hacer cambios necesarios
+# Guardar y cerrar
+
+# Aplicar cambios (NO necesita rebuild)
+docker compose down
+docker compose up -d
+```
+
+### Script de Actualización Rápida
+
+Crear script para actualizar frontend rápidamente:
+
+```powershell
+# update-frontend.ps1
+$ErrorActionPreference = "Stop"
+
+Write-Host "🔄 Actualizando Frontend..." -ForegroundColor Cyan
+
+# Verificar que existen los archivos
+if (-not (Test-Path "frontend\admin\index.html")) {
+    Write-Error "❌ No se encontró index.html en frontend\admin\"
+    exit 1
+}
+
+# Reiniciar aplicación
+Write-Host "🔄 Reiniciando aplicación..." -ForegroundColor Yellow
+docker compose restart app
+
+Write-Host "✅ Frontend actualizado correctamente" -ForegroundColor Green
+docker compose ps
+```
+
+**Uso:**
+
+```powershell
+# Después de copiar archivos nuevos de Angular
+.\update-frontend.ps1
+```
+
+---
+
+## Backups
 
 Para eliminar advertencias de seguridad en navegadores:
 
@@ -700,6 +969,6 @@ docker compose logs --tail=100
 
 ---
 
-**Última Actualización**: 2025-12-17  
-**Versión**: 2.0  
+**Última Actualización**: 2025-12-18  
+**Versión**: 3.0  
 **Autor**: Sistema de Control de Asistencia -AR
