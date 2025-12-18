@@ -49,10 +49,10 @@ dotenv.config();
       rootPath: join(__dirname, '..', 'public/profiles/usuarios'),
       serveRoot: '/profiles/usuarios',
     }),
-    // Servir Panel Administrador Angular en la raíz
+    // Servir Panel Administrador Angular en /panel
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'frontend', 'admin'),
-      serveRoot: '/',
+      serveRoot: '/panel',
       exclude: [
         '/api*',
         '/auth*',
