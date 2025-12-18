@@ -138,6 +138,10 @@ cd sistema-asistencia
 - `ssl/private-key.pem` - Clave privada (sin contraseña)
 - `ssl/colegio-certificado.cer` - Para distribuir a PCs cliente
 
+**Nota Importante:**
+
+El script detecta automáticamente la IP de tu **red física** (Wi-Fi o Ethernet), excluyendo adaptadores virtuales como WSL o Hyper-V. Verifica que muestre tu IP correcta (ej: `192.168.1.103`), NO una IP de Docker/WSL (ej: `172.23.0.1`).
+
 ---
 
 ## PASO 7: Configurar Variables de Entorno
@@ -340,6 +344,13 @@ ng build --configuration production
 
 Esto genera carpetas `dist/` con los archivos compilados.
 
+> [!IMPORTANT] > **IMPORTANTE:** Compila con `--base-href` correcto:
+>
+> - Panel Admin: `ng build --configuration production --base-href /panel/`
+> - App Scanner: `ng build --configuration production --base-href /scanner/`
+>
+> Esto asegura que Angular cargue correctamente sus recursos (JS, CSS) desde la ruta correcta.
+
 ### 10.2 Crear Estructura de Carpetas en el Servidor
 
 ```powershell
@@ -425,19 +436,19 @@ docker compose up -d
 **Panel Administrador:**
 
 ```
-https://192.168.1.103:443/
+https://192.168.1.103/panel
 ```
 
 **App Scanner:**
 
 ```
-https://192.168.1.103:443/scanner
+https://192.168.1.103/scanner
 ```
 
 **API (Swagger):**
 
 ```
-https://192.168.1.103:443/api
+https://192.168.1.103/api
 ```
 
 ---
@@ -970,5 +981,5 @@ docker compose logs --tail=100
 ---
 
 **Última Actualización**: 2025-12-18  
-**Versión**: 3.0  
+**Versión**: 3.1  
 **Autor**: Sistema de Control de Asistencia -AR

@@ -49,10 +49,15 @@ dotenv.config();
       rootPath: join(__dirname, '..', 'public/profiles/usuarios'),
       serveRoot: '/profiles/usuarios',
     }),
-    // Servir Panel Administrador Angular en /panel
+    // Servir Panel Administrador Angular en /admin
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'frontend', 'admin'),
-      serveRoot: '/panel',
+      serveRoot: '/admin',
+    }),
+    // Servir App Scanner Angular en /scanner
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'frontend', 'scanner'),
+      serveRoot: '/scanner',
     }),
     TypeOrmModule.forRoot(AppDataSource.options),
     ScheduleModule.forRoot(),
