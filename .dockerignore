@@ -49,7 +49,7 @@ logs/
 backups/
 
 # Ignorar certificados SSL (usar volumen)
-ssl/
+# ssl/  # Comentado: necesitamos copiar SSL al build
 
 # Ignorar archivos de usuario (usar volumen)
 public/profiles/usuarios/*
