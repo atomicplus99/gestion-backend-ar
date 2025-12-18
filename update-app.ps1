@@ -67,7 +67,7 @@ docker compose stop app
 
 # Rebuild imagen
 Write-Host "`n🔨 Reconstruyendo imagen..." -ForegroundColor Yellow
-docker compose build app --no-cache
+docker compose build app
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Error al construir imagen" -ForegroundColor Red
     Write-Host "🔄 Restaurando versión anterior..." -ForegroundColor Yellow
